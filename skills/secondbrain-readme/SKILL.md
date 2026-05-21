@@ -13,6 +13,9 @@ description: |
   - ao finalizar uma versão ou feature importante
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/readme` antes de qualquer outra resposta.
+
+
 # SecondBrain — README
 
 Gera um README.md completo e profissional usando o que o SecondBrain já sabe sobre o projeto.

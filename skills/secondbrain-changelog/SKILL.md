@@ -13,6 +13,9 @@ description: |
   - ao fechar uma versão ou sprint
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/changelog` antes de qualquer outra resposta.
+
+
 # SecondBrain — Changelog
 
 Gera o CHANGELOG.md no formato [Keep a Changelog](https://keepachangelog.com) usando

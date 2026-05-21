@@ -17,6 +17,9 @@ description: |
   "deixar o Claude preparado para este projeto" também deve acionar esta skill.
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/secondbrain-setup` antes de qualquer outra resposta.
+
+
 # SecondBrain Setup
 
 Configure a documentação persistente e a memória do Claude Code para este projeto.

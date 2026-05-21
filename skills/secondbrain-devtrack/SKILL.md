@@ -15,6 +15,9 @@ description: |
   "pode encerrar" ou qualquer sinal de encerramento de sessão sem ter gerado o devtrack.
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/devtrack` antes de qualquer outra resposta.
+
+
 # SecondBrain — Devtrack
 
 Gera e salva o log de sessão no vault do projeto.

@@ -13,6 +13,9 @@ description: |
   - ao adicionar alguém novo à equipe
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/onboarding` antes de qualquer outra resposta.
+
+
 # SecondBrain — Onboarding
 
 Gera um guia de onboarding completo para novos desenvolvedores, usando tudo que

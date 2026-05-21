@@ -13,6 +13,9 @@ description: |
   - antes de uma reunião de daily/standup
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/standup` antes de qualquer outra resposta.
+
+
 # SecondBrain — Standup
 
 Gera o texto de daily standup a partir do devtrack mais recente.

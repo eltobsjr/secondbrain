@@ -18,6 +18,9 @@ description: |
   mesmo sem pedir explicitamente para salvar.
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/learn` antes de qualquer outra resposta.
+
+
 # SecondBrain — Learn
 
 Captura um aprendizado e persiste nos dois lugares: memória do Claude Code + vault Obsidian.
