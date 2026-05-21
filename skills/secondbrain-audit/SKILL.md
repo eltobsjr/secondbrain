@@ -118,12 +118,29 @@ Exemplos de conflito:
 ### Verificação 6 — Vault desorganizado
 
 ```bash
-find *SecondBrain/ -maxdepth 1 -type f -name "*.md" | grep -v "Visão Geral\|CHECKLIST" 2>/dev/null
+find *SecondBrain/ -maxdepth 1 -type f -name "*.md" | grep -v "Visão Geral\|CHECKLIST\|ONBOARDING" 2>/dev/null
 ```
 
-Arquivos `.md` soltos na raiz do vault (que não sejam `Visão Geral` ou `CHECKLIST`) deveriam estar em subpastas.
+Arquivos `.md` soltos na raiz do vault (que não sejam `Visão Geral`, `CHECKLIST` ou `ONBOARDING`) deveriam estar em subpastas.
 
 **Ação sugerida:** listar os arquivos soltos e sugerir para qual subpasta mover cada um.
+
+---
+
+### Verificação 7 — README desatualizado
+
+```bash
+cat README.md 2>/dev/null | head -60
+```
+
+Compare o conteúdo do `README.md` com a stack registrada em `project_overview.md` da memória:
+
+- A stack no README bate com a stack na memória?
+- A descrição do projeto ainda é precisa?
+- Os comandos de instalação/execução ainda existem no `package.json` ou equivalente?
+
+**Problema:** README menciona tecnologia que foi removida, descreve o projeto de forma desatualizada, ou os comandos de `Como rodar` não existem mais.  
+**Ação sugerida:** rodar `/readme` para regenerar o README com o contexto atual do SecondBrain.
 
 ---
 
@@ -142,6 +159,7 @@ Arquivos `.md` soltos na raiz do vault (que não sejam `Visão Geral` ou `CHECKL
 | Padrão dos devtracks | {✅ OK / ⚠️ N problemas} | {N} |
 | Memórias conflitantes | {✅ OK / ⚠️ N problemas} | {N} |
 | Vault organizado | {✅ OK / ⚠️ N problemas} | {N} |
+| README atualizado | {✅ OK / ⚠️ N problemas} | {N} |
 
 {Se tudo OK}: Nenhum problema encontrado. SecondBrain saudável.
 
