@@ -17,6 +17,9 @@ description: |
   antes de começar a próxima.
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/priority` antes de qualquer outra resposta.
+
+
 # SecondBrain — Priority
 
 Consolida todas as pendências abertas do projeto em uma lista de prioridades única.

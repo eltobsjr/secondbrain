@@ -14,6 +14,9 @@ description: |
   - ao preparar um deploy de produção ou publicação de versão
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/release` antes de qualquer outra resposta.
+
+
 # SecondBrain — Release
 
 Prepara tudo para um release: release notes, CHANGELOG atualizado e tag git.

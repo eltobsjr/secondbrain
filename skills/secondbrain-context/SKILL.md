@@ -18,6 +18,9 @@ description: |
   O /context é um briefing de 30 segundos para começar a trabalhar agora.
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/context` antes de qualquer outra resposta.
+
+
 # SecondBrain — Context
 
 Briefing rápido de início de sessão. Foco em: onde estou, o que está aberto, o que fazer agora.

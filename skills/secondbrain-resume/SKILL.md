@@ -15,6 +15,9 @@ description: |
   Também útil quando o usuário chega com "por onde eu estava?" ou "o que falta?".
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/resume` antes de qualquer outra resposta.
+
+
 # SecondBrain — Resume
 
 Gera um resumo estruturado do estado atual do projeto.

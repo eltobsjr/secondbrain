@@ -16,6 +16,9 @@ description: |
   - quando as respostas do Claude parecerem desconexas com o estado real do projeto
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/audit` antes de qualquer outra resposta.
+
+
 # SecondBrain — Audit
 
 Verifica a saúde do SecondBrain e identifica o que está desatualizado, inconsistente ou abandonado.

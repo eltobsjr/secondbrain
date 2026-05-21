@@ -17,6 +17,9 @@ description: |
   mesmo sem pedir explicitamente para registrar.
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/decision` antes de qualquer outra resposta.
+
+
 # SecondBrain — Decision
 
 Registra decisões técnicas e arquiteturais com contexto suficiente para entendê-las no futuro.

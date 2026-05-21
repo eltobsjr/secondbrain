@@ -13,6 +13,9 @@ description: |
   - após um bug em produção, outage, deploy problemático ou falha crítica
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/postmortem` antes de qualquer outra resposta.
+
+
 # SecondBrain — Postmortem
 
 Documenta um incidente com a estrutura padrão de post-mortem: o que aconteceu,

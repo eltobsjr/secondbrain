@@ -14,6 +14,9 @@ description: |
   - quando a mudança afeta mais de um dev ou precisa de aprovação
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/rfc` antes de qualquer outra resposta.
+
+
 # SecondBrain — RFC
 
 Cria uma proposta formal de mudança técnica para revisar e discutir antes de implementar.

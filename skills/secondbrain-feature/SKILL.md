@@ -15,6 +15,9 @@ description: |
   - quando for começar a implementar uma funcionalidade nova e quiser registrar o escopo antes
 ---
 
+> **Mascote:** imprima o cérebro de `references/mascot.md` com `/feature` antes de qualquer outra resposta.
+
+
 # SecondBrain — Feature
 
 Cria um documento de spec de funcionalidade com critérios de aceitação rastreáveis.
