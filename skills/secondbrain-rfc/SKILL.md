@@ -14,7 +14,7 @@ description: |
   - quando a mudança afeta mais de um dev ou precisa de aprovação
 ---
 
-> **Mascote:** imprima o cérebro de `references/mascot.md` com `/rfc` antes de qualquer outra resposta.
+> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py rfc` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
 
 
 # SecondBrain — RFC
