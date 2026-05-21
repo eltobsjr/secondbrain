@@ -1,35 +1,73 @@
 # secondbrain
 
-Suite de skills para Claude Code que cria e mantém um sistema de memória persistente para projetos de software.
+Suite de 16 skills para Claude Code que cria e mantém um sistema de memória persistente, documentação e rastreamento de conhecimento para projetos de software.
 
 ## O que é
 
-O **SecondBrain** é uma camada de conhecimento viva que cresce junto com o projeto. Ele une três peças:
+O **SecondBrain** é uma camada de conhecimento viva que cresce junto com o projeto. A cada sessão, o Claude sabe exatamente onde o projeto parou, quais decisões foram tomadas e o que está em aberto — sem precisar reexplicar nada.
 
-- **CLAUDE.md** — instruções e regras do projeto para o Claude Code
-- **Vault Obsidian** — documentação legível por humanos (`{Projeto}SecondBrain/`)
+Ele une três camadas:
+
+- **CLAUDE.md** — instruções, stack e regras do projeto para o Claude Code
+- **Vault Obsidian** — documentação local legível por humanos (`{Projeto}SecondBrain/`)
 - **Memória Claude Code** — contexto persistente entre sessões (`~/.claude/projects/.../memory/`)
 
-## Skills incluídas
+O vault fica no `.gitignore` — é documentação pessoal de cada dev, não vai para o repositório do projeto.
 
-| Skill | Gatilho | Descrição |
-|---|---|---|
-| `secondbrain:setup` | `/secondbrain-setup` | Setup inicial: explora o repo, faz perguntas e gera as 3 camadas |
-| `secondbrain:devtrack` | `/devtrack` | Gera log de sessão em `{Projeto}SecondBrain/devtrack/` |
-| `secondbrain:resume` | `/resume` | Resumo do estado atual do projeto + pendências abertas |
-| `secondbrain:context` | `/context` | Briefing de início de sessão — o que está em aberto e o que vem a seguir |
-| `secondbrain:learn` | `/learn` | Captura um aprendizado/gotcha direto na memória e no vault |
-| `secondbrain:decision` | `/decision` | Registra uma decisão técnica com contexto e alternativas |
-| `secondbrain:priority` | `/priority` | Atualiza a lista de prioridades em `{Projeto}SecondBrain/prioridade/` |
-| `secondbrain:feature` | `/feature` | Cria spec de funcionalidade com critérios de aceitação |
-| `secondbrain:audit` | `/audit` | Auditoria de saúde: detecta inconsistências, memórias desatualizadas e tarefas abandonadas |
-| `secondbrain:readme` | `/readme` | Gera ou atualiza o README.md a partir do contexto do SecondBrain |
-| `secondbrain:standup` | `/standup` | Resumo de daily standup a partir do devtrack mais recente |
-| `secondbrain:changelog` | `/changelog` | Gera ou atualiza o CHANGELOG.md no formato Keep a Changelog |
-| `secondbrain:onboarding` | `/onboarding` | Guia de onboarding para novos desenvolvedores |
-| `secondbrain:postmortem` | `/postmortem` | Post-mortem de incidente com causa raiz e plano de ação |
-| `secondbrain:rfc` | `/rfc` | Proposta formal de mudança técnica para discussão em equipe |
-| `secondbrain:release` | `/release` | Release notes, CHANGELOG atualizado e tag git |
+---
+
+## Mascote
+
+Cada skill exibe um cérebro animado em roxo ao ser invocada — partículas ciano e sparks amarelas orbitando por ~2 segundos antes de executar.
+
+Requer Python 3. Fallback estático disponível se Python não estiver instalado.
+
+---
+
+## Skills
+
+### Workflow diário
+
+| Comando | O que faz |
+|---|---|
+| `/secondbrain-setup` | Setup inicial: explora o repo, faz perguntas e gera as 3 camadas. Detecta SecondBrain existente e oferece atualizar em vez de recriar. |
+| `/context` | Briefing compacto de início de sessão: branch, último devtrack, pendências abertas e próxima ação recomendada |
+| `/devtrack` | Gera o log da sessão em `{Projeto}SecondBrain/devtrack/`. Infere o título automaticamente. Avisa se o último log tem mais de 3 dias. |
+| `/standup` | Daily standup em 3 blocos (ontem / hoje / bloqueios) a partir do devtrack mais recente |
+| `/resume` | Revisão completa: o que foi feito, todas as pendências abertas e próxima ação recomendada |
+
+### Captura de conhecimento
+
+| Comando | O que faz |
+|---|---|
+| `/learn` | Captura um aprendizado ou gotcha direto na memória do Claude Code + nota no vault |
+| `/decision` | Registra uma decisão técnica com contexto, alternativas consideradas e consequências |
+
+### Gestão de projeto
+
+| Comando | O que faz |
+|---|---|
+| `/priority` | Coleta todos os `[ ]` dos devtracks e CHECKLIST.md, deduplica e gera `prioridade/atual.md` em Alta / Média / Baixa |
+| `/feature` | Cria spec de funcionalidade com critérios de aceitação rastreáveis por emoji (🔲 🔄 ✅ ❌). Sugere `/changelog` quando todos os CAs ficam ✅ |
+| `/audit` | 7 verificações de saúde: links quebrados, caminhos inexistentes, tarefas abandonadas, devtracks fora do padrão, memórias conflitantes, vault desorganizado, README desatualizado |
+
+### Documentação
+
+| Comando | O que faz |
+|---|---|
+| `/readme` | Gera ou atualiza o README.md do projeto usando o contexto do SecondBrain |
+| `/changelog` | Gera ou atualiza o CHANGELOG.md no formato Keep a Changelog a partir de devtracks + git log |
+| `/onboarding` | Guia completo para novos devs: stack, instalação, padrões, decisões importantes, fluxo de trabalho |
+| `/release` | Release notes, CHANGELOG atualizado e tag git (sem auto-push) |
+
+### Eventos especiais
+
+| Comando | O que faz |
+|---|---|
+| `/postmortem` | Post-mortem de incidente: linha do tempo, causa raiz, impacto e plano de ação com dono e prazo |
+| `/rfc` | Proposta formal de mudança técnica com alternativas, impacto e pontos em aberto para discussão em equipe |
+
+---
 
 ## Instalação
 
@@ -37,7 +75,13 @@ O **SecondBrain** é uma camada de conhecimento viva que cresce junto com o proj
 claude plugin install https://github.com/eltobsjr/secondbrain
 ```
 
-Ou manualmente: clone o repositório e aponte o plugin para a pasta local.
+Ou manualmente:
+
+```bash
+git clone https://github.com/eltobsjr/secondbrain ~/.claude/plugins/secondbrain
+```
+
+---
 
 ## Como usar
 
@@ -47,39 +91,82 @@ Abra o Claude Code dentro de qualquer projeto e rode:
 /secondbrain-setup
 ```
 
-O Claude vai explorar o repositório, fazer perguntas de setup e gerar toda a estrutura automaticamente.
+O Claude vai explorar o repositório, fazer perguntas e gerar toda a estrutura automaticamente. Em 2 minutos o projeto está configurado.
 
-Nas sessões seguintes:
-- `/devtrack` — ao final de cada sessão de trabalho
-- `/resume` — para ver o estado atual antes de começar
-- `/context` — para um briefing rápido de início de sessão
+### Rotina sugerida
+
+```
+Início da sessão  →  /context
+Final da sessão   →  /devtrack
+Daily standup     →  /standup
+Novo aprendizado  →  /learn  "o que descobriu"
+Nova decisão      →  /decision
+```
+
+---
+
+## O que é gerado no projeto
+
+```
+meu-projeto/
+├── CLAUDE.md                          ← instruções para o Claude Code
+├── .gitignore                         ← {Projeto}SecondBrain/ ignorado
+└── {Projeto}SecondBrain/              ← vault Obsidian (local, fora do git)
+    ├── {Projeto} — Visão Geral.md
+    ├── CHECKLIST.md
+    ├── devtrack/                      ← logs de sessão (YYYY-MM-DD - Título.md)
+    ├── prioridade/                    ← atual.md gerado pelo /priority
+    ├── decisions/                     ← ADRs gerados pelo /decision
+    ├── features/                      ← specs geradas pelo /feature
+    ├── rfcs/                          ← propostas geradas pelo /rfc
+    ├── postmortems/                   ← relatórios gerados pelo /postmortem
+    └── releases/                      ← release notes do /release
+```
+
+E na memória local do Claude Code:
+
+```
+~/.claude/projects/{projeto}/memory/
+├── MEMORY.md                          ← índice
+├── project_overview.md                ← stack e objetivo
+├── feedback_language.md               ← idioma de comunicação
+├── feedback_rules.md                  ← regras do projeto (se definidas)
+└── project_tools.md                   ← issue tracker e equipe (se aplicável)
+```
+
+---
 
 ## Estrutura do repositório
 
 ```
 secondbrain/
 ├── skills/
-│   ├── secondbrain-setup/      SKILL.md
-│   ├── secondbrain-devtrack/   SKILL.md
-│   ├── secondbrain-resume/     SKILL.md
-│   ├── secondbrain-context/    SKILL.md
-│   ├── secondbrain-learn/      SKILL.md
-│   ├── secondbrain-decision/   SKILL.md
-│   ├── secondbrain-priority/   SKILL.md
-│   ├── secondbrain-feature/    SKILL.md
-│   ├── secondbrain-audit/      SKILL.md
-│   ├── secondbrain-readme/     SKILL.md
-│   ├── secondbrain-standup/    SKILL.md
-│   ├── secondbrain-changelog/  SKILL.md
-│   ├── secondbrain-onboarding/ SKILL.md
-│   ├── secondbrain-postmortem/ SKILL.md
-│   ├── secondbrain-rfc/        SKILL.md
-│   └── secondbrain-release/    SKILL.md
+│   ├── secondbrain-setup/
+│   ├── secondbrain-devtrack/
+│   ├── secondbrain-resume/
+│   ├── secondbrain-context/
+│   ├── secondbrain-learn/
+│   ├── secondbrain-decision/
+│   ├── secondbrain-priority/
+│   ├── secondbrain-feature/
+│   ├── secondbrain-audit/
+│   ├── secondbrain-readme/
+│   ├── secondbrain-standup/
+│   ├── secondbrain-changelog/
+│   ├── secondbrain-onboarding/
+│   ├── secondbrain-postmortem/
+│   ├── secondbrain-rfc/
+│   └── secondbrain-release/
+├── scripts/
+│   └── mascot.py                      ← animação do cérebro
 ├── references/
-│   └── devtrack-format.md      Padrão de formato dos logs de sessão
+│   ├── devtrack-format.md             ← padrão dos logs de sessão
+│   └── mascot.md                      ← instruções + fallback estático
 ├── package.json
 └── README.md
 ```
+
+---
 
 ## Licença
 
