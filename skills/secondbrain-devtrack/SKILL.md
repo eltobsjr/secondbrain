@@ -26,8 +26,9 @@ Gera e salva o log de sessão no vault do projeto.
 Execute em paralelo:
 
 ```bash
-# Data de hoje
+# Data de hoje e do devtrack mais recente
 date +%Y-%m-%d
+ls *SecondBrain/devtrack/ 2>/dev/null | sort | tail -1
 
 # Arquivos modificados na sessão (staged + unstaged + untracked relevantes)
 git diff --name-only HEAD 2>/dev/null
@@ -42,6 +43,13 @@ ls *SecondBrain/devtrack/ 2>/dev/null | sort | tail -5
 ```
 
 Também use a conversa atual como fonte primária: o que foi discutido, implementado, corrigido, decidido ou planejado nesta sessão.
+
+**Verificar gap desde o último devtrack:**
+A partir do nome do devtrack mais recente, extraia a data (`YYYY-MM-DD`). Se a diferença para hoje for maior que 3 dias, avise antes de continuar:
+
+> "⚠️ O último devtrack foi em {data} ({N} dias atrás). Sessões sem registro podem ter perdido contexto. Vou gerar o devtrack de hoje — se quiser, posso também criar um devtrack resumido do período {data} → hoje."
+
+Se o usuário quiser o devtrack do período, gere um único arquivo cobrindo o intervalo, usando git log como fonte principal.
 
 ---
 

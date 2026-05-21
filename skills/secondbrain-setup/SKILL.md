@@ -21,7 +21,30 @@ description: |
 
 Configure a documentação persistente e a memória do Claude Code para este projeto.
 
-**Ordem obrigatória: explorar → perguntar → gerar. Não gere nada antes de concluir as perguntas.**
+**Ordem obrigatória: detectar → explorar → perguntar → gerar. Não gere nada antes de concluir as perguntas.**
+
+---
+
+## Passo 0 — Detectar se já existe SecondBrain
+
+```bash
+ls -d *SecondBrain/ 2>/dev/null
+```
+
+**Se encontrar uma pasta `{NomeProjeto}SecondBrain/`**, o projeto já foi configurado.
+Não refaça o setup do zero. Pergunte ao usuário:
+
+> "Este projeto já tem um SecondBrain configurado ({NomeProjeto}SecondBrain/).
+> O que você quer fazer?
+> 1. Atualizar — revisar stack, regras e memória sem apagar o que existe
+> 2. Recriar — apagar e gerar tudo do zero (⚠️ perde devtracks e documentação existente)
+> 3. Cancelar"
+
+- Se escolher **Atualizar**: pule para o Passo 1 (explorar), depois Passo 2 (perguntar com os valores atuais pré-preenchidos), e no Passo 3 edite apenas os arquivos desatualizados — não sobrescreva devtracks, decisions, features ou HUs existentes.
+- Se escolher **Recriar**: avise claramente o que será perdido e aguarde confirmação antes de continuar.
+- Se escolher **Cancelar**: encerre sem fazer nada.
+
+**Se não encontrar**, siga o fluxo normal abaixo.
 
 ---
 

@@ -144,3 +144,15 @@ CAs registrados: {N}
 
 Mostre o documento gerado para o usuário revisar.
 Se quiser ajustar CAs, escopo ou descrição, corrija antes de salvar definitivamente.
+
+---
+
+## Passo 8 — Detectar feature concluída (ao atualizar status dos CAs)
+
+Quando o usuário atualizar o status dos CAs de uma feature existente e **todos ficarem ✅**,
+avise automaticamente:
+
+> "🎉 Todos os CAs da feature '{Nome}' estão concluídos.
+> Quer registrar isso no changelog? Posso gerar a entrada agora com `/changelog`."
+
+Não execute o `/changelog` automaticamente — apenas sugira. O usuário decide.
