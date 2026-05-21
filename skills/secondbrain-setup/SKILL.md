@@ -109,12 +109,15 @@ Crie `CLAUDE.md` na raiz do repositório:
 
 ## 1. Sempre ler a memória antes de começar
 
-Ao iniciar qualquer conversa neste projeto, leia o índice de memória em:
+Ao iniciar qualquer conversa neste projeto:
 
-{caminho-da-memória}/MEMORY.md
+1. Leia o índice de memória: `{caminho-da-memória}/MEMORY.md`  
+   É um índice — siga os links para os arquivos relevantes à tarefa atual.
 
-O MEMORY.md é um índice — siga os links para os arquivos relevantes à tarefa
-atual. Isso garante continuidade entre sessões.
+2. Leia o devtrack mais recente:  
+   `ls {caminho-absoluto}/{NomeProjeto}SecondBrain/devtrack/ | sort | tail -1`  
+   e leia o arquivo retornado. Isso garante continuidade: o que foi feito,
+   decisões tomadas e pendências abertas na última sessão.
 
 ## 2. Stack e tecnologias
 
