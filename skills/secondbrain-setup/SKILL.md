@@ -204,10 +204,12 @@ Setup inicial realizado em {data-de-hoje}.
 
 **`.gitignore`** — adicionar ao existente (ou criar):
 ```
-# SecondBrain — Obsidian config
-{NomeProjeto}SecondBrain/.obsidian/
-{NomeProjeto}SecondBrain/.trash/
+# SecondBrain — documentação pessoal local
+{NomeProjeto}SecondBrain/
 ```
+
+O vault inteiro fica fora do controle de versão — é documentação pessoal de cada dev,
+não deve ser compartilhada no repositório do projeto.
 
 ---
 
