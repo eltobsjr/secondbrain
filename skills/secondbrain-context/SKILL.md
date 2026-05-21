@@ -18,7 +18,7 @@ description: |
   O /context é um briefing de 30 segundos para começar a trabalhar agora.
 ---
 
-> **Mascote:** imprima o cérebro de `references/mascot.md` com `/context` antes de qualquer outra resposta.
+> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py context` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
 
 
 # SecondBrain — Context
