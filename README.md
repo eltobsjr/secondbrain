@@ -30,7 +30,7 @@ Requer Python 3. Fallback estático disponível se Python não estiver instalado
 
 | Comando | O que faz |
 |---|---|
-| `/secondbrain-setup` | Setup inicial: explora o repo, faz perguntas e gera as 3 camadas. Detecta SecondBrain existente e oferece atualizar em vez de recriar. |
+| `/secondbrain-setup` | Setup inicial: explora o repo, faz perguntas e gera as 3 camadas. Detecta SecondBrain existente e oferece atualizar em vez de recriar. Flag `--import-history`: importa o histórico de commits (até 50) e gera devtracks retroativos + pasta `commits/` no vault. |
 | `/context` | Briefing compacto de início de sessão: branch, último devtrack, pendências abertas e próxima ação recomendada |
 | `/devtrack` | Gera o log da sessão em `{Projeto}SecondBrain/devtrack/`. Infere o título automaticamente. Avisa se o último log tem mais de 3 dias. |
 | `/standup` | Daily standup em 3 blocos (ontem / hoje / bloqueios) a partir do devtrack mais recente |
@@ -147,6 +147,7 @@ meu-projeto/
     ├── {Projeto} — Visão Geral.md
     ├── CHECKLIST.md
     ├── devtrack/                      ← logs de sessão (YYYY-MM-DD - Título.md)
+    ├── commits/                       ← resumo de cada commit (gerado pelo --import-history)
     ├── prioridade/                    ← atual.md gerado pelo /priority
     ├── análise/                       ← relatórios completos gerados pelo /analyze
     ├── decisions/                     ← ADRs gerados pelo /decision
