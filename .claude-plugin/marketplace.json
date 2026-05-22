@@ -1,0 +1,15 @@
+{
+  "name": "secondbrain",
+  "owner": {
+    "name": "eltobsjr",
+    "url": "https://github.com/eltobsjr"
+  },
+  "plugins": [
+    {
+      "name": "secondbrain",
+      "source": "./",
+      "description": "Persistent memory, documentation and knowledge tracking for software projects — 17 skills for daily workflow, analysis and knowledge management.",
+      "version": "0.2.0"
+    }
+  ]
+}

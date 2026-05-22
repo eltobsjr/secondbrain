@@ -1,6 +1,6 @@
 # secondbrain
 
-Suite de 16 skills para Claude Code que cria e mantém um sistema de memória persistente, documentação e rastreamento de conhecimento para projetos de software.
+Suite de 17 skills para Claude Code que cria e mantém um sistema de memória persistente, documentação e rastreamento de conhecimento para projetos de software.
 
 ## O que é
 
@@ -60,6 +60,13 @@ Requer Python 3. Fallback estático disponível se Python não estiver instalado
 | `/onboarding` | Guia completo para novos devs: stack, instalação, padrões, decisões importantes, fluxo de trabalho |
 | `/release` | Release notes, CHANGELOG atualizado e tag git (sem auto-push) |
 
+### Análise e diagnóstico
+
+| Comando | O que faz |
+|---|---|
+| `/analyze` | Análise completa em 16 dimensões: arquitetura, backend, frontend, banco de dados, segurança, performance, DevOps, qualidade de código, testes, produto e negócio, SEO e acessibilidade. Gera nota geral, top 10 problemas, top 10 pontos fortes e plano de evolução. Salva `PROJECT_CONTEXT.md` na raiz para que o Claude leia automaticamente nas próximas sessões. |
+| `/audit` | 7 verificações de saúde: links quebrados, caminhos inexistentes, tarefas abandonadas, devtracks fora do padrão, memórias conflitantes, vault desorganizado, README desatualizado |
+
 ### Eventos especiais
 
 | Comando | O que faz |
@@ -71,14 +78,38 @@ Requer Python 3. Fallback estático disponível se Python não estiver instalado
 
 ## Instalação
 
-```bash
-claude plugin install https://github.com/eltobsjr/secondbrain
+### Via marketplace (recomendado)
+
+Adicione o repositório como marketplace e instale o plugin:
+
+```
+/plugin marketplace add eltobsjr/secondbrain
+/plugin install secondbrain@secondbrain
 ```
 
-Ou manualmente:
+### Via linha de comando
 
 ```bash
-git clone https://github.com/eltobsjr/secondbrain ~/.claude/plugins/secondbrain
+# Adicionar o marketplace
+claude plugin marketplace add eltobsjr/secondbrain
+
+# Instalar o plugin
+claude plugin install secondbrain@secondbrain
+```
+
+### Manualmente (clone local)
+
+```bash
+git clone https://github.com/eltobsjr/secondbrain
+claude --plugin-dir ./secondbrain
+```
+
+Para carregar automaticamente em todas as sessões, adicione ao seu `~/.claude/settings.json`:
+
+```json
+{
+  "plugins": ["~/.claude/plugins/secondbrain"]
+}
 ```
 
 ---
@@ -110,12 +141,14 @@ Nova decisão      →  /decision
 ```
 meu-projeto/
 ├── CLAUDE.md                          ← instruções para o Claude Code
+├── PROJECT_CONTEXT.md                 ← contexto gerado pelo /analyze (lido automaticamente pelo Claude)
 ├── .gitignore                         ← {Projeto}SecondBrain/ ignorado
 └── {Projeto}SecondBrain/              ← vault Obsidian (local, fora do git)
     ├── {Projeto} — Visão Geral.md
     ├── CHECKLIST.md
     ├── devtrack/                      ← logs de sessão (YYYY-MM-DD - Título.md)
     ├── prioridade/                    ← atual.md gerado pelo /priority
+    ├── análise/                       ← relatórios completos gerados pelo /analyze
     ├── decisions/                     ← ADRs gerados pelo /decision
     ├── features/                      ← specs geradas pelo /feature
     ├── rfcs/                          ← propostas geradas pelo /rfc
@@ -140,8 +173,13 @@ E na memória local do Claude Code:
 
 ```
 secondbrain/
+├── .claude-plugin/
+│   ├── plugin.json                    ← manifesto do plugin (nome, versão, autor)
+│   └── marketplace.json              ← permite instalar via /plugin marketplace add
+├── CLAUDE.md                          ← instruções base para o Claude Code
 ├── skills/
 │   ├── secondbrain-setup/
+│   ├── secondbrain-analyze/           ← análise completa + gera PROJECT_CONTEXT.md
 │   ├── secondbrain-devtrack/
 │   ├── secondbrain-resume/
 │   ├── secondbrain-context/

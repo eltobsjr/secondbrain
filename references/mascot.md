@@ -37,6 +37,7 @@ Passe o nome do comando sem a barra como primeiro argumento:
 | `/postmortem` | `postmortem` |
 | `/rfc` | `rfc` |
 | `/release` | `release` |
+| `/analyze` | `analyze` |
 
 ## O que a animação faz
 
