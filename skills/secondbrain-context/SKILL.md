@@ -20,6 +20,8 @@ description: |
 
 # SecondBrain — Context
 
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
+
 Briefing rápido de início de sessão. Foco em: onde estou, o que está aberto, o que fazer agora.
 
 ---
@@ -32,12 +34,13 @@ git status --short 2>/dev/null
 git branch --show-current 2>/dev/null
 git log --oneline -5 2>/dev/null
 
-# Devtrack mais recente
-ls *SecondBrain/devtrack/ 2>/dev/null | sort | tail -1
+# Estado curto e devtrack mais recente
+cat {vault}/{estado} 2>/dev/null
+ls {vault}/{devtrack}/ 2>/dev/null | sort | tail -1
 ```
 
 Leia:
-1. O **devtrack mais recente** — inteiro, focando no `## Status` e `## Próximos passos`
+1. O **`ESTADO.md`** (papel `estado`), se existir — é o retrato curto e já responde "onde estou". Só abra o devtrack mais recente se o `ESTADO.md` não existir ou estiver mais velho que ele (compare `atualizado:` com a data do devtrack). Ao abrir, foque em `## Status` e `## Próximos passos`
 2. O **MEMORY.md** — só o índice, para saber o que existe
 3. Qualquer arquivo de memória `project_*.md` relevante para o contexto atual
 4. O **CHECKLIST.md** do vault, se existir e tiver itens não marcados

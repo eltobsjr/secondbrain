@@ -17,6 +17,8 @@ description: |
 
 # SecondBrain — Devtrack
 
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
+
 Gera e salva o log de sessão no vault do projeto.
 
 ---
@@ -28,7 +30,7 @@ Execute em paralelo:
 ```bash
 # Data de hoje e do devtrack mais recente
 date +%Y-%m-%d
-ls *SecondBrain/devtrack/ 2>/dev/null | sort | tail -1
+ls {vault}/{devtrack}/ 2>/dev/null | sort | tail -1
 
 # Arquivos modificados na sessão (staged + unstaged + untracked relevantes)
 git diff --name-only HEAD 2>/dev/null
@@ -39,7 +41,7 @@ git status --short 2>/dev/null
 git log --oneline --since="10 hours ago" 2>/dev/null
 
 # Caminho do vault
-ls *SecondBrain/devtrack/ 2>/dev/null | sort | tail -5
+ls {vault}/{devtrack}/ 2>/dev/null | sort | tail -5
 ```
 
 Também use a conversa atual como fonte primária: o que foi discutido, implementado, corrigido, decidido ou planejado nesta sessão.
@@ -88,6 +90,12 @@ YYYY-MM-DD - {Título inferido}.md
 ### Estrutura obrigatória
 
 ```markdown
+---
+tipo: devtrack
+data: YYYY-MM-DD
+commits: [{hashes curtos dos commits da sessão, se houver}]
+---
+
 # YYYY-MM-DD — {Título}
 
 {Se foi sessão de análise sem código}: > Sessão de análise e planejamento. Sem implementação de código.
@@ -110,6 +118,10 @@ YYYY-MM-DD - {Título inferido}.md
 - [x] {Cada coisa concluída}
 - [ ] {Cada pendência em aberto}
 ```
+
+### Modo curto
+
+Sessão pequena (poucos arquivos, nenhuma decisão, nenhum bug relevante): gere só `## O que foi feito`, `## Status` e, se houver, `## Próximos passos`. Não encha seções por obrigação. Respeite também o `nomes.devtrack` e os `campos-extra.devtrack` do manifesto, se existirem.
 
 ### Seções opcionais (adicionar quando aplicável)
 
@@ -150,9 +162,15 @@ Detecte o vault do projeto:
 ls -d *SecondBrain/ 2>/dev/null
 ```
 
-Salve o devtrack em `{NomeProjeto}SecondBrain/devtrack/YYYY-MM-DD - {Título}.md`.
+Salve o devtrack em `{vault}/{devtrack}/YYYY-MM-DD - {Título}.md`.
 
 Se não encontrar o vault na raiz, procure no diretório pai ou pergunte ao usuário onde está o SecondBrain do projeto.
+
+---
+
+## Passo 4b — Atualizar o ESTADO.md
+
+Se o vault tem o papel `estado` (arquivo `ESTADO.md` ou o caminho do manifesto) — ou o módulo `estado` está ligado — **reescreva-o inteiro** conforme `references/estado-format.md`: Agora, Próximo passo, Bloqueios, Fatos voláteis (com data). Se o arquivo não existe e o módulo está ligado, crie-o. Se o projeto não usa o módulo, pule este passo sem perguntar.
 
 ---
 
@@ -161,7 +179,8 @@ Se não encontrar o vault na raiz, procure no diretório pai ou pergunte ao usu�
 Após salvar, exiba:
 
 ```
-✓ Devtrack salvo: {NomeProjeto}SecondBrain/devtrack/YYYY-MM-DD - {Título}.md
+✓ Devtrack salvo: {vault}/{devtrack}/YYYY-MM-DD - {Título}.md
+{Se atualizou}: ✓ ESTADO.md atualizado
 
 {Se houver pendências abertas}:
 Pendências registradas:

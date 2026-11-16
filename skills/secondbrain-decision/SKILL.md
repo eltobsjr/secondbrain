@@ -15,9 +15,12 @@ description: |
   Também acionar quando, durante uma conversa técnica, uma decisão importante for tomada
   e o usuário disser "vamos com X então", "decidido: Y", "optamos por Z" —
   mesmo sem pedir explicitamente para registrar.
+argument-hint: "[decisão tomada]"
 ---
 
 # SecondBrain — Decision
+
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
 
 Registra decisões técnicas e arquiteturais com contexto suficiente para entendê-las no futuro.
 
@@ -59,11 +62,11 @@ Não faça todas as perguntas de uma vez. Se a conversa já contém as respostas
 ## Passo 3 — Gerar o número da decisão
 
 ```bash
-ls {NomeProjeto}SecondBrain/decisions/ 2>/dev/null | wc -l
+ls {vault}/{decisoes}/ 2>/dev/null | grep -oE "^[0-9]+" | sort -n | tail -1
 ```
 
-Se a pasta não existir, crie-a e comece do 001.
-O número é sequencial com 3 dígitos: 001, 002, 003...
+Use o **maior número + 1** (a contagem de arquivos quebra com lacunas). Se a pasta não existir, crie-a e comece do 001.
+O número é sequencial com 3 dígitos: 001, 002, 003... (respeite `nomes.decisoes` do manifesto).
 
 ---
 
@@ -80,8 +83,11 @@ Conteúdo:
 
 ```markdown
 ---
+tipo: decisao
 data: {data-de-hoje}
-status: aceita
+status: aceita            # proposta | aceita | rejeitada | obsoleta | substituída por NNN
+tema: {tema curto, ex.: busca, infraestrutura}
+substitui: {NNN, se esta decisão torna outra obsoleta; senão omitir}
 ---
 
 # {NNN} — {Título}
@@ -102,6 +108,10 @@ status: aceita
 
 {Adicionar quantas opções forem relevantes. Se só havia uma opção óbvia, registre isso.}
 
+## Fatores de decisão
+
+{Critérios que pesaram: custo, prazo, risco, restrição de terceiros. Omitir se só havia um fator óbvio.}
+
 ## Decisão
 
 **{O que foi decidido, em uma frase direta.}**
@@ -111,12 +121,20 @@ status: aceita
 
 ## Consequências
 
+{Use "Bom, porque…" e "Ruim, porque…" para deixar o trade-off explícito.}
+
 {O que muda com essa decisão. Impactos positivos e negativos.
  Restrições que surgem. O que fica mais fácil e o que fica mais difícil.}
 
 {Se houver pendências ou pontos de revisão futura, liste-os:}
 - [ ] {Ponto de revisão, se aplicável}
+
+## Confirmação
+
+{Como saber que a decisão foi cumprida: teste, revisão de código, métrica. Omitir se não se aplica.}
 ```
+
+> Formato baseado no MADR 4 (contexto, fatores, opções, resultado, consequências, confirmação).
 
 ---
 
@@ -126,7 +144,9 @@ status: aceita
 ls -d *SecondBrain/ 2>/dev/null
 ```
 
-Salve em `{NomeProjeto}SecondBrain/decisions/{NNN} - {Título}.md`.
+Salve em `{vault}/{decisoes}/{NNN} - {Título}.md`.
+
+**Decisões não se reescrevem — substituem-se.** Se esta decisão torna outra obsoleta, preencha `substitui:` aqui e, na antiga, mude só o `status` para `substituída por {NNN}` (sem tocar no resto). Se a pasta tiver índice (`README.md` com tabela Nº / Título / Status / Data / Tema), acrescente a linha nova e atualize o status da antiga.
 
 Se a pasta `decisions/` não existir, crie-a.
 
@@ -135,7 +155,7 @@ Se a pasta `decisions/` não existir, crie-a.
 ## Passo 6 — Confirmar
 
 ```
-✓ Decisão registrada: {NomeProjeto}SecondBrain/decisions/{NNN} - {Título}.md
+✓ Decisão registrada: {vault}/{decisoes}/{NNN} - {Título}.md
 ```
 
 Mostre o conteúdo gerado para o usuário revisar antes de salvar.

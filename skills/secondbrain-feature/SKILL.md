@@ -13,9 +13,12 @@ description: |
   - "cria uma HU"
   - "documenta os requisitos de X"
   - quando for começar a implementar uma funcionalidade nova e quiser registrar o escopo antes
+argument-hint: "[nome da feature]"
 ---
 
 # SecondBrain — Feature
+
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
 
 Cria um documento de spec de funcionalidade com critérios de aceitação rastreáveis.
 
@@ -47,28 +50,23 @@ Caso contrário, pergunte na ordem abaixo, uma de cada vez:
 
 ---
 
-## Passo 3 — Detectar a pasta de destino
+## Passo 3 — Resolver a pasta de destino
 
-```bash
-ls *SecondBrain/ 2>/dev/null
-```
-
-Use a pasta adequada conforme o que existir no vault:
-- `features/` → padrão para specs de funcionalidade
-- `HUs/` → se o projeto usa nomenclatura de Histórias de Usuário
-- `components/` → se for uma spec de componente isolado
-
-Se nenhuma existir, crie `features/`.
+Use o caminho do papel `features` no manifesto (`_secondbrain.md`). Ele pode ser `features/`, `HUs/`, `docs/hu/` ou outro — o projeto manda.
+Sem manifesto: `features/` se existir, senão `HUs/` (se o projeto usa Histórias de Usuário), senão crie `features/`.
+Se o manifesto tiver `campos-extra.features` (ex.: `fase`, `uc`, `us`, `rf`), inclua esses campos no frontmatter e pergunte os valores.
 
 ---
 
 ## Passo 4 — Gerar o número sequencial
 
+Use o **maior número existente + 1**, não a contagem de arquivos (a contagem quebra quando há lacunas ou o 000):
+
 ```bash
-ls *SecondBrain/{pasta}/ 2>/dev/null | grep -E "^[0-9]" | wc -l
+ls {vault}/{features}/ 2>/dev/null | grep -oE "^[0-9]+" | sort -n | tail -1
 ```
 
-Número com 3 dígitos: 001, 002, 003...
+Número com 3 dígitos: 001, 002, 003... (respeite `nomes.features` se o manifesto definir outro padrão).
 
 ---
 
@@ -137,7 +135,7 @@ O usuário atualiza os status conforme implementa. A skill cria tudo como 🔲 P
 ## Passo 7 — Confirmar
 
 ```
-✓ Feature criada: {NomeProjeto}SecondBrain/{pasta}/{NNN} - {Nome}.md
+✓ Feature criada: {vault}/{features}/{NNN} - {Nome}.md
 
 CAs registrados: {N}
 ```

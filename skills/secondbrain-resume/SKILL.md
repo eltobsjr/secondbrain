@@ -17,6 +17,8 @@ description: |
 
 # SecondBrain — Resume
 
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
+
 Gera um resumo estruturado do estado atual do projeto.
 
 ---
@@ -27,7 +29,7 @@ Execute em paralelo:
 
 ```bash
 # Devtracks mais recentes (últimos 5)
-ls {NomeProjeto}SecondBrain/devtrack/ | sort | tail -5
+ls {vault}/{devtrack}/ | sort | tail -5
 
 # Git log recente
 git log --oneline -10 2>/dev/null
@@ -37,6 +39,7 @@ git status --short 2>/dev/null
 ```
 
 Leia:
+0. O **`ESTADO.md`** (papel `estado`), se existir, como ponto de partida — depois confirme com os devtracks
 1. Os **3 devtracks mais recentes** completos — foque nos `## Status` com checkboxes `[ ]` (pendências)
 2. O **MEMORY.md** e os arquivos de memória relevantes (`project_overview.md`, qualquer `project_*.md`)
 3. O **CHECKLIST.md** do vault, se existir

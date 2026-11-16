@@ -2,7 +2,7 @@
 name: secondbrain-priority
 description: |
   Coleta todas as pendências abertas do projeto, consolida e gera uma lista de
-  prioridades ordenada em {Projeto}SecondBrain/prioridade/atual.md.
+  prioridades ordenada em {vault}/{prioridade}.
   
   Use esta skill sempre que o usuário pedir para:
   - "/priority"
@@ -19,6 +19,8 @@ description: |
 
 # SecondBrain — Priority
 
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
+
 Consolida todas as pendências abertas do projeto em uma lista de prioridades única.
 
 O problema que esta skill resolve: pendências ficam espalhadas em vários devtracks,
@@ -30,10 +32,10 @@ no CHECKLIST.md e na memória. Esta skill as reúne em um único lugar ordenado.
 
 ```bash
 # Todos os devtracks (para varrer checkboxes abertos)
-ls *SecondBrain/devtrack/ | sort
+ls {vault}/{devtrack}/ | sort
 
 # Arquivo atual de prioridades (se existir)
-cat *SecondBrain/prioridade/atual.md 2>/dev/null
+cat {vault}/{prioridade} 2>/dev/null
 ```
 
 Leia:
@@ -44,8 +46,8 @@ Leia:
 
 **Dica de busca eficiente:**
 ```bash
-grep -r "- \[ \]" *SecondBrain/devtrack/ 2>/dev/null
-grep -r "- \[ \]" *SecondBrain/CHECKLIST.md 2>/dev/null
+grep -r "- \[ \]" {vault}/{devtrack}/ 2>/dev/null
+grep -r "- \[ \]" {vault}/CHECKLIST.md 2>/dev/null
 ```
 
 ---
@@ -74,10 +76,11 @@ Use o contexto da memória (`project_*.md`) e dos devtracks para inferir priorid
 
 ## Passo 4 — Gerar o arquivo
 
-Salve em `{NomeProjeto}SecondBrain/prioridade/atual.md` (sobrescreva se já existir):
+Salve em `{vault}/{prioridade}` (sobrescreva se já existir):
 
 ```markdown
 ---
+tipo: prioridade
 atualizado: {data-de-hoje}
 ---
 
@@ -106,12 +109,14 @@ atualizado: {data-de-hoje}
 
 ```
 ✓ {N} pendências encontradas em {N} devtracks
-✓ Prioridades salvas: {NomeProjeto}SecondBrain/prioridade/atual.md
+✓ Prioridades salvas: {vault}/{prioridade}
 
 Alta: {N} itens
 Média: {N} itens
 Baixa: {N} itens
 ```
+
+Se o vault usa o papel `estado`, atualize também o `ESTADO.md` (seções "Próximo passo" e "Bloqueios", conforme `references/estado-format.md`) e aponte para `{prioridade}` em vez de duplicar a lista.
 
 Mostre o arquivo gerado para o usuário revisar.
 Se o usuário quiser reordenar ou reclassificar algum item, ajuste e salve novamente.

@@ -31,7 +31,7 @@ Execute em paralelo:
 find *SecondBrain/ -type f 2>/dev/null | sort
 
 # Todos os arquivos de memória
-ls ~/.claude/projects/$(pwd | sed 's|/|-|g' | sed 's|^-||')/memory/ 2>/dev/null
+ls "$MEM" 2>/dev/null   # $MEM: ver references/vault-resolve.md, seção 5
 
 # Git log recente (para cruzar com devtracks)
 git log --oneline --since="30 days ago" 2>/dev/null
@@ -39,6 +39,8 @@ git log --oneline --since="30 days ago" 2>/dev/null
 # Arquivos do projeto que existem de fato
 ls src/ 2>/dev/null || ls app/ 2>/dev/null || ls lib/ 2>/dev/null
 ```
+
+**Primeiro leia o manifesto** `{vault}/_secondbrain.md`. A auditoria valida o vault **contra o manifesto dele**, não contra uma estrutura fixa. Sem manifesto, avise e ofereça a migração assistida (`references/vault-resolve.md`, seção 3) antes de auditar.
 
 Leia:
 1. **Todos os arquivos de memória** (`~/.claude/projects/.../memory/*.md`)
@@ -88,18 +90,14 @@ Cruze os `- [ ]` de todos os devtracks com os `- [x]` dos devtracks mais recente
 
 ### Verificação 4 — Devtracks sem padrão
 
-Verifique os arquivos em `devtrack/`:
-
-```bash
-ls *SecondBrain/devtrack/ | sort
-```
+Verifique os arquivos em `{vault}/{devtrack}/` contra `nomes.devtrack` do manifesto (padrão `AAAA-MM-DD - Título.md`):
 
 **Problemas a detectar:**
-- Arquivos sem data no nome (não seguem `YYYY-MM-DD - Título.md`)
-- Arquivos sem seção `## Status`
-- Arquivos sem nenhum checkbox `[ ]` ou `[x]`
+- Arquivos fora do padrão de nome do projeto
+- Arquivos sem nenhum checkbox `[ ]` ou `[x]` (impede extrair pendências)
+- Devtrack curto sem `## Status` **não é problema** quando o corpo é de uma sessão pequena; só sinalize se também não tem checkbox
 
-**Ação sugerida:** listar os arquivos problemáticos para o usuário corrigir manualmente.
+**Ação sugerida:** listar os arquivos para o usuário decidir; nunca renomear sozinho.
 
 ---
 
@@ -115,15 +113,16 @@ Exemplos de conflito:
 
 ---
 
-### Verificação 6 — Vault desorganizado
+### Verificação 6 — Vault x manifesto
 
-```bash
-find *SecondBrain/ -maxdepth 1 -type f -name "*.md" | grep -v "Visão Geral\|CHECKLIST\|ONBOARDING" 2>/dev/null
-```
+Compare as pastas e arquivos de primeiro nível do vault com `papeis`, `extras` e `modulos` do manifesto:
 
-Arquivos `.md` soltos na raiz do vault (que não sejam `Visão Geral`, `CHECKLIST` ou `ONBOARDING`) deveriam estar em subpastas.
+- Pasta de papel ou de `extras` **que não existe no disco** → manifesto desatualizado.
+- Pasta no disco que **não está no manifesto** → **não é erro**: ofereça registrá-la em `extras` (com uma descrição) ou ignorar.
+- Módulo ligado sem nenhuma nota há muito tempo → pergunte se deve ser desligado.
+- Arquivos `.md` soltos na raiz só importam se o projeto não tiver índice/README que os explique.
 
-**Ação sugerida:** listar os arquivos soltos e sugerir para qual subpasta mover cada um.
+**Nunca** sugira mover arquivos para adequá-los a uma estrutura padrão. A estrutura do projeto é a referência.
 
 ---
 
@@ -144,6 +143,58 @@ Compare o conteúdo do `README.md` com a stack registrada em `project_overview.m
 
 ---
 
+### Verificação 8 — Limites do MEMORY.md
+
+O Claude Code só carrega no início da sessão as **200 primeiras linhas ou 25 KB** do `MEMORY.md`.
+
+```bash
+wc -l -c "$MEM/MEMORY.md"
+```
+
+**Problema:** acima de 150 linhas ou 20 KB (aviso) / 200 linhas ou 25 KB (cortado). Entradas longas demais também desperdiçam espaço — cada linha deve ter ~150 caracteres.
+**Ação sugerida:** encurtar descrições, fundir memórias parecidas, arquivar o que ficou obsoleto.
+
+---
+
+### Verificação 9 — Links e referências
+
+- `[[links]]` do vault e das memórias que apontam para nota inexistente.
+- `substitui:` / `status: substituída por NNN` em decisões apontando para decisão inexistente, ou a antiga sem o status atualizado.
+- Memórias sem entrada no `MEMORY.md` (órfãs).
+
+**Ação sugerida:** corrigir o link, criar a nota ou remover a referência.
+
+---
+
+### Verificação 10 — Frontmatter e frescor
+
+- Notas dos papéis do manifesto sem frontmatter (`tipo`, `data`): liste em lote e ofereça a **fase 2 da migração** (adicionar frontmatter, dry-run primeiro).
+- Fatos que mudam (versões, "estado atual", números) sem data nem ponteiro para fonte viva. Priorize `ESTADO.md`, `Visão Geral` e memórias `project_*`.
+- `ESTADO.md` com `atualizado:` mais antigo que o devtrack mais recente.
+
+**Ação sugerida:** datar o fato, apontar a fonte ou removê-lo.
+
+---
+
+### Verificação 11 — Segredos (só se `versionado: true`)
+
+Se o vault vai para o git, procure padrões de segredo nas notas:
+
+```bash
+grep -rnEi "(api[_-]?key|secret|token|passw(or)?d|senha)\s*[:=]\s*\S{8,}|-----BEGIN [A-Z ]*PRIVATE KEY|(sk|ghp|glpat)-[A-Za-z0-9_-]{16,}" {vault}/ 2>/dev/null
+```
+
+**Problema:** credencial em nota versionada.
+**Ação sugerida:** remover, rotacionar a credencial e, se já foi commitada, tratar o histórico. **Nunca** repita o valor encontrado no relatório — mostre só arquivo e linha.
+
+---
+
+### Verificação 12 — Tipo de documento (só se `diataxis: true`)
+
+Notas de papéis de conhecimento (guias, análises, specs, decisões) devem ter `tipo-doc`: `tutorial` (aprender fazendo), `how-to` (resolver uma tarefa), `referencia` (consultar fatos) ou `explicacao` (entender o porquê). Devtrack, commits e prioridade são registros e ficam fora. Sinalize como **aviso** páginas sem `tipo-doc` ou que misturam tipos (ex.: um guia passo a passo com longas seções de justificativa). Nunca bloqueie nem reescreva.
+
+---
+
 ## Passo 3 — Gerar o relatório
 
 ```markdown
@@ -158,8 +209,13 @@ Compare o conteúdo do `README.md` com a stack registrada em `project_overview.m
 | Tarefas abandonadas | {✅ OK / ⚠️ N problemas} | {N} |
 | Padrão dos devtracks | {✅ OK / ⚠️ N problemas} | {N} |
 | Memórias conflitantes | {✅ OK / ⚠️ N problemas} | {N} |
-| Vault organizado | {✅ OK / ⚠️ N problemas} | {N} |
+| Vault x manifesto | {✅ OK / ⚠️ N problemas} | {N} |
 | README atualizado | {✅ OK / ⚠️ N problemas} | {N} |
+| Limites do MEMORY.md | {✅ OK / ⚠️ N problemas} | {N} |
+| Links e referências | {✅ OK / ⚠️ N problemas} | {N} |
+| Frontmatter e frescor | {✅ OK / ⚠️ N problemas} | {N} |
+| Segredos (se versionado) | {✅ OK / ⚠️ N problemas / — não se aplica} | {N} |
+| Tipo de documento (se ligado) | {✅ OK / ⚠️ N avisos / — não se aplica} | {N} |
 
 {Se tudo OK}: Nenhum problema encontrado. SecondBrain saudável.
 
@@ -177,11 +233,12 @@ Compare o conteúdo do `README.md` com a stack registrada em `project_overview.m
 
 ---
 
-## Passo 4 — Oferecer correção automática
+## Passo 4 — Oferecer correção
 
-Após mostrar o relatório, pergunte:
+Após o relatório, pergunte:
 
-> "Posso corrigir automaticamente os problemas simples? (links quebrados no MEMORY.md, entradas de memória com caminhos desatualizados)"
+> "Posso corrigir os problemas simples? (links quebrados no MEMORY.md, caminhos desatualizados nas memórias, registro de pastas novas em `extras`)"
 
-Se o usuário confirmar, corrija os problemas simples e liste o que foi feito.
-Problemas que exigem decisão do usuário (tarefas abandonadas, memórias conflitantes) — liste e aguarde instrução.
+- **Sempre mostre o plano antes de aplicar** (dry-run): arquivo, linha, mudança. Só aplique depois do ok.
+- Correções ficam restritas a: índice de memória, links, frontmatter acrescentado (nunca alterado) e `_secondbrain.md`. Não mova, renomeie nem apague notas.
+- Problemas que exigem decisão (tarefas abandonadas, memórias conflitantes, segredos) — liste e aguarde instrução.

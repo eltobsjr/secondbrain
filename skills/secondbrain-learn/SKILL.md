@@ -16,9 +16,12 @@ description: |
   Também acionar quando o usuário descobre algo surpreendente durante a sessão e diz
   coisas como "nossa, não sabia que X", "cuidado com Y", "descobri que Z" —
   mesmo sem pedir explicitamente para salvar.
+argument-hint: "[o que registrar]"
 ---
 
 # SecondBrain — Learn
+
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
 
 Captura um aprendizado e persiste nos dois lugares: memória do Claude Code + vault Obsidian.
 
@@ -72,13 +75,21 @@ O nome do arquivo será: `{tipo}_{slug}.md`
 
 ## Passo 4 — Calcular o caminho da memória
 
+Use a regra de `references/vault-resolve.md`, seção 5 (todo caractere não alfanumérico do `pwd` vira `-`, não só `/`):
+
 ```bash
-pwd  # se ainda não souber o caminho absoluto do projeto
+MEM="$HOME/.claude/projects/$(pwd | sed 's|[^A-Za-z0-9]|-|g')/memory"
 ```
 
-Caminho da memória: substitua cada `/` por `-` no resultado do pwd, prefixe com `~/.claude/projects/` e sufixe com `/memory/`.
+---
 
-Exemplo: `/home/user/dev/meu-projeto` → `~/.claude/projects/-home-user-dev-meu-projeto/memory/`
+## Passo 4b — Procurar antes de criar
+
+Leia o `MEMORY.md` e busque nas descrições (e, se preciso, com `grep -ril "{palavras-chave}" "$MEM"`) uma memória sobre o mesmo assunto.
+
+- **Existe e cobre o mesmo ponto** → atualize esse arquivo (acrescente o novo detalhe, ajuste o `description` se mudou) em vez de criar outro. Diga ao usuário qual arquivo foi atualizado.
+- **Existe mas contradiz o novo aprendizado** → mostre os dois trechos e pergunte qual vale; não deixe os dois.
+- **Não existe** → siga para o Passo 5.
 
 ---
 
@@ -102,6 +113,8 @@ metadata:
 **How to apply:** {Quando e como aplicar este conhecimento na prática.}
 ```
 
+Se o aprendizado é um fato que muda (versão, estado, número), escreva a data no texto — `(em AAAA-MM)` — ou aponte para a fonte viva. Se ele se relaciona com outra memória, cite-a com `[[nome-da-memória]]`.
+
 ---
 
 ## Passo 6 — Atualizar o MEMORY.md
@@ -124,10 +137,10 @@ Se o aprendizado tiver mais de 2-3 parágrafos, ou for uma referência técnica 
 ls -d *SecondBrain/ 2>/dev/null  # encontrar o vault
 ```
 
-Salve em `{NomeProjeto}SecondBrain/` na subpasta mais adequada:
-- Gotcha ou padrão técnico de um sistema específico → pasta raiz do vault
-- Relacionado a um componente/feature → `components/` ou `features/`
-- Referência de API ou backend → `api/`
+Escolha a pasta pelo manifesto (`papeis` e `extras`), não por um padrão fixo:
+- Relacionado a uma feature → o papel `features`
+- Referência de API, componente, guia ou outra pasta própria do projeto → a entrada de `extras` cuja descrição combina
+- Sem pasta que combine → raiz do vault (e, se for recorrente, ofereça criar uma pasta e registrá-la em `extras`)
 
 Nome do arquivo: `{Título descritivo}.md`
 
@@ -140,7 +153,7 @@ Para aprendizados curtos (1-2 frases), **não crie nota no vault** — a memóri
 ```
 ✓ Memória salva: {tipo}_{slug}.md
 ✓ MEMORY.md atualizado
-{Se criou nota no vault}: ✓ Nota criada: {NomeProjeto}SecondBrain/{arquivo}.md
+{Se criou nota no vault}: ✓ Nota criada: {vault}/{arquivo}.md
 ```
 
 Mostre também o conteúdo do arquivo de memória criado para o usuário confirmar que está correto.
