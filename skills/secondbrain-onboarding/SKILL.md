@@ -15,6 +15,8 @@ description: |
 
 # SecondBrain — Onboarding
 
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
+
 Gera um guia de onboarding completo para novos desenvolvedores, usando tudo que
 o SecondBrain sabe sobre o projeto.
 
@@ -42,7 +44,7 @@ Leia também:
 
 ## Passo 2 — Gerar o guia
 
-Salve em `{NomeProjeto}SecondBrain/ONBOARDING.md`:
+Salve em `{vault}/ONBOARDING.md`:
 
 ```markdown
 # Onboarding — {NomeProjeto}
@@ -152,5 +154,5 @@ Mostre o guia antes de salvar.
 Aguarde aprovação do usuário.
 
 ```
-✓ Onboarding salvo: {NomeProjeto}SecondBrain/ONBOARDING.md
+✓ Onboarding salvo: {vault}/ONBOARDING.md
 ```

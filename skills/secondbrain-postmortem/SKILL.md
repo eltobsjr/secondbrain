@@ -11,9 +11,12 @@ description: |
   - "análise do que deu errado"
   - "relatório de incidente"
   - após um bug em produção, outage, deploy problemático ou falha crítica
+argument-hint: "[incidente]"
 ---
 
 # SecondBrain — Postmortem
+
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
 
 Documenta um incidente com a estrutura padrão de post-mortem: o que aconteceu,
 por que aconteceu, impacto e o que faremos para não acontecer de novo.
@@ -39,10 +42,10 @@ Pergunte, uma de cada vez:
 ## Passo 2 — Gerar número sequencial
 
 ```bash
-ls *SecondBrain/postmortems/ 2>/dev/null | wc -l
+ls {vault}/{postmortems}/ 2>/dev/null | grep -oE "^[0-9]+" | sort -n | tail -1
 ```
 
-Se a pasta não existir, crie e comece do 001.
+Use o **maior número + 1** (a contagem de arquivos quebra com lacunas). Se a pasta não existir, crie e comece do 001.
 
 ---
 
@@ -149,5 +152,5 @@ Mostre o documento gerado.
 Aguarde aprovação do usuário — post-mortems devem ser revisados antes de salvar.
 
 ```
-✓ Post-mortem salvo: {NomeProjeto}SecondBrain/postmortems/{NNN} - {data} - {Título}.md
+✓ Post-mortem salvo: {vault}/{postmortems}/{NNN} - {data} - {Título}.md
 ```

@@ -12,9 +12,13 @@ description: |
   - "gera as release notes"
   - "taguear a versão"
   - ao preparar um deploy de produção ou publicação de versão
+argument-hint: "[versão]"
+disable-model-invocation: true   # cria tag git: só roda quando o usuário invoca /release
 ---
 
 # SecondBrain — Release
+
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
 
 Prepara tudo para um release: release notes, CHANGELOG atualizado e tag git.
 
@@ -57,7 +61,7 @@ Aguarde confirmação do usuário antes de continuar.
 
 ## Passo 3 — Gerar as release notes
 
-Salve em `{NomeProjeto}SecondBrain/releases/{versão}.md`:
+Salve em `{vault}/{releases}/{versão}.md`:
 
 ```markdown
 # Release {versão} — {data-de-hoje}
@@ -104,7 +108,7 @@ git tag -a v{versão} -m "Release {versão}"
 
 Informe ao usuário:
 ```
-✓ Release notes: {NomeProjeto}SecondBrain/releases/{versão}.md
+✓ Release notes: {vault}/{releases}/{versão}.md
 ✓ CHANGELOG.md atualizado
 ✓ Tag v{versão} criada localmente
 

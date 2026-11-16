@@ -15,6 +15,8 @@ description: |
 
 # SecondBrain — Standup
 
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
+
 Gera o texto de daily standup a partir do devtrack mais recente.
 
 ---
@@ -23,7 +25,7 @@ Gera o texto de daily standup a partir do devtrack mais recente.
 
 ```bash
 # Devtrack mais recente
-ls *SecondBrain/devtrack/ | sort | tail -1
+ls {vault}/{devtrack}/ | sort | tail -1
 
 # Commits recentes (últimas 24h)
 git log --oneline --since="24 hours ago" 2>/dev/null

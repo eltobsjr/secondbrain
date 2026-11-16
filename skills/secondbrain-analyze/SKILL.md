@@ -25,6 +25,8 @@ description: |
 
 # SecondBrain — Analyze
 
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
+
 Análise completa, profunda e estratégica do projeto — técnica, arquitetural, funcional, visual e de produto.
 
 ---
@@ -409,7 +411,7 @@ como os módulos se relacionam. Cite os diretórios-chave.}
 | Configuração de ambiente | `{caminho}` |
 | Testes | `{caminho}` |
 | Documentação de features | `{caminho no vault}` |
-| Análise completa | `{NomeProjeto}SecondBrain/análise/Análise Completa — {data}.md` |
+| Análise completa | `{vault}/análise/Análise Completa — {data}.md` |
 ```
 
 Confirme após salvar:
@@ -432,7 +434,7 @@ ls *SecondBrain/ 2>/dev/null
 ```
 
 Salve em:
-- `{NomeProjeto}SecondBrain/análise/Análise Completa — {data}.md`
+- `{vault}/análise/Análise Completa — {data}.md`
 - Se a pasta `análise/` não existir, crie-a.
 
 Confirme:

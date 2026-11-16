@@ -12,9 +12,12 @@ description: |
   - "quero discutir essa mudança antes de implementar"
   - antes de mudanças arquiteturais, migração de tecnologia, novos padrões de código
   - quando a mudança afeta mais de um dev ou precisa de aprovação
+argument-hint: "[título da proposta]"
 ---
 
 # SecondBrain — RFC
+
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
 
 Cria uma proposta formal de mudança técnica para revisar e discutir antes de implementar.
 
@@ -39,10 +42,10 @@ Pergunte:
 ## Passo 2 — Número sequencial
 
 ```bash
-ls *SecondBrain/rfcs/ 2>/dev/null | wc -l
+ls {vault}/{rfcs}/ 2>/dev/null | grep -oE "^[0-9]+" | sort -n | tail -1
 ```
 
-Se a pasta não existir, crie e comece do 001.
+Use o **maior número + 1** (a contagem de arquivos quebra com lacunas). Se a pasta não existir, crie e comece do 001.
 
 ---
 
@@ -143,5 +146,5 @@ Mostre o documento gerado.
 Aguarde aprovação do usuário antes de salvar.
 
 ```
-✓ RFC salvo: {NomeProjeto}SecondBrain/rfcs/{NNN} - {Título}.md
+✓ RFC salvo: {vault}/{rfcs}/{NNN} - {Título}.md
 ```

@@ -12,7 +12,21 @@ Ele une três camadas:
 - **Vault Obsidian** — documentação local legível por humanos (`{Projeto}SecondBrain/`)
 - **Memória Claude Code** — contexto persistente entre sessões (`~/.claude/projects/.../memory/`)
 
-O vault fica no `.gitignore` — é documentação pessoal de cada dev, não vai para o repositório do projeto.
+Por padrão o vault fica no `.gitignore` (documentação pessoal de cada dev). Se o projeto preferir versioná-lo junto com o código, o setup pergunta e grava `versionado: true` no manifesto.
+
+---
+
+## Estrutura modular: o manifesto `_secondbrain.md`
+
+Cada projeto tem a estrutura de vault que precisar. As skills **não assumem nomes de pasta**: leem o `_secondbrain.md` na raiz do vault (frontmatter YAML, editável no Obsidian), que mapeia **papéis** (devtrack, decisões, features, prioridade, estado…) para as pastas reais, registra pastas próprias do projeto (`extras`), a convenção de nomes e os campos de frontmatter próprios.
+
+- **Módulos ligáveis**: ative só o que o projeto usa; mude depois com `/secondbrain-setup --estrutura` ou editando o manifesto.
+- **Vaults existentes não são refeitos.** Na primeira vez que uma skill roda num vault antigo, ela infere o manifesto a partir do que já existe (`scripts/infer_manifest.py`, dry-run), mostra o plano e só grava o `_secondbrain.md` depois da sua confirmação. Nada é movido, renomeado ou apagado.
+- **Pasta nova não é "desorganização"**: o `/audit` valida o vault contra o manifesto dele e oferece registrar o que for novo.
+- **`ESTADO.md`**: retrato de uma página, reescrito a cada `/devtrack`, que `/context` lê no lugar do devtrack inteiro.
+- **Hooks opcionais** (`hooks/`): com `hooks: true` no manifesto, o início da sessão injeta o estado do projeto. Desligados por padrão; sem chamada de modelo.
+
+Detalhes: `references/vault-resolve.md` e `references/manifest-template.md`.
 
 ---
 
@@ -134,8 +148,10 @@ Nova decisão      →  /decision
 meu-projeto/
 ├── CLAUDE.md                          ← instruções para o Claude Code
 ├── PROJECT_CONTEXT.md                 ← contexto gerado pelo /analyze (lido automaticamente pelo Claude)
-├── .gitignore                         ← {Projeto}SecondBrain/ ignorado
-└── {Projeto}SecondBrain/              ← vault Obsidian (local, fora do git)
+├── .gitignore                         ← {Projeto}SecondBrain/ ignorado (se versionado: false)
+└── {Projeto}SecondBrain/              ← vault Obsidian (estrutura definida pelo manifesto)
+    ├── _secondbrain.md                ← manifesto: papéis, pastas próprias, nomes, módulos
+    ├── ESTADO.md                      ← retrato curto, reescrito a cada /devtrack
     ├── {Projeto} — Visão Geral.md
     ├── CHECKLIST.md
     ├── devtrack/                      ← logs de sessão (YYYY-MM-DD - Título.md)
@@ -149,10 +165,12 @@ meu-projeto/
     └── releases/                      ← release notes do /release
 ```
 
+Os nomes acima são os padrões; o manifesto pode apontar cada papel para outra pasta e acrescentar pastas próprias (`requisitos/`, `docs/`, `entregas/`…).
+
 E na memória local do Claude Code:
 
 ```
-~/.claude/projects/{projeto}/memory/
+~/.claude/projects/{caminho-com-hifens}/memory/   (todo caractere não alfanumérico do caminho vira `-`)
 ├── MEMORY.md                          ← índice
 ├── project_overview.md                ← stack e objetivo
 ├── feedback_language.md               ← idioma de comunicação
@@ -188,7 +206,16 @@ secondbrain/
 │   ├── secondbrain-postmortem/
 │   ├── secondbrain-rfc/
 │   └── secondbrain-release/
+├── hooks/
+│   ├── hooks.json                     ← SessionStart opcional (só age com hooks: true no manifesto)
+│   └── session-start.sh
+├── scripts/
+│   └── infer_manifest.py              ← infere o manifesto de um vault existente (dry-run)
 ├── references/
+│   ├── vault-resolve.md               ← protocolo comum: manifesto, migração, regras de escrita
+│   ├── manifest-template.md           ← modelo do _secondbrain.md
+│   ├── estado-format.md               ← formato do ESTADO.md
+│   ├── import-history.md              ← --import-history do setup
 │   └── devtrack-format.md             ← padrão dos logs de sessão
 ├── package.json
 └── README.md

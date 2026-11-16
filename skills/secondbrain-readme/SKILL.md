@@ -15,6 +15,8 @@ description: |
 
 # SecondBrain — README
 
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
+
 Gera um README.md completo e profissional usando o que o SecondBrain já sabe sobre o projeto.
 
 ---
@@ -33,7 +35,7 @@ ls -1 2>/dev/null
 ```
 
 Leia também:
-1. `{NomeProjeto}SecondBrain/{NomeProjeto} — Visão Geral.md` — descrição, stack, como rodar
+1. `{vault}/{NomeProjeto} — Visão Geral.md` — descrição, stack, como rodar
 2. `project_overview.md` da memória — objetivo e contexto
 3. Os arquivos de `features/` ou `HUs/` — para listar funcionalidades implementadas (CAs ✅)
 

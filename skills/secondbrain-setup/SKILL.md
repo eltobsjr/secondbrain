@@ -15,6 +15,7 @@ description: |
   Não espere que o usuário diga exatamente "secondbrain" — qualquer pedido de
   "organizar a documentação do projeto", "criar estrutura de memória" ou
   "deixar o Claude preparado para este projeto" também deve acionar esta skill.
+argument-hint: "[--import-history | --estrutura]"
 ---
 
 # SecondBrain Setup
@@ -29,10 +30,15 @@ Configure a documentação persistente e a memória do Claude Code para este pro
 
 ```bash
 ls -d *SecondBrain/ 2>/dev/null
+ls *SecondBrain/_secondbrain.md 2>/dev/null
 ```
 
 **Se encontrar uma pasta `{NomeProjeto}SecondBrain/`**, o projeto já foi configurado.
-Não refaça o setup do zero. Pergunte ao usuário:
+Não refaça o setup do zero.
+
+- **Vault sem `_secondbrain.md`** (anterior ao esquema 2): rode a **migração assistida** de `references/vault-resolve.md` (seção 3) — inferir a estrutura que já existe, mostrar o plano, esperar confirmação, escrever só o manifesto. Respeite as pastas e nomes próprios do projeto.
+- **`--estrutura` em `$ARGUMENTS`**: mostre o manifesto atual e deixe o usuário ligar/desligar módulos, renomear papéis, registrar pastas em `extras` e ajustar `nomes`, `versionado` e `hooks`. Grave só o `_secondbrain.md`.
+- **Caso contrário**, pergunte:
 
 > "Este projeto já tem um SecondBrain configurado ({NomeProjeto}SecondBrain/).
 > O que você quer fazer?
@@ -105,6 +111,12 @@ Pré-preencha as respostas com o que detectou no Passo 1 — o usuário só conf
   "Tem especificações formais de funcionalidades? (user stories, HUs, RFCs, PRDs...)  
    Ou trabalha com tasks mais soltas?"
 
+### Perguntas de estrutura (sempre)
+
+- **O vault vai para o git?** Pré-preencha **não** (vault pessoal, no `.gitignore`). Responda **sim** se a documentação é parte do projeto e a equipe a compartilha (ex.: monorepo com vault dentro). Grava `versionado` no manifesto.
+- **Quais módulos usar?** `devtrack`, `decisoes`, `features`, `rfcs`, `prioridade`, `estado` (marque os que o projeto realmente usa; dá para ligar outros depois). Pré-marque `devtrack`, `decisoes`, `prioridade` e `estado`.
+- **Já tem uma estrutura de pastas própria** (ex.: `docs/`, `requisitos/`)? Se sim, ela entra em `extras`, e os papéis podem apontar para os nomes que você já usa.
+
 ### Pergunta livre (sempre por último)
 
 > "Tem alguma regra, convenção ou comportamento que o Claude deve SEMPRE seguir neste projeto?  
@@ -125,7 +137,7 @@ O nome do vault é sempre `{NomeProjeto}SecondBrain` (sem espaço, CamelCase).
 
 ### Camada 1 — CLAUDE.md
 
-Crie `CLAUDE.md` na raiz do repositório:
+Crie `CLAUDE.md` na raiz do repositório. **Mantenha-o curto (abaixo de ~150 linhas):** só o que o Claude precisa em toda sessão. Detalhe longo vai para o vault, e regras específicas por pasta podem ir em `.claude/rules/*.md` com `paths:` no frontmatter (carregam só quando o Claude toca naqueles arquivos). Se o projeto já tem um CLAUDE.md, **não o sobrescreva**: mostre o que acrescentaria e peça confirmação.
 
 ```markdown
 # CLAUDE.md — {NomeProjeto}
@@ -137,10 +149,11 @@ Ao iniciar qualquer conversa neste projeto:
 1. Leia o índice de memória: `{caminho-da-memória}/MEMORY.md`  
    É um índice — siga os links para os arquivos relevantes à tarefa atual.
 
-2. Leia o devtrack mais recente:  
-   `ls {caminho-absoluto}/{NomeProjeto}SecondBrain/devtrack/ | sort | tail -1`  
-   e leia o arquivo retornado. Isso garante continuidade: o que foi feito,
-   decisões tomadas e pendências abertas na última sessão.
+2. Leia `{caminho-absoluto}/{NomeProjeto}SecondBrain/ESTADO.md` (retrato curto: onde está, próximo passo, bloqueios).
+   Se não existir, leia o devtrack mais recente:  
+   `ls {caminho-absoluto}/{NomeProjeto}SecondBrain/devtrack/ | sort | tail -1`
+
+3. O mapa de pastas do vault está em `{NomeProjeto}SecondBrain/_secondbrain.md` — consulte-o antes de criar ou procurar documentos.
 
 ## 2. Stack e tecnologias
 
@@ -152,9 +165,9 @@ Ao iniciar qualquer conversa neste projeto:
 
 ## 4. Documentação
 
-Toda documentação fica no vault: {NomeProjeto}SecondBrain/
-Logs de sessão: {NomeProjeto}SecondBrain/devtrack/
-Formato dos logs: YYYY-MM-DD - Título.md
+Toda documentação fica no vault: {NomeProjeto}SecondBrain/ (mapa em `_secondbrain.md`)
+Estado atual: {NomeProjeto}SecondBrain/ESTADO.md
+Logs de sessão: {NomeProjeto}SecondBrain/devtrack/ (formato: YYYY-MM-DD - Título.md)
 
 ## 5. Regras de desenvolvimento
 
@@ -163,10 +176,10 @@ Formato dos logs: YYYY-MM-DD - Título.md
 
 ## 6. Fluxo de trabalho
 
-1. Ler memória e devtrack mais recente
+1. Ler memória e ESTADO.md (ou devtrack mais recente)
 2. Entender o contexto antes de implementar
 3. Implementar
-4. Atualizar devtrack ao final da sessão
+4. Atualizar devtrack (e ESTADO.md) ao final da sessão
 ```
 
 ---
@@ -207,6 +220,10 @@ data: {data-de-hoje}
 Setup inicial realizado em {data-de-hoje}.
 ```
 
+**`_secondbrain.md`** — manifesto do vault. Gere a partir de `references/manifest-template.md`, com `schema: 2`, `versionado`, `modulos` e `papeis` conforme as respostas, e `extras` se o usuário já tem estrutura própria. É o que permite que cada projeto tenha a estrutura que precisar.
+
+**`ESTADO.md`** (se o módulo `estado` estiver ligado) — conforme `references/estado-format.md`, com "Agora: setup inicial em {data-de-hoje}".
+
 **`CHECKLIST.md`**
 ```markdown
 # Checklist — {NomeProjeto}
@@ -214,9 +231,7 @@ Setup inicial realizado em {data-de-hoje}.
 (vazio — preencher conforme necessário)
 ```
 
-**Pastas base** (sempre criar com `.gitkeep`):
-- `devtrack/`
-- `prioridade/`
+**Pastas dos módulos ligados** (criar com `.gitkeep`; use o caminho que o manifesto der a cada papel). Base: `devtrack/` e `prioridade/`.
 
 **Pastas adaptativas** (criar só se aplicável):
 - Frontend (React/Vue/Angular/Next/Svelte...): `components/`
@@ -225,26 +240,25 @@ Setup inicial realizado em {data-de-hoje}.
 - User stories / HUs / PRDs formais: `features/` (ou `HUs/` se o usuário usou essa nomenclatura)
 - Issue tracker (exceto "nenhum"): `tasks/`
 
-**`.gitignore`** — adicionar ao existente (ou criar):
+**`.gitignore`** — **somente se `versionado: false`**, adicionar ao existente (ou criar):
 ```
 # SecondBrain — documentação pessoal local
 {NomeProjeto}SecondBrain/
 ```
 
-O vault inteiro fica fora do controle de versão — é documentação pessoal de cada dev,
-não deve ser compartilhada no repositório do projeto.
+Com `versionado: false` o vault é documentação pessoal de cada dev e fica fora do repositório. Com `versionado: true`, **não** altere o `.gitignore` e avise que o vault passa a ser público para quem acessa o repositório: nada de segredos nas notas (o `/audit` confere).
 
 ---
 
 ### Camada 3 — Memória do Claude Code
 
-**Calcular o caminho:**
-- Pegue o resultado do `pwd`
-- Substitua cada `/` por `-`
-- Prefixe com `~/.claude/projects/`
-- Sufixe com `/memory/`
+**Calcular o caminho** (regra de `references/vault-resolve.md`, seção 5 — todo caractere não alfanumérico vira `-`):
 
-Exemplo: `/home/user/dev/meu-projeto` → `~/.claude/projects/-home-user-dev-meu-projeto/memory/`
+```bash
+MEM="$HOME/.claude/projects/$(pwd | sed 's|[^A-Za-z0-9]|-|g')/memory"
+```
+
+Exemplo: `/home/user/dev/meu_projeto` → `~/.claude/projects/-home-user-dev-meu-projeto/memory/`
 
 Crie os arquivos abaixo nesse caminho.
 
@@ -337,117 +351,7 @@ metadata:
 
 ## Passo 4b — Importar histórico de commits (flag `--import-history`)
 
-**Execute este passo somente se `$ARGUMENTS` contiver `--import-history`.**  
-Pode ser combinado com o setup normal: `/secondbrain-setup --import-history`.  
-Também funciona sozinho num projeto já configurado.
-
-### Verificação do limite
-
-```bash
-git log --oneline 2>/dev/null | wc -l
-```
-
-Se o projeto tiver **mais de 50 commits**, avise e encerre este passo:
-
-> "⚠️ Este projeto tem {N} commits — o `--import-history` funciona apenas em projetos com até 50 commits para evitar geração excessiva de arquivos. Quer que eu importe apenas os últimos 50?"
-
-Se o usuário confirmar, use `git log --oneline -50`. Caso contrário, encerre o passo.
-
----
-
-### Coleta do histórico
-
-```bash
-# Lista completa: hash curto | timestamp ISO | assunto do commit
-git log --pretty=format:"%h|%ad|%s" --date=format:"%Y-%m-%d" 2>/dev/null
-
-# Para cada commit, detalhes de arquivos alterados
-git log --pretty=format:"COMMIT:%h|%ad|%an|%s" --date=format:"%Y-%m-%d" \
-  --stat --no-merges 2>/dev/null
-```
-
----
-
-### Geração dos arquivos
-
-Para cada commit, gere dois arquivos:
-
-#### A) Devtrack em `{NomeProjeto}SecondBrain/devtrack/`
-
-Nome do arquivo: `{YYYY-MM-DD} - {assunto do commit}.md`
-
-Se dois ou mais commits caírem no mesmo dia, **consolide em um único devtrack** com seção por commit:
-
-```markdown
-# {YYYY-MM-DD} — {Assunto do commit principal ou "Múltiplos commits"}
-
-> Devtrack gerado retroativamente via `--import-history`.
-
-## O que foi feito
-
-{Para cada commit do dia, um bloco:}
-
-### `{hash}` — {assunto do commit}
-**Autor:** {nome do autor}
-
-{Narrativa inferida a partir das mudanças de arquivos. Explique o "por quê" provável
- com base nos arquivos e no nome do commit — não liste apenas os arquivos.}
-
----
-
-## Arquivos modificados
-
-| Arquivo | Mudança |
-|---|---|
-| `{arquivo}` | {inserção / remoção / modificação — infira o contexto pelo nome} |
-
-## Status
-
-- [x] {commit aplicado ao repositório}
-```
-
-#### B) Resumo do commit em `{NomeProjeto}SecondBrain/commits/`
-
-Nome do arquivo: `{hash} — {assunto}.md`
-
-```markdown
-# {hash} — {assunto do commit}
-
-**Data:** {YYYY-MM-DD}
-**Autor:** {nome}
-**Hash completo:** {hash longo}
-
-## O que este commit fez
-
-{2-4 frases explicando o que mudou e por que, inferidas a partir dos arquivos alterados
- e do texto da mensagem de commit. Não copie apenas a lista de arquivos — interprete.}
-
-## Arquivos alterados
-
-| Arquivo | Tipo de mudança | Linhas |
-|---------|-----------------|--------|
-| `{arquivo}` | adicionado / modificado / removido | +{N} -{N} |
-```
-
----
-
-### Após gerar todos os arquivos
-
-```bash
-ls {NomeProjeto}SecondBrain/devtrack/ | wc -l
-ls {NomeProjeto}SecondBrain/commits/ | wc -l
-```
-
-Exiba o resumo:
-
-```
-✓ Histórico importado: {N} commits processados
-  → {N} devtracks criados em {NomeProjeto}SecondBrain/devtrack/
-  → {N} arquivos de commit em {NomeProjeto}SecondBrain/commits/
-
-  Dica: abra o vault no Obsidian e use a visualização de grafo para ver
-  a evolução do projeto ao longo do tempo.
-```
+**Somente se `$ARGUMENTS` contiver `--import-history`** (pode vir junto do setup ou sozinho num projeto já configurado). Siga `references/import-history.md`: limite de 50 commits, um devtrack por dia e um resumo por commit, gravados nos papéis `devtrack` e `commits` do manifesto.
 
 ---
 
@@ -459,7 +363,8 @@ Após criar todos os arquivos, imprima:
 ✓ CLAUDE.md criado na raiz
 ✓ {NomeProjeto}SecondBrain/ criado com {N} arquivos
 ✓ {N} arquivos de memória criados em {caminho-da-memória}
-✓ .gitignore atualizado
+✓ _secondbrain.md (manifesto) criado
+✓ .gitignore atualizado {ou: vault versionado — .gitignore intocado}
 
 Próximos passos:
 1. Abra o Obsidian e aponte o vault para: {caminho-absoluto}/{NomeProjeto}SecondBrain/

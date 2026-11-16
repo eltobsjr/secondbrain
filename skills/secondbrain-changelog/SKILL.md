@@ -15,6 +15,8 @@ description: |
 
 # SecondBrain — Changelog
 
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
+
 Gera o CHANGELOG.md no formato [Keep a Changelog](https://keepachangelog.com) usando
 devtracks e git log como fonte de verdade.
 
@@ -31,7 +33,7 @@ git log --oneline 2>/dev/null
 git tag --sort=-version:refname 2>/dev/null | head -10
 
 # Devtracks (para enriquecer com contexto além dos commits)
-ls *SecondBrain/devtrack/ | sort
+ls {vault}/{devtrack}/ | sort
 ```
 
 Leia os devtracks desde o último release (ou todos, se não houver release anterior).
