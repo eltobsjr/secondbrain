@@ -23,6 +23,22 @@ ALIASES = {
     "commits": ["commits"],
     "prioridade": ["prioridade", "prioridades"],
 }
+KNOWN_DESC = {
+    "telas": "Mapa de telas e rotas",
+    "api": "Contrato e notas da API",
+    "components": "Notas de componentes",
+    "docs": "Documentação de apoio",
+    "análise": "Relatórios gerados pelo /analyze",
+    "analise": "Relatórios gerados pelo /analyze",
+    "auditorias": "Auditorias e revisões",
+    "metodos": "Como gerar as notas e os artefatos",
+    "arquitetura": "Arquitetura, modelo de dados e diagramas",
+    "requisitos": "Requisitos, casos de uso e histórias",
+    "entregas": "O que saiu do projeto para terceiros",
+    "entrega": "O que saiu do projeto para terceiros",
+    "imports": "Dumps e pacotes importados (retratos de data fixa)",
+    "diagramas": "Diagramas",
+}
 SKIP_DIRS = {".obsidian", ".git", ".trash", "node_modules"}
 BASE_KEYS = {"tipo", "data", "status", "atualizado"}
 
@@ -120,8 +136,10 @@ def main():
                 if "/" in a and os.path.isdir(os.path.join(vault, a)):
                     papeis[role] = a + "/"
                     break
-    if os.path.isfile(os.path.join(vault, "prioridade", "atual.md")):
-        papeis["prioridade"] = "prioridade/atual.md"
+    if "prioridade" in papeis and papeis["prioridade"].endswith("/") and \
+            os.path.basename(papeis["prioridade"].rstrip("/")).lower() in ALIASES["prioridade"]:
+        # o /priority grava sempre em <pasta>/atual.md
+        papeis["prioridade"] = papeis["prioridade"] + "atual.md"
     if os.path.isfile(os.path.join(vault, "ESTADO.md")):
         papeis["estado"] = "ESTADO.md"
 
@@ -130,7 +148,7 @@ def main():
     for d in top:
         if d in used or (d == "prioridade"):
             continue
-        extras.append((d + "/", descs.get(d) or "(descrever)"))
+        extras.append((d + "/", descs.get(d) or KNOWN_DESC.get(d.lower()) or "(descrever)"))
 
     modulos = []
     for role, path in papeis.items():
