@@ -16,9 +16,6 @@ description: |
   - quando as respostas do Claude parecerem desconexas com o estado real do projeto
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py audit` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain — Audit
 
 Verifica a saúde do SecondBrain e identifica o que está desatualizado, inconsistente ou abandonado.

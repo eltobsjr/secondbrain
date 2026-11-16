@@ -14,9 +14,6 @@ description: |
   - quando a mudança afeta mais de um dev ou precisa de aprovação
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py rfc` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain — RFC
 
 Cria uma proposta formal de mudança técnica para revisar e discutir antes de implementar.

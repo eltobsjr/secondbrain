@@ -13,9 +13,6 @@ description: |
   - ao adicionar alguém novo à equipe
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py onboarding` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain — Onboarding
 
 Gera um guia de onboarding completo para novos desenvolvedores, usando tudo que

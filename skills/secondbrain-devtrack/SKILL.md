@@ -15,9 +15,6 @@ description: |
   "pode encerrar" ou qualquer sinal de encerramento de sessão sem ter gerado o devtrack.
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py devtrack` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain — Devtrack
 
 Gera e salva o log de sessão no vault do projeto.

@@ -17,9 +17,6 @@ description: |
   "deixar o Claude preparado para este projeto" também deve acionar esta skill.
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py secondbrain-setup` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain Setup
 
 Configure a documentação persistente e a memória do Claude Code para este projeto.

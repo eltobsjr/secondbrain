@@ -17,9 +17,6 @@ description: |
   mesmo sem pedir explicitamente para registrar.
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py decision` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain — Decision
 
 Registra decisões técnicas e arquiteturais com contexto suficiente para entendê-las no futuro.

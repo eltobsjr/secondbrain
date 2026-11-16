@@ -16,14 +16,6 @@ O vault fica no `.gitignore` — é documentação pessoal de cada dev, não vai
 
 ---
 
-## Mascote
-
-Cada skill exibe um cérebro animado em roxo ao ser invocada — partículas ciano e sparks amarelas orbitando por ~2 segundos antes de executar.
-
-Requer Python 3. Fallback estático disponível se Python não estiver instalado.
-
----
-
 ## Skills
 
 ### Workflow diário
@@ -196,11 +188,8 @@ secondbrain/
 │   ├── secondbrain-postmortem/
 │   ├── secondbrain-rfc/
 │   └── secondbrain-release/
-├── scripts/
-│   └── mascot.py                      ← animação do cérebro
 ├── references/
-│   ├── devtrack-format.md             ← padrão dos logs de sessão
-│   └── mascot.md                      ← instruções + fallback estático
+│   └── devtrack-format.md             ← padrão dos logs de sessão
 ├── package.json
 └── README.md
 ```

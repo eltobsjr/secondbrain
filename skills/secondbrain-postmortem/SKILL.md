@@ -13,9 +13,6 @@ description: |
   - após um bug em produção, outage, deploy problemático ou falha crítica
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py postmortem` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain — Postmortem
 
 Documenta um incidente com a estrutura padrão de post-mortem: o que aconteceu,

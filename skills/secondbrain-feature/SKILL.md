@@ -15,9 +15,6 @@ description: |
   - quando for começar a implementar uma funcionalidade nova e quiser registrar o escopo antes
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py feature` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain — Feature
 
 Cria um documento de spec de funcionalidade com critérios de aceitação rastreáveis.

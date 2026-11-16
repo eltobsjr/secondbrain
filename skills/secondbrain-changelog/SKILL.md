@@ -13,9 +13,6 @@ description: |
   - ao fechar uma versão ou sprint
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py changelog` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain — Changelog
 
 Gera o CHANGELOG.md no formato [Keep a Changelog](https://keepachangelog.com) usando

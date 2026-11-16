@@ -14,9 +14,6 @@ description: |
   - ao preparar um deploy de produção ou publicação de versão
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py release` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain — Release
 
 Prepara tudo para um release: release notes, CHANGELOG atualizado e tag git.

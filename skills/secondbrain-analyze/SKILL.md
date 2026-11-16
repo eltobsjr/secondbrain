@@ -23,9 +23,6 @@ description: |
   - quando o usuário quiser uma visão global e crítica do estado atual do projeto
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py analyze` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain — Analyze
 
 Análise completa, profunda e estratégica do projeto — técnica, arquitetural, funcional, visual e de produto.

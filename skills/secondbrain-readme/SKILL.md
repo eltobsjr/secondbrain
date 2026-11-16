@@ -13,9 +13,6 @@ description: |
   - ao finalizar uma versão ou feature importante
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py readme` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain — README
 
 Gera um README.md completo e profissional usando o que o SecondBrain já sabe sobre o projeto.

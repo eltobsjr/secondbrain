@@ -17,9 +17,6 @@ description: |
   antes de começar a próxima.
 ---
 
-> **Mascote:** execute `references/mascot.md` — rode o script `scripts/mascot.py priority` antes de qualquer outra resposta. Se Python não estiver disponível, use o fallback estático do mascot.md.
-
-
 # SecondBrain — Priority
 
 Consolida todas as pendências abertas do projeto em uma lista de prioridades única.
