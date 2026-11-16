@@ -150,9 +150,14 @@ def main():
             continue
         extras.append((d + "/", descs.get(d) or KNOWN_DESC.get(d.lower()) or "(descrever)"))
 
+    # padrão novo: ESTADO.md faz parte de todo vault (criado no próximo /devtrack se ainda não existir)
+    papeis.setdefault("estado", "ESTADO.md")
     modulos = []
     for role, path in papeis.items():
         full = os.path.join(vault, path)
+        if role == "estado":
+            modulos.append(role)
+            continue
         if os.path.isdir(full) and not notes_in(full):
             continue
         modulos.append(role)

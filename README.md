@@ -210,7 +210,8 @@ secondbrain/
 │   ├── hooks.json                     ← SessionStart opcional (só age com hooks: true no manifesto)
 │   └── session-start.sh
 ├── scripts/
-│   └── infer_manifest.py              ← infere o manifesto de um vault existente (dry-run)
+│   ├── infer_manifest.py              ← infere o manifesto de um vault existente (dry-run)
+│   └── add_frontmatter.py             ← fase 2: tipo/data nas notas sem frontmatter (aditivo, dry-run)
 ├── references/
 │   ├── vault-resolve.md               ← protocolo comum: manifesto, migração, regras de escrita
 │   ├── manifest-template.md           ← modelo do _secondbrain.md

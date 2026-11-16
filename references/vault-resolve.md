@@ -46,7 +46,7 @@ Se `_secondbrain.md` não existe, o vault é anterior ao esquema 2. **Não refa�
    - Se o vault tiver um README/índice com mapa de pastas, use-o como fonte principal da descrição de cada pasta.
 2. **Mostrar o plano** (dry-run) em uma tabela e **esperar confirmação**. O usuário pode corrigir qualquer linha.
 3. **Escrever apenas** `{vault}/_secondbrain.md` (o mesmo script com `--write`, que recusa sobrescrever um manifesto existente) (e `{vault}/_migracao.log` com o que foi feito). **Não mover, renomear nem apagar nada.** A migração é idempotente.
-4. **Fase 2 (opcional, só se o usuário pedir):** adicionar frontmatter mínimo (`tipo`, `data`) às notas que não têm, em lote, com dry-run antes. Só acrescenta no topo; nunca altera o corpo nem campos existentes.
+4. **Fase 2 (opcional, só se o usuário pedir):** `python3 -I scripts/add_frontmatter.py {vault}` (dry-run) e depois com `--write`. Acrescenta `tipo` (pelo papel da pasta) e `data` (só quando o nome do arquivo tem data) às notas que não têm; nunca altera o corpo nem campos existentes, e é idempotente. Faça um backup dos `.md` antes (em vault sem git, é a única rede de segurança).
 5. **CLAUDE.md do projeto não é editado.** Se ele cita caminhos fixos do vault, mostre o diff sugerido e deixe o usuário aplicar.
 6. Depois de migrar, continue a tarefa original da skill.
 
