@@ -209,7 +209,7 @@ Se a raiz não for um repositório, procure `.git` nas subpastas imediatas (mono
 
 ### Verificação 14 — Índice, estado e backup
 
-- `INDEX.md` mais antigo que a nota mais recente do vault → peça para rodar `python3 -I scripts/build_index.py {vault}`.
+- `INDEX.md` mais antigo que a nota mais recente do vault → peça para rodar `python3 -I "$SB/build_index.py" {vault}`.
 - `ESTADO.md` com `origem: rascunho` ou mais antigo que o último devtrack → sugerir `/devtrack` para reescrevê-lo.
 - Vault com `backup: true` sem nenhum backup recente (`~/.local/state/secondbrain/backup.log`) → lembrar do `/backup` (só informe; não rode).
 
@@ -217,7 +217,20 @@ Se a raiz não for um repositório, procure `.git` nas subpastas imediatas (mono
 
 ### Verificação 15 — Integridade de caminhos (script)
 
-Rode `python3 -I scripts/check_vault.py {vault}` (somente leitura). Ele confere: papéis e `extras` do manifesto x pastas reais, `[[links]]` quebrados, frontmatter sem fechamento, caminhos citados no `CLAUDE.md` do projeto que não existem e links/órfãs do `MEMORY.md`. O caso mais grave que ele pega: projeto movido de pasta cujo `CLAUDE.md` ainda manda ler a memória do caminho antigo (a memória nunca é carregada). Para corrigir, aponte o caminho para o diretório de memória atual (`references/vault-resolve.md`, seção 5) — confirme com o usuário se o `CLAUDE.md` for marcado como inviolável. Papel que aponta para arquivo ainda não criado (ex.: `prioridade/atual.md` antes do primeiro `/priority`) é só informativo.
+Rode `python3 -I "$SB/check_vault.py" {vault}` (somente leitura). Ele confere: papéis e `extras` do manifesto x pastas reais, `[[links]]` quebrados, frontmatter sem fechamento, caminhos citados no `CLAUDE.md` do projeto que não existem e links/órfãs do `MEMORY.md`. O caso mais grave que ele pega: projeto movido de pasta cujo `CLAUDE.md` ainda manda ler a memória do caminho antigo (a memória nunca é carregada). Para corrigir, aponte o caminho para o diretório de memória atual (`references/vault-resolve.md`, seção 5) — confirme com o usuário se o `CLAUDE.md` for marcado como inviolável. Papel que aponta para arquivo ainda não criado (ex.: `prioridade/atual.md` antes do primeiro `/priority`) é só informativo.
+
+---
+
+### Verificação 16 — Memória cruzada
+
+Com `$SB` definido, rode (somente leitura):
+
+```bash
+python3 -I "$SB/xmem.py" insights --period 30d
+python3 -I "$SB/xmem.py" dups --min 0.80
+```
+
+Informe: itens em aberto parados há mais de 14 dias por projeto, projetos sem devtrack há mais de 30 dias, **contradições declaradas e não resolvidas** (`contradiz:`) e **duplicatas prováveis** (inclusive entre projetos: pode ser cópia que deve virar padrão em `/patterns`). Nunca mescle nem apague por conta própria; proponha.
 
 ---
 
@@ -245,6 +258,7 @@ Rode `python3 -I scripts/check_vault.py {vault}` (somente leitura). Ele confere:
 | Equipe em vault privado | {✅ OK / ⚠️ N avisos} | {N} |
 | Índice, estado e backup | {✅ OK / ⚠️ N avisos} | {N} |
 | Integridade de caminhos | {✅ OK / ⚠️ N problemas} | {N} |
+| Memória cruzada (parados, contradições, duplicatas) | {✅ OK / ⚠️ N avisos} | {N} |
 
 {Se tudo OK}: Nenhum problema encontrado. SecondBrain saudável.
 

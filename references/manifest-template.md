@@ -7,6 +7,7 @@ Fica na raiz do vault. Markdown com frontmatter YAML: abre no Obsidian e pode se
 schema: 2
 versionado: false          # true = vault vai para o git (ex.: monorepo com vault dentro)
 sensibilidade: normal      # normal | alta (alta = startup/institucional: nunca versionar, atenção no backup)
+crossmem: completo         # completo | titulos | nenhum: o que OUTROS projetos veem na busca cruzada (padrão: titulos se sensibilidade alta)
 backup: true               # false = este vault fica fora do backup para HD externo (scripts/backup.sh)
 hooks: false               # true = ativa os hooks opcionais do plugin neste projeto
 diataxis: false            # true = usa tipo-doc e o aviso no /audit

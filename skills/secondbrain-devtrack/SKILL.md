@@ -177,10 +177,16 @@ Se o vault tem o papel `estado` (arquivo `ESTADO.md` ou o caminho do manifesto) 
 Se o vault tem o papel `indice`, regenere-o (sem modelo, só lê o manifesto e as notas):
 
 ```bash
-python3 -I scripts/build_index.py {vault}
+python3 -I "$SB/build_index.py" {vault}
 ```
 
-Se o script não estiver acessível, pule em silêncio; o `/audit` avisa índice desatualizado.
+Em seguida atualize o índice da memória cruzada (incremental e barato; falha em silêncio se o `xmem` não existir):
+
+```bash
+python3 -I "$SB/xmem.py" index 2>/dev/null || true
+```
+
+Se os scripts não estiverem acessíveis, pule em silêncio; o `/audit` avisa índice desatualizado.
 
 ---
 

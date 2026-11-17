@@ -59,6 +59,21 @@ Não faça todas as perguntas de uma vez. Se a conversa já contém as respostas
 
 ---
 
+## Passo 2b — Checar substituição e precedentes
+
+Com `$SB` definido (`references/vault-resolve.md`, seção 0):
+
+```bash
+python3 -I "$SB/xmem.py" absorb-check "<título e resumo da decisão>" --project <projeto>
+python3 -I "$SB/xmem.py" recall "<tema da decisão>" --limit 4
+```
+
+- Se uma decisão ativa do projeto vira **obsoleta por inteiro** (3 "sim": mesmo projeto, mesma entidade, substituição integral), a nova leva `substitui: "[[NNN - Título antigo]]"` e a antiga muda **só** o `status` para `substituída por NNN`. Na dúvida, é decisão nova relacionada (`relacionado:`), não substituição.
+- Se contradiz outra decisão, use `contradiz:` e avise o usuário.
+- Mostre ao usuário os precedentes de outros projetos (🔒 só pelo título) antes de decidir; se a decisão repete um padrão, cite `origem: projeto:nota`.
+
+---
+
 ## Passo 3 — Gerar o número da decisão
 
 ```bash

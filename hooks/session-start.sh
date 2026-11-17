@@ -1,21 +1,27 @@
 #!/usr/bin/env bash
-# SecondBrain — hook opcional de SessionStart.
-# Desligado por padrão: só age se o vault do projeto tiver `hooks: true` no _secondbrain.md.
-# Não chama modelo e nunca escreve nada; apenas injeta um retrato curto como contexto.
+# SecondBrain — hook opcional de SessionStart (desligado por padrão).
+# Só age se o vault do projeto tiver `hooks: true` no _secondbrain.md. Não chama modelo, não grava nada,
+# não reindexa: injeta um retrato curto (ESTADO + notas relevantes + itens parados), no máximo 1500 caracteres.
 dir="${CLAUDE_PROJECT_DIR:-$PWD}"
 manifest=$(ls "$dir"/*SecondBrain/_secondbrain.md 2>/dev/null | head -1)
 [ -z "$manifest" ] && exit 0
 grep -qE '^hooks:[[:space:]]*true' "$manifest" || exit 0
 
 vault=$(dirname "$manifest")
+HERE="$(cd "$(dirname "$0")" && pwd)"
+XM="$HERE/../scripts/xmem.py"; [ -f "$XM" ] || XM="$HOME/.local/share/secondbrain/bin/xmem.py"
+if [ -f "$XM" ] && out=$(timeout 4 python3 -I "$XM" hook-context --cwd "$dir" 2>/dev/null) && [ -n "$out" ]; then
+  echo "$out"
+  exit 0
+fi
+
+# fallback sem índice: último estado/devtrack
 estado=$(grep -E '^[[:space:]]+estado:' "$manifest" | head -1 | sed -E 's/^[^:]+:[[:space:]]*//; s/[[:space:]]*#.*//')
 devdir=$(grep -E '^[[:space:]]+devtrack:' "$manifest" | head -1 | sed -E 's/^[^:]+:[[:space:]]*//; s/[[:space:]]*#.*//')
 estado="${estado:-ESTADO.md}"; devdir="${devdir:-devtrack/}"
-
 echo "SecondBrain ($(basename "$vault")): contexto do projeto."
 if [ -f "$vault/$estado" ]; then
-  echo "--- $estado (primeiras linhas) ---"
-  head -n 25 "$vault/$estado"
+  echo "--- $estado (primeiras linhas) ---"; head -n 25 "$vault/$estado"
 else
   last=$(ls "$vault/$devdir" 2>/dev/null | sort | tail -1)
   [ -n "$last" ] && echo "Último devtrack: $devdir$last (leia para retomar)."

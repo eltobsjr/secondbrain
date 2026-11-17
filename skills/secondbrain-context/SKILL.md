@@ -39,6 +39,8 @@ cat {vault}/{estado} 2>/dev/null
 ls {vault}/{devtrack}/ 2>/dev/null | sort | tail -1
 ```
 
+Se `$SB/xmem.py` existir (`references/vault-resolve.md`, seção 0), `python3 -I "$SB/xmem.py" hook-context` entrega um retrato curto pronto (estado, notas relevantes, itens parados) e `digest "<próximo passo>" --k 5` aprofunda um tema com linhagem e relacionadas. Use no lugar de ler vários arquivos.
+
 Leia:
 1. O **`ESTADO.md`** (papel `estado`), se existir — é o retrato curto e já responde "onde estou". Só abra o devtrack mais recente se o `ESTADO.md` não existir ou estiver mais velho que ele (compare `atualizado:` com a data do devtrack). Ao abrir, foque em `## Status` e `## Próximos passos`
 2. O **MEMORY.md** — só o índice, para saber o que existe
