@@ -13,6 +13,10 @@ cat PROJECT_CONTEXT.md 2>/dev/null
 Se o arquivo não existir, o usuário ainda não rodou `/analyze`. Nesse caso, você pode sugerir:
 > "Não encontrei um `PROJECT_CONTEXT.md`. Quer que eu rode `/analyze` para mapear o projeto e criar esse contexto?"
 
+## Começar
+
+Se existir `SecondBrainSecondBrain/` (vault pessoal do plugin, fora do git), leia o `ESTADO.md` dele antes de trabalhar; o devtrack e as decisões (`decisions/001` a `007`) explicam o porquê das escolhas.
+
 ## Idioma
 
 Responda sempre em **português (Brasil)**, exceto para termos técnicos sem tradução natural (ex: `useState`, `middleware`, `endpoint`).
