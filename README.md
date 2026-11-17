@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo/secondbrain-icon.svg" width="112" alt="Logo do SecondBrain: um S traçado por três nós ligados"></p>
+
 # secondbrain
 
 Suite de 20 skills para Claude Code que cria e mantém um sistema de memória persistente, documentação e rastreamento de conhecimento para projetos de software.

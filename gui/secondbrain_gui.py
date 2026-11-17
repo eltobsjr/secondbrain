@@ -365,6 +365,7 @@ class App(Adw.Application):
         self.selftest = "--selftest" in sys.argv
 
     def do_activate(self):
+        Gtk.Window.set_default_icon_name(APP_ID)  # ícone instalado por scripts/install-tools.sh
         win = Win(self)
         win.present()
         if self.selftest:  # fumaça: abre, indexa, fecha sozinho
