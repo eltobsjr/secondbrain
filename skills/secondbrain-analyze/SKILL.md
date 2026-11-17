@@ -411,7 +411,7 @@ como os módulos se relacionam. Cite os diretórios-chave.}
 | Configuração de ambiente | `{caminho}` |
 | Testes | `{caminho}` |
 | Documentação de features | `{caminho no vault}` |
-| Análise completa | `{vault}/análise/Análise Completa — {data}.md` |
+| Análise completa | `{vault}/{analise}/Análise Completa — {data}.md` |
 ```
 
 Confirme após salvar:
@@ -434,8 +434,8 @@ ls *SecondBrain/ 2>/dev/null
 ```
 
 Salve em:
-- `{vault}/análise/Análise Completa — {data}.md`
-- Se a pasta `análise/` não existir, crie-a.
+- `{vault}/{analise}/Análise Completa — {data}.md` (papel `analise` do manifesto; padrão `analise/`, sem acento)
+- Se a pasta não existir, crie-a e registre o papel `analise` no manifesto.
 
 Confirme:
 ```

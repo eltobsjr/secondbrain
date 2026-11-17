@@ -1,6 +1,6 @@
 # secondbrain
 
-Suite de 17 skills para Claude Code que cria e mantém um sistema de memória persistente, documentação e rastreamento de conhecimento para projetos de software.
+Suite de 18 skills para Claude Code que cria e mantém um sistema de memória persistente, documentação e rastreamento de conhecimento para projetos de software.
 
 ## O que é
 
@@ -24,6 +24,9 @@ Cada projeto tem a estrutura de vault que precisar. As skills **não assumem nom
 - **Vaults existentes não são refeitos.** Na primeira vez que uma skill roda num vault antigo, ela infere o manifesto a partir do que já existe (`scripts/infer_manifest.py`, dry-run), mostra o plano e só grava o `_secondbrain.md` depois da sua confirmação. Nada é movido, renomeado ou apagado.
 - **Pasta nova não é "desorganização"**: o `/audit` valida o vault contra o manifesto dele e oferece registrar o que for novo.
 - **`ESTADO.md`**: retrato de uma página, reescrito a cada `/devtrack`, que `/context` lê no lugar do devtrack inteiro.
+- **`INDEX.md`**: mapa do vault (tipo, data e título de cada nota), gerado por `scripts/build_index.py` sem modelo e regenerado pelo `/devtrack`. A IA acha o que precisa sem abrir centenas de arquivos.
+- **Privacidade**: `sensibilidade: alta` marca vault de startup/institucional (nunca sugerido para versionar). O vault é pessoal; só vai ao git quando o projeto tem equipe, e o `/audit` avisa se uma equipe entrar depois.
+- **Backup em HD externo**: `scripts/backup.sh` copia vaults, `CLAUDE.md` e memória para um HD que você marcou (`init`), em cópia simples. **Nunca apaga**: versões antigas vão para `_versoes/`. `scripts/install-backup.sh` instala um gatilho do systemd (sem sudo) que roda o backup ao conectar o HD.
 - **Hooks opcionais** (`hooks/`): com `hooks: true` no manifesto, o início da sessão injeta o estado do projeto. Desligados por padrão; sem chamada de modelo.
 
 Detalhes: `references/vault-resolve.md` e `references/manifest-template.md`.
@@ -65,6 +68,7 @@ Detalhes: `references/vault-resolve.md` e `references/manifest-template.md`.
 | `/changelog` | Gera ou atualiza o CHANGELOG.md no formato Keep a Changelog a partir de devtracks + git log |
 | `/onboarding` | Guia completo para novos devs: stack, instalação, padrões, decisões importantes, fluxo de trabalho |
 | `/release` | Release notes, CHANGELOG atualizado e tag git (sem auto-push) |
+| `/backup` | Backup dos vaults e da memória do Claude Code para HD externo: marca o HD, copia, mostra status e instala o gatilho automático |
 
 ### Análise e diagnóstico
 
@@ -204,6 +208,7 @@ secondbrain/
 │   ├── secondbrain-changelog/
 │   ├── secondbrain-onboarding/
 │   ├── secondbrain-postmortem/
+│   ├── secondbrain-backup/
 │   ├── secondbrain-rfc/
 │   └── secondbrain-release/
 ├── hooks/
@@ -211,7 +216,11 @@ secondbrain/
 │   └── session-start.sh
 ├── scripts/
 │   ├── infer_manifest.py              ← infere o manifesto de um vault existente (dry-run)
-│   └── add_frontmatter.py             ← fase 2: tipo/data nas notas sem frontmatter (aditivo, dry-run)
+│   ├── add_frontmatter.py             ← fase 2: tipo/data nas notas sem frontmatter (aditivo, dry-run)
+│   ├── build_index.py                 ← gera o INDEX.md do vault (sem modelo)
+│   ├── gen_estado.py                  ← rascunho de ESTADO.md a partir do último devtrack
+│   ├── backup.sh                      ← backup para HD externo (só copia, nunca apaga)
+│   └── install-backup.sh              ← gatilho automático (systemd do usuário) ao conectar o HD
 ├── references/
 │   ├── vault-resolve.md               ← protocolo comum: manifesto, migração, regras de escrita
 │   ├── manifest-template.md           ← modelo do _secondbrain.md

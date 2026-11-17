@@ -21,6 +21,7 @@ ALIASES = {
     "postmortems": ["postmortems", "postmortem"],
     "releases": ["releases"],
     "commits": ["commits"],
+    "analise": ["analise", "análise"],
     "prioridade": ["prioridade", "prioridades"],
 }
 KNOWN_DESC = {
@@ -152,9 +153,12 @@ def main():
 
     # padrão novo: ESTADO.md faz parte de todo vault (criado no próximo /devtrack se ainda não existir)
     papeis.setdefault("estado", "ESTADO.md")
+    papeis.setdefault("indice", "INDEX.md")
     modulos = []
     for role, path in papeis.items():
         full = os.path.join(vault, path)
+        if role == "indice":
+            continue
         if role == "estado":
             modulos.append(role)
             continue
@@ -183,6 +187,8 @@ def main():
     out = ["---", "schema: 2",
            "versionado: " + ("true" if versioned else "false") +
            ("" if versioned is not None else "   # não é repositório git: confirme"),
+           "sensibilidade: normal   # normal | alta (alta = dados de startup/institucional; nunca vai para o git)",
+           "backup: true            # false = fora do backup para HD externo",
            "hooks: false", "diataxis: false",
            "modulos: [" + ", ".join(modulos) + "]", "papeis:"]
     out += [f"  {r}: {p}" for r, p in papeis.items()]

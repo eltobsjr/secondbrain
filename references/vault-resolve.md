@@ -31,6 +31,8 @@ Leia `{vault}/_secondbrain.md` (frontmatter YAML). Modelo completo em `reference
 - `campos-extra:` frontmatter próprio do projeto por papel. Inclua ao criar; **preserve sempre ao editar**.
 - `modulos:` papéis ativos. Papel fora da lista → pergunte antes de criar a pasta ("o módulo X não está ligado neste projeto; ligar?") e, se confirmado, atualize o manifesto.
 - `versionado:` `true` se o vault vai para o git; `false` se está no `.gitignore`.
+- `sensibilidade:` `alta` marca vault de startup/institucional: nunca sugerir versionar nem publicar; cuidado ao citar conteúdo fora do projeto.
+- `backup:` `false` exclui o vault do backup para HD externo (`scripts/backup.sh`).
 - `hooks:` `true` ativa os hooks opcionais do plugin neste projeto.
 - `diataxis:` `true` ativa o campo `tipo-doc` e o aviso correspondente no `/audit`.
 - Se existir `{vault}/templates/{papel}.md`, use-o no lugar do template padrão da skill.
@@ -83,5 +85,7 @@ Se o diretório não existir mas a pasta `~/.claude/projects/` tiver um candidat
 | commits | `commits/` | só com `--import-history` |
 | prioridade | `prioridade/atual.md` | lista consolidada |
 | estado | `ESTADO.md` | ver `references/estado-format.md` |
+| indice | `INDEX.md` | gerado por `scripts/build_index.py`; nunca editar à mão |
+| analise | `analise/` | relatórios do `/analyze` (sem acento, para portabilidade) |
 | checklist | `CHECKLIST.md` | |
 | visao | `{Projeto} — Visão Geral.md` | |

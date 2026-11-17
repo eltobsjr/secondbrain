@@ -172,6 +172,16 @@ Se não encontrar o vault na raiz, procure no diretório pai ou pergunte ao usu�
 
 Se o vault tem o papel `estado` (arquivo `ESTADO.md` ou o caminho do manifesto) — ou o módulo `estado` está ligado — **reescreva-o inteiro** conforme `references/estado-format.md`: Agora, Próximo passo, Bloqueios, Fatos voláteis (com data). Se o arquivo não existe e o módulo está ligado, crie-o. Se o projeto não usa o módulo, pule este passo sem perguntar.
 
+## Passo 4c — Regenerar o INDEX.md
+
+Se o vault tem o papel `indice`, regenere-o (sem modelo, só lê o manifesto e as notas):
+
+```bash
+python3 -I scripts/build_index.py {vault}
+```
+
+Se o script não estiver acessível, pule em silêncio; o `/audit` avisa índice desatualizado.
+
 ---
 
 ## Passo 5 — Confirmar

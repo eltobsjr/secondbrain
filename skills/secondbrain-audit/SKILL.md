@@ -195,6 +195,26 @@ Notas de papéis de conhecimento (guias, análises, specs, decisões) devem ter 
 
 ---
 
+### Verificação 13 — Vault privado e equipe nova
+
+Para cada vault com `versionado: false` (ou `sensibilidade: alta`), veja se o projeto ganhou equipe desde o setup:
+
+```bash
+git -C {raiz-do-projeto} shortlog -sne HEAD 2>/dev/null | head
+```
+
+Se a raiz não for um repositório, procure `.git` nas subpastas imediatas (monorepo interno). Mais de um autor → **aviso**: "este vault está marcado como privado mas o projeto já tem {N} autores no git. Continua privado ou deve ser compartilhado?". Nunca mude `versionado` nem o `.gitignore` sozinho; a decisão é do usuário. Vault com `sensibilidade: alta` nunca deve ser sugerido para versionamento: só informe o fato.
+
+---
+
+### Verificação 14 — Índice, estado e backup
+
+- `INDEX.md` mais antigo que a nota mais recente do vault → peça para rodar `python3 -I scripts/build_index.py {vault}`.
+- `ESTADO.md` com `origem: rascunho` ou mais antigo que o último devtrack → sugerir `/devtrack` para reescrevê-lo.
+- Vault com `backup: true` sem nenhum backup recente (`~/.local/state/secondbrain/backup.log`) → lembrar do `/backup` (só informe; não rode).
+
+---
+
 ## Passo 3 — Gerar o relatório
 
 ```markdown
@@ -216,6 +236,8 @@ Notas de papéis de conhecimento (guias, análises, specs, decisões) devem ter 
 | Frontmatter e frescor | {✅ OK / ⚠️ N problemas} | {N} |
 | Segredos (se versionado) | {✅ OK / ⚠️ N problemas / — não se aplica} | {N} |
 | Tipo de documento (se ligado) | {✅ OK / ⚠️ N avisos / — não se aplica} | {N} |
+| Equipe em vault privado | {✅ OK / ⚠️ N avisos} | {N} |
+| Índice, estado e backup | {✅ OK / ⚠️ N avisos} | {N} |
 
 {Se tudo OK}: Nenhum problema encontrado. SecondBrain saudável.
 

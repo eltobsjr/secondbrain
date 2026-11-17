@@ -13,7 +13,8 @@ import sys
 
 ROLE_TIPO = {"devtrack": "devtrack", "decisoes": "decisao", "features": "feature",
              "rfcs": "rfc", "postmortems": "postmortem", "releases": "release",
-             "commits": "commit", "prioridade": "prioridade", "estado": "estado"}
+             "commits": "commit", "prioridade": "prioridade", "estado": "estado",
+             "analise": "analise", "indice": "indice"}
 SKIP_DIRS = {".obsidian", ".git", ".trash", "node_modules", "imports"}
 MAX_BYTES = 1_000_000
 
