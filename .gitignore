@@ -1,5 +1,7 @@
+.claude/
 .DS_Store
 node_modules/
-.claude/
-.worktrees/
+*.pyc
+__pycache__/
 *.skill
+.worktrees/

@@ -142,7 +142,11 @@ def check(vault):
     res["links_quebrados"] = broken_links(vault)
     res["frontmatter_quebrado"] = bad_frontmatter(vault)
     claudes = []
-    for root, dirs, files in os.walk(project):
+    is_global = False
+    if res["manifesto"]:
+        mtxt = open(mf, encoding="utf-8").read()
+        is_global = bool(re.search(r"^tipo-vault:\s*global", mtxt, re.M))
+    for root, dirs, files in ([] if is_global else os.walk(project)):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS | {"build", "dist", ".dart_tool", "Pods"}
                    and not d.startswith(".") and not d.endswith("SecondBrain")]
         if root.count(os.sep) - project.count(os.sep) > 2:
@@ -151,7 +155,7 @@ def check(vault):
             claudes.append(os.path.join(root, "CLAUDE.md"))
     res["claude_md"] = [os.path.relpath(c, project) for c in claudes]
     res["claude_md_caminhos_ausentes"] = claude_md_paths(project, claudes)
-    res["memoria"] = memory_issues(project)
+    res["memoria"] = {"sem_memoria": True} if is_global else memory_issues(project)
     return res
 
 
