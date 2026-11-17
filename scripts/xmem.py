@@ -891,7 +891,9 @@ def cmd_hook_context(a, c):
         out.append(f"{len(st)} item(ns) em aberto parado(s) há mais de {STALE_OPEN_DAYS} dias.")
     out.append("Memória cruzada: `python3 -I scripts/xmem.py recall \"<problema>\"` (busca em outros projetos).")
     text = "\n".join(out)
-    print(text[:a.max_chars])
+    if len(text) > a.max_chars:  # corta na última linha inteira, nunca no meio de uma frase
+        text = text[:a.max_chars].rsplit("\n", 1)[0] + "\n…"
+    print(text)
 
 
 def graph_data(c, project=None, min_score=0.30):

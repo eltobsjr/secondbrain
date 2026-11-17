@@ -3,7 +3,14 @@
 # Só age se o vault do projeto tiver `hooks: true` no _secondbrain.md. Não chama modelo, não grava nada,
 # não reindexa: injeta um retrato curto (ESTADO + notas relevantes + itens parados), no máximo 1500 caracteres.
 dir="${CLAUDE_PROJECT_DIR:-$PWD}"
-manifest=$(ls "$dir"/*SecondBrain/_secondbrain.md 2>/dev/null | head -1)
+# acha o vault na pasta atual ou subindo até 5 níveis (projetos abertos numa subpasta), sem nunca subir até a pasta pessoal
+manifest=""; d="$dir"
+for _ in 1 2 3 4 5 6; do
+  m=$(ls "$d"/*SecondBrain/_secondbrain.md 2>/dev/null | head -1)
+  if [ -n "$m" ]; then manifest="$m"; break; fi
+  d=$(dirname "$d")
+  [ "$d" = "/" ] || [ "$d" = "$HOME" ] && break
+done
 [ -z "$manifest" ] && exit 0
 grep -qE '^hooks:[[:space:]]*true' "$manifest" || exit 0
 
