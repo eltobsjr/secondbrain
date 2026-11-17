@@ -1,6 +1,6 @@
 # secondbrain
 
-Suite de 18 skills para Claude Code que cria e mantém um sistema de memória persistente, documentação e rastreamento de conhecimento para projetos de software.
+Suite de 20 skills para Claude Code que cria e mantém um sistema de memória persistente, documentação e rastreamento de conhecimento para projetos de software.
 
 ## O que é
 
@@ -74,6 +74,13 @@ Detalhes: `references/vault-resolve.md` e `references/manifest-template.md`.
 
 | Comando | O que faz |
 |---|---|
+| `/recall` | **Memória cruzada:** procura em todos os projetos uma solução, decisão ou aprendizado para o problema atual, com política de privacidade por vault |
+| `/patterns` | Encontra o que se repete em 2+ projetos e registra o padrão no vault global |
+
+(demais comandos desta seção abaixo)
+
+| Comando | O que faz |
+|---|---|
 | `/analyze` | Análise completa em 16 dimensões: arquitetura, backend, frontend, banco de dados, segurança, performance, DevOps, qualidade de código, testes, produto e negócio, SEO e acessibilidade. Gera nota geral, top 10 problemas, top 10 pontos fortes e plano de evolução. Salva `PROJECT_CONTEXT.md` na raiz para que o Claude leia automaticamente nas próximas sessões. |
 | `/audit` | 7 verificações de saúde: links quebrados, caminhos inexistentes, tarefas abandonadas, devtracks fora do padrão, memórias conflitantes, vault desorganizado, README desatualizado |
 
@@ -83,6 +90,16 @@ Detalhes: `references/vault-resolve.md` e `references/manifest-template.md`.
 |---|---|
 | `/postmortem` | Post-mortem de incidente: linha do tempo, causa raiz, impacto e plano de ação com dono e prazo |
 | `/rfc` | Proposta formal de mudança técnica com alternativas, impacto e pontos em aberto para discussão em equipe |
+
+---
+
+## Memória cruzada, interface nativa e vault global
+
+- **`scripts/xmem.py`**: índice derivado (SQLite + FTS5, sem rede nem modelo) sobre todos os vaults, a memória do Claude Code e os `CLAUDE.md`. Busca híbrida (RRF), arestas tipadas, linhagem de substituição, `recall`, `digest`, `absorb-check`, `patterns`, `dups`, `insights`.
+- **Interface nativa** (GTK4 + libadwaita + WebKitGTK): `python3 ~/.local/share/secondbrain/bin/gui/secondbrain_gui.py` ou o atalho "SecondBrain" no menu. Busca, leitor, grafo de todas as notas e pendências.
+- **Vault global** `~/GlobalSecondBrain/`: um cartão por projeto (só ponteiros), `padroes/` e `licoes/`.
+- **Privacidade:** `crossmem: completo | titulos | nenhum` por vault (padrão `titulos` para `sensibilidade: alta`).
+- Instalar as ferramentas: `scripts/install-tools.sh`. Detalhes, qualidade medida e limites: [`docs/ARQUITETURA-MEMORIA-CRUZADA.md`](docs/ARQUITETURA-MEMORIA-CRUZADA.md). Revisão dos `CLAUDE.md`: [`docs/REVISAO-CLAUDE-MD.md`](docs/REVISAO-CLAUDE-MD.md).
 
 ---
 
@@ -214,7 +231,12 @@ secondbrain/
 ├── hooks/
 │   ├── hooks.json                     ← SessionStart opcional (só age com hooks: true no manifesto)
 │   └── session-start.sh
+├── docs/                              ← arquitetura da memória cruzada e revisão dos CLAUDE.md
+├── gui/                               ← interface nativa (GTK4 + libadwaita)
+├── tests/                             ← testes (xmem, interface) e avaliação de qualidade da busca
 ├── scripts/
+│   ├── xmem.py                        ← memória cruzada: índice, busca, recall, digest, absorb-check, patterns
+│   ├── install-tools.sh               ← instala ferramentas em ~/.local/share/secondbrain/bin e o atalho do app
 │   ├── infer_manifest.py              ← infere o manifesto de um vault existente (dry-run)
 │   ├── add_frontmatter.py             ← fase 2: tipo/data nas notas sem frontmatter (aditivo, dry-run)
 │   ├── build_index.py                 ← gera o INDEX.md do vault (sem modelo)
