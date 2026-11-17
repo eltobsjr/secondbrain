@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/logo/secondbrain-icon.svg" width="112" alt="Logo do SecondBrain: um S traçado por três nós ligados"></p>
+<p align="center"><img src="assets/logo/secondbrain-icon.svg" width="112" alt="Logo do SecondBrain: um cérebro cuja rede neural é o S do nome, traçado por três nós ligados"></p>
 
 # secondbrain
 
