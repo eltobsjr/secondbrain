@@ -90,7 +90,7 @@ def build(vault):
     fm = ["---", "tipo: indice", f"gerado: {date.today().isoformat()}", "gerado-por: scripts/build_index.py", "---", ""]
     intro = [f"# Índice — {name}", "",
              "> Gerado automaticamente. **Não edite**; rode `build_index.py` (o `/devtrack` já faz isso).",
-             "> Mapa de pastas e regras do vault: [[_secondbrain]]. Retrato atual: [[ESTADO]].", ""]
+             "> Mapa de pastas e regras do vault: [[_secondbrain]]." + (" Retrato atual: [[ESTADO]]." if os.path.isfile(os.path.join(vault, "ESTADO.md")) else ""), ""]
     return "\n".join(fm + intro + head + body).rstrip() + "\n", total
 
 
