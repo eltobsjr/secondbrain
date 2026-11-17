@@ -19,17 +19,26 @@ Responda sempre em **português (Brasil)**, exceto para termos técnicos sem tra
 
 ## Skills disponíveis
 
-Este projeto usa o **SecondBrain** — um conjunto de skills para memória persistente de projetos.
-As skills ficam em `skills/` e são ativadas pelo usuário com `/nome-da-skill`.
+Este projeto usa o **SecondBrain** — um conjunto de 20 skills para memória persistente de projetos.
+As skills ficam em `skills/` e são ativadas pelo usuário com `/nome-da-skill`. A lista completa e o que cada uma faz estão no `README.md`.
 
 Principais skills:
 - `/analyze` — análise completa e estratégica do projeto (gera/atualiza `PROJECT_CONTEXT.md`)
 - `/feature` — cria spec de funcionalidade com critérios de aceitação
-- `/devtrack` — registra sessão de trabalho
-- `/decision` — documenta decisões técnicas
+- `/devtrack` — registra sessão de trabalho (também reescreve o `ESTADO.md` e reindexa)
+- `/decision` — documenta decisões técnicas (formato MADR)
+- `/recall` — procura nos outros projetos uma solução para o problema atual (memória cruzada)
+- `/patterns` — consolida padrões que se repetem entre projetos
 - `/audit` — audita a saúde do SecondBrain
 - `/context` — resume o estado atual do projeto para o Claude
 - `/readme` — gera ou atualiza o README
+
+## Trabalhando neste repositório
+
+- As ferramentas ficam em `scripts/` (motor `xmem.py`, instalador `install-tools.sh`) e a interface em `gui/`.
+- Antes de propor commit, rode `python3 -I -m unittest discover -s tests`.
+- Detalhes de arquitetura em `docs/ARQUITETURA-MEMORIA-CRUZADA.md`.
+- O logo é gerado por `assets/logo/build_logo.py`; não edite os SVGs à mão.
 
 ## Commits
 
