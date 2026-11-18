@@ -142,6 +142,9 @@ class QuadroSemanaTest(unittest.TestCase):
         write(cls.vault + "/devtrack/2026-11-10 - Semana 46.md",
               "---\ntipo: devtrack\ndata: 2026-11-10\n---\n\n# S46\n\n- [ ] Publicar a nova versão do aplicativo móvel\n- [x] Configurar monitoramento do servidor de relatórios\n")
         write(cls.vault + "/prioridade/atual.md", "---\ntipo: prioridade\ndata: 2026-11-16\n---\n\n# Prioridades\n\n- [ ] Migrar o banco de dados analítico para a nova região\n")
+        write(cls.vault + "/devtrack/2025-01-01 - Antiga.md", "---\ntipo: devtrack\ndata: 2025-01-01\n---\n\n# Antiga\n\n- [ ] Item antigo de sessão sobre controle de estoque\n")
+        write(cls.vault + "/CHECKLIST.md", "# Checklist\n\n- [ ] Item antigo de checklist sobre emissão de nota fiscal\n")
+        os.utime(cls.vault + "/CHECKLIST.md", (1735689600, 1735689600))
         cls.c = cls.xmem.index(quiet=True)
 
     @classmethod
@@ -165,6 +168,17 @@ class QuadroSemanaTest(unittest.TestCase):
         self.assertEqual(doc["surgiu"], "", "a data do documento vivo é a da migração, não a do surgimento")
         self.assertTrue(doc["backlog"])
         self.assertEqual(doc["semana_ef"], "")
+
+    def test_parado_so_vale_para_item_de_devtrack(self):
+        """Idade de item de CHECKLIST é a do documento, não de esquecimento; quem avisa é a flag de prazo."""
+        k = self.cards()
+        self.assertTrue(k["Item antigo de sessão sobre controle de estoque"]["parado"], "item de devtrack aberto há muito tempo")
+        self.assertFalse(k["Item antigo de checklist sobre emissão de nota fiscal"]["parado"], "item de checklist não é 'parado'")
+        abertos = {t["text"]: t for t in self.xmem.open_items(self.c, project="proj_s", limit=100)}
+        for t in abertos.values():
+            if "checklist" in t["text"]:
+                self.assertEqual(t["kind"], "checklist")
+                self.assertFalse(t["parado"])
 
     def test_linha_do_cartao_e_a_linha_do_arquivo(self):
         """Regressão: a linha vinha do corpo da nota (sem o frontmatter) e não batia com o arquivo que o usuário abre."""

@@ -92,7 +92,7 @@ def derive(c, project=None):
         cards[cid] = {
             "id": cid, "titulo": last["text"], "status": col, "prioridade": "", "tipo": "criterio-feature" if last["kind"] == "feature" else "todo",
             "projeto": proj, "origem": {"nota": last["rel"], "linha": last["line"], "data": last["data"]},
-            "criado": first["data"], "atualizado": last["data"], "idade_dias": age, "parado": (not last["checked"]) and age > xm.STALE_OPEN_DAYS,
+            "criado": first["data"], "atualizado": last["data"], "idade_dias": age, "parado": (not last["checked"]) and age > xm.STALE_OPEN_DAYS and last["kind"] == "devtrack",
             "bloqueado_por": [], "relacionadas": [], "etiquetas": [], "modo": "derivado", "responsavel": "", "prazo": "",
             "orfao": False, "status_origem": origem_status, "sens": last["sens"], "policy": last["policy"],
             "oculto": oculto, "evidencia": evid,

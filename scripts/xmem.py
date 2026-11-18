@@ -721,7 +721,7 @@ def cmd_digest(a, c):
             out.append(f"- [{e['type']} s{hop}] **{e['title']}**{lock} `{e['project']}:{e['rel'][:-3]}`")
     todos = open_items(c, project=a.project or cur, topic=a.topic, limit=6)
     if todos:
-        out += ["", "**Itens em aberto relacionados:**"] + [f"- [ ] {t['text']}  ({t['data']}{', PARADO há %dd' % t['idade'] if t['idade'] > STALE_OPEN_DAYS else ''}) `{t['project']}:{t['rel'][:-3]}`" for t in todos]
+        out += ["", "**Itens em aberto relacionados:**"] + [f"- [ ] {t['text']}  ({t['data']}{', PARADO há %dd' % t['idade'] if t.get('parado', t['idade'] > STALE_OPEN_DAYS) else ''}) `{t['project']}:{t['rel'][:-3]}`" for t in todos]
     print("\n".join(out))
 
 
@@ -743,7 +743,8 @@ def open_items(c, project=None, topic=None, limit=10):
         if tw and not (set(tokens(k["titulo"])) & tw):
             continue
         o = k.get("origem") or {}
-        out.append({"text": k["titulo"], "data": o.get("data") or k.get("criado", ""), "project": k["projeto"], "rel": o.get("nota", ""), "idade": k["idade_dias"]})
+        out.append({"text": k["titulo"], "data": o.get("data") or k.get("criado", ""), "project": k["projeto"], "rel": o.get("nota", ""), "idade": k["idade_dias"],
+                    "kind": k.get("kind", ""), "parado": bool(k.get("parado"))})
     return sorted(out, key=lambda x: -x["idade"])[:limit] if not tw else sorted(out, key=lambda x: x["idade"])[:limit]
 
 
@@ -921,7 +922,7 @@ def insights_data(c, period="30d", stale=STALE_OPEN_DAYS):
     atividade = [{"projeto": p, "tipos": d, "total": sum(d.values())} for p, d in sorted(agg.items(), key=lambda x: -sum(x[1].values()))]
     parados = defaultdict(int)
     for t in open_items(c, limit=100000):
-        if t["idade"] > stale:
+        if t["idade"] > stale and t.get("kind", "devtrack") == "devtrack":      # idade de item de documento vivo é a do documento, não de esquecimento
             parados[t["project"]] += 1
     quietos = [{"projeto": r["project"], "ultimo": r["d"]} for r in sorted(
         (r for r in c.execute("select project, max(data) d from notes where kind='devtrack' group by project")
@@ -1049,7 +1050,7 @@ def cmd_hook_context(a, c):
             out.append(line + (" — " + "; ".join(k["titulo"][:60] for k in doing[:2]) if doing else ""))
     except Exception:  # o quadro nunca pode quebrar o início de sessão
         pass
-    st = [t for t in open_items(c, project=cur, limit=50) if t["idade"] > STALE_OPEN_DAYS]
+    st = [t for t in open_items(c, project=cur, limit=50) if t["idade"] > STALE_OPEN_DAYS and t.get("kind", "devtrack") == "devtrack"]
     if st:
         out.append(f"{len(st)} item(ns) em aberto parado(s) há mais de {STALE_OPEN_DAYS} dias (veja o quadro: `xmem.py board show`).")
     out.append("Memória cruzada: `python3 -I scripts/xmem.py recall \"<problema>\"` (busca em outros projetos).")
@@ -1333,7 +1334,7 @@ def projects_summary(c):
     out = []
     stale = defaultdict(int)
     for t in open_items(c, limit=100000):
-        if t["idade"] > STALE_OPEN_DAYS:
+        if t["idade"] > STALE_OPEN_DAYS and t.get("kind", "devtrack") == "devtrack":
             stale[t["project"]] += 1
     for r in c.execute("select project,sens,policy,count(*) n,max(case when kind='devtrack' then data end) d, min(vault) vault from notes group by project order by project"):
         out.append({"project": r["project"], "n": r["n"], "sens": r["sens"], "policy": r["policy"], "last_devtrack": r["d"],
