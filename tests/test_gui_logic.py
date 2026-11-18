@@ -32,14 +32,34 @@ class GuiLogic(unittest.TestCase):
         out = self.g.md_to_html("ver [[Nao Existe]]", {})
         self.assertNotIn("sb://note/", out)
 
-    def test_reader_html_mostra_cadeado_e_inativa(self):
+    def test_reader_html_mostra_sensivel_e_inativa_sem_emoji(self):
         d = {"note": {"title": "<b>x</b>", "project": "p", "tipo": "decisao", "kind": "decisao", "data": "2026-01-01", "status": "substituída",
                       "sens": "alta", "inactive": 1, "path": "/a/b.md"},
              "body": "texto", "out": [], "in": [], "lineage": []}
         h = self.g.reader_html(d, True, {})
-        self.assertIn("🔒", h)
-        self.assertIn("inativa", h)
+        self.assertIn("Sensível", h)
+        self.assertIn("Inativa", h)
+        self.assertNotIn("🔒", h, "o sinal de sensibilidade é texto, não emoji")
         self.assertNotIn("<b>x</b>", h, "título é escapado")
+
+    def test_reader_nao_repete_o_titulo_do_corpo(self):
+        d = {"note": {"title": "Minha nota", "project": "p", "tipo": "nota", "kind": "nota", "data": "", "status": "",
+                      "sens": "normal", "inactive": 0, "path": "/a/b.md"},
+             "body": "# Minha nota\n\ntexto", "out": [], "in": [], "lineage": []}
+        h = self.g.reader_html(d, False, {})
+        self.assertEqual(h.count("<h1>"), 1, "o título aparece uma vez só")
+
+    def test_tokens_cobrem_claro_e_escuro(self):
+        import theme
+        self.assertEqual(set(theme.DARK), set(theme.LIGHT))
+        self.assertIn("--base", theme.css_vars(True))
+        self.assertIn("sb-win", theme.gtk_css(False))
+
+    def test_datas_e_tempos(self):
+        self.assertEqual(self.g.fmt_date("2026-11-17"), "17 nov 2026")
+        self.assertEqual(self.g.fmt_date("sem data"), "sem data")
+        self.assertEqual(self.g.ago(30), "agora")
+        self.assertEqual(self.g.ago(300), "há 5 min")
 
     def test_js_do_grafo_e_valido(self):
         node = shutil.which("node") or shutil.which("nodejs")
@@ -48,7 +68,7 @@ class GuiLogic(unittest.TestCase):
         data = {"nodes": [{"id": 1, "project": "a", "title": "t", "tipo": "x", "kind": "x", "data": "", "sens": "normal", "inactive": 0}], "edges": []}
         html_ = (self.g.GRAPH_HTML.replace("{{DATA}}", json.dumps(data))
                  .replace("{{COLORS}}", '{"a":"#fff"}').replace("{{SIG}}", "teste")
-                 .replace("{{PROJECT}}", "null"))
+                 .replace("{{PROJECT}}", "null").replace("{{THEME}}", self.g.graph_theme()))
         js = html_.split("<script>")[1].split("</script>")[0]
         with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
             f.write(js)

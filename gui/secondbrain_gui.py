@@ -10,14 +10,16 @@ import os
 import re
 import sys
 import threading
+import time
 import urllib.parse
 
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
+gi.require_version("Gdk", "4.0")
 gi.require_version("WebKit", "6.0")
-from gi.repository import Adw, Gio, GLib, Gtk, Pango, WebKit  # noqa: E402
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk, Pango, WebKit  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 for cand in (os.path.join(HERE, "..", "scripts"), os.path.expanduser("~/.local/share/secondbrain/bin")):
@@ -26,9 +28,12 @@ for cand in (os.path.join(HERE, "..", "scripts"), os.path.expanduser("~/.local/s
         break
 import xmem  # noqa: E402
 
+if HERE not in sys.path:  # `python3 -I` não põe a pasta do script no caminho
+    sys.path.insert(0, HERE)
+import theme  # noqa: E402
+
 APP_ID = "io.github.eltobsjr.SecondBrain"
-PALETTE = ["#8aadf4", "#a6da95", "#f5a97f", "#c6a0f6", "#eed49f", "#8bd5ca", "#ed8796", "#f5bde6", "#91d7e3", "#b7bdf8", "#f0c6c6", "#7dc4e4",
-           "#e8c07a", "#8fc4a0", "#c99ad9", "#7fb3d5", "#d99a9a", "#a8c98a"]
+PALETTE = theme.PALETTE
 
 
 def md_to_html(body, wikimap):
@@ -51,55 +56,57 @@ def md_to_html(body, wikimap):
         return "<pre>" + html.escape(body) + "</pre>"
 
 
-READER_CSS = """
-:root{color-scheme:light dark;--fg:#2e3440;--mut:#6b7385;--bg:#fff;--card:#f3f4f8;--ac:#4a6fd8;--bd:#dde1ea}
-.dark{--fg:#cad3f5;--mut:#939ab7;--bg:#24273a;--card:#1e2030;--ac:#8aadf4;--bd:#363a4f}
-body{font:15px/1.6 system-ui,sans-serif;color:var(--fg);background:var(--bg);margin:0;padding:22px 28px;max-width:860px}
-h1{font-size:1.5em;margin:.2em 0 .4em}h2{font-size:1.2em;margin-top:1.4em;border-bottom:1px solid var(--bd);padding-bottom:.2em}
-a{color:var(--ac);text-decoration:none}a:hover{text-decoration:underline}
-code{background:var(--card);padding:.1em .35em;border-radius:5px;font-size:.92em}pre{background:var(--card);padding:12px;border-radius:10px;overflow:auto}pre code{background:none;padding:0}
-table{border-collapse:collapse}td,th{border:1px solid var(--bd);padding:4px 9px}blockquote{margin:0;padding-left:14px;border-left:3px solid var(--bd);color:var(--mut)}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px}.chip{background:var(--card);border:1px solid var(--bd);border-radius:999px;padding:1px 10px;font-size:12px;color:var(--mut)}
-.chip.lock{color:#d98a1c;border-color:#d98a1c}.path{font-size:12px;color:var(--mut);word-break:break-all}
-.side{margin-top:26px;border-top:1px solid var(--bd);padding-top:10px}.side h3{font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
-.side li{margin:3px 0}.inact{opacity:.5;text-decoration:line-through}.tag{font-size:11px;color:var(--mut)}
-"""
+EDGE_LABEL = {"links_to": "Cita", "related_to": "Semelhante", "supersedes": "Substitui", "extends": "Estende",
+              "contradicts": "Contradiz", "implements": "Implementa", "references": "Referencia"}
 
 
 def reader_html(d, dark, wikimap):
     n = d["note"]
-    chips = [f'<span class="chip">{html.escape(n["project"])}</span>', f'<span class="chip">{html.escape(n["tipo"] or n["kind"])}</span>']
+    chips = [f'<span class="chip kind">{html.escape(n["tipo"] or n["kind"])}</span>']
+    if n["status"]:
+        chips.append(f'<span class="chip ok">{html.escape(n["status"])}</span>')
     if n["data"]:
         chips.append(f'<span class="chip">{html.escape(n["data"])}</span>')
-    if n["status"]:
-        chips.append(f'<span class="chip">{html.escape(n["status"])}</span>')
     if n["sens"] == "alta":
-        chips.append('<span class="chip lock">🔒 sensibilidade alta</span>')
+        chips.append('<span class="chip warn">Sensível</span>')
     if n["inactive"]:
-        chips.append('<span class="chip">inativa (substituída)</span>')
+        chips.append('<span class="chip">Inativa (substituída)</span>')
 
     def li(e):
         cls = ' class="inact"' if e["inactive"] else ""
-        lock = " 🔒" if e["sens"] == "alta" else ""
-        return f'<li{cls}><a href="sb://note/{e["id"]}">{html.escape(e["title"])}</a>{lock} <span class="tag">{e["project"]} · {e["type"]}{" %.2f" % e["score"] if e["origin"] == "auto" else ""}</span></li>'
+        sens = " · sensível" if e["sens"] == "alta" else ""
+        label = EDGE_LABEL.get(e["type"], e["type"])
+        score = f" {e['score']:.2f}".replace(".", ",") if e["origin"] == "auto" else ""
+        return (f'<li{cls}><a href="sb://note/{e["id"]}">{html.escape(e["title"])}</a>'
+                f'<span class="tag">{label}{score} · {html.escape(e["project"])}{sens}</span></li>')
 
     side = ""
     if d["lineage"] and len(d["lineage"]) > 1:
-        items = "".join(f'<li{" class=inact" if x["inactive"] else ""}><a href="sb://note/{x["id"]}">{html.escape(x["title"])}</a> <span class="tag">{x["data"]}</span></li>' for x in d["lineage"])
-        side += f"<h3>Linhagem (antiga → atual)</h3><ul>{items}</ul>"
+        items = "".join(f'<li{" class=inact" if x["inactive"] else ""}><a href="sb://note/{x["id"]}">{html.escape(x["title"])}</a><span class="tag">{html.escape(x["data"] or "")}</span></li>' for x in d["lineage"])
+        side += f"<h3>Linhagem (da mais antiga à atual)</h3><ul>{items}</ul>"
     if d["out"]:
         side += "<h3>Relacionadas</h3><ul>" + "".join(li(e) for e in d["out"][:14]) + "</ul>"
     if d["in"]:
         side += "<h3>Citada por</h3><ul>" + "".join(li(e) for e in d["in"][:14]) + "</ul>"
-    body = md_to_html(d["body"], wikimap)
-    return (f'<!doctype html><meta charset="utf-8"><style>{READER_CSS}</style><body class="{"dark" if dark else ""}">'
-            f'<h1>{html.escape(n["title"])}</h1><div class="chips">{"".join(chips)}</div>{body}'
-            f'<div class="side">{side}<p class="path">{html.escape(n["path"])}</p></div></body>')
+    body_md = re.sub(r"\A\s*# [^\n]*\n", "", d["body"], count=1)  # o título já aparece no cabeçalho da página
+    body = md_to_html(body_md, wikimap)
+    crumb = f'{html.escape(n["project"])} › {html.escape(n["kind"])}'
+    return (f'<!doctype html><meta charset="utf-8"><style>{theme.reader_css(dark)}</style><body>'
+            f'<div class="page"><div class="crumb">{crumb}</div><h1>{html.escape(n["title"])}</h1>'
+            f'<div class="chips">{"".join(chips)}</div>{body}'
+            f'<div class="side">{side}<p class="path">{html.escape(n["path"])}</p></div></div></body>')
+
+
+def graph_theme():
+    """Variáveis do grafo (claro em :root, escuro em body.dark), vindas dos mesmos tokens do resto da interface."""
+    def vars_(t):
+        return (f"--bg:{t['base']};--fg:{t['text']};--mut:{t['sub0']};--card:{t['mantle']}f2;--bd:{t['s0']};"
+                f"--ac:{t['blue']};--halo:{t['base']}")
+    return f":root{{{vars_(theme.LIGHT)}}}\nbody.dark{{{vars_(theme.DARK)}}}"
 
 
 GRAPH_HTML = r"""<!doctype html><meta charset="utf-8"><title>Grafo</title><style>
-:root{--bg:#fbfbfd;--fg:#2e3440;--mut:#6b7385;--card:rgba(252,252,254,.92);--bd:#dfe3ec;--ac:#4a6fd8;--halo:#fbfbfd}
-body.dark{--bg:#1e2030;--fg:#cad3f5;--mut:#9aa1bd;--card:rgba(36,39,58,.94);--bd:#363a4f;--ac:#8aadf4;--halo:#1e2030}
+{{THEME}}
 *{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font:13px/1.4 system-ui,sans-serif}
 canvas{display:block;width:100%;height:100%;cursor:grab}canvas.drag{cursor:grabbing}
 .panel{position:absolute;background:var(--card);border:1px solid var(--bd);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.07);backdrop-filter:blur(10px)}
@@ -544,80 +551,158 @@ if(START_PROJECT||!loadCam())fit(false);else schedule();
 </script>"""
 
 
+MESES = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
+
+
+def fmt_date(s):
+    """2026-11-17 -> 17 nov 2026 (cai de volta no texto original se não for uma data ISO)."""
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s or "")
+    if not m:
+        return s or ""
+    return f"{int(m.group(3))} {MESES[int(m.group(2)) - 1]} {m.group(1)}"
+
+
+def ago(seconds):
+    if seconds < 60:
+        return "agora"
+    m = int(seconds // 60)
+    if m < 60:
+        return f"há {m} min"
+    h = m // 60
+    return f"há {h} h" if h < 48 else f"há {h // 24} dias"
+
+
 class Win(Adw.ApplicationWindow):
+    SCOPES = (("projeto", "Este projeto"), ("todos", "Todos"), ("outros", "Outros projetos"))
+
     def __init__(self, app):
-        super().__init__(application=app, title="SecondBrain", default_width=1280, default_height=800)
+        super().__init__(application=app, title="SecondBrain", default_width=1360, default_height=860)
+        self.add_css_class("sb-win")
         self.c = xmem.connect()
-        self.dark = Adw.StyleManager.get_default().get_dark()
+        self.style = Adw.StyleManager.get_default()
+        self.dark = self.style.get_dark()
         self.project = None
+        self.scope = "projeto"
+        self.include_inactive = False
+        self.indexed_at = None
+        self.total_notes = 0
         self.cur_id = None
         self.wikimap = {}
         self.colors = {}
         self.graph_sig = None
-        Adw.StyleManager.get_default().connect("notify::dark", self.on_theme)
+        self.css = Gtk.CssProvider()
+        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), self.css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        self.apply_css()
+        self.style.connect("notify::dark", self.on_theme)
         self.build_ui()
         self.refresh_all()
         threading.Thread(target=self.bg_index, daemon=True).start()
+        GLib.timeout_add_seconds(30, self.tick_footer)
+
+    def apply_css(self):
+        css = theme.gtk_css(self.dark)
+        try:
+            self.css.load_from_string(css)
+        except AttributeError:  # GTK < 4.12
+            self.css.load_from_data(css.encode("utf-8"))
 
     # ------------------------------------------------------------ UI
     def build_ui(self):
-        split = Adw.OverlaySplitView(sidebar_width_fraction=0.2, min_sidebar_width=220, max_sidebar_width=320)
-        # barra lateral
-        sb = Adw.ToolbarView()
-        hb = Adw.HeaderBar(show_title=True)
-        hb.set_title_widget(Gtk.Label(label="Projetos", css_classes=["heading"]))
-        sb.add_top_bar(hb)
-        self.plist = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE, css_classes=["navigation-sidebar"])
-        self.plist.connect("row-selected", self.on_project)
-        sb.set_content(Gtk.ScrolledWindow(child=self.plist, vexpand=True))
-        split.set_sidebar(sb)
-        # conteúdo
+        split = Adw.OverlaySplitView(sidebar_width_fraction=0.18, min_sidebar_width=236, max_sidebar_width=300)
+        split.set_sidebar(self.build_sidebar())
         tv = Adw.ToolbarView()
-        hb2 = Adw.HeaderBar()
-        self.entry = Gtk.SearchEntry(placeholder_text="Buscar em todas as notas…", hexpand=True)
-        self.entry.connect("search-changed", lambda *_: self.do_search())
-        self.recall = Gtk.ToggleButton(label="Outros projetos", tooltip_text="Recall: procurar fora do projeto selecionado")
-        self.recall.connect("toggled", lambda *_: self.do_search())
-        self.inact = Gtk.ToggleButton(label="Substituídas", tooltip_text="Incluir notas substituídas/inativas")
-        self.inact.connect("toggled", lambda *_: self.do_search())
-        box = Gtk.Box(spacing=6)
-        box.append(self.entry)
-        box.append(self.recall)
-        box.append(self.inact)
-        hb2.set_title_widget(box)
-        self.stack = Adw.ViewStack()
-        switcher = Adw.ViewSwitcher(stack=self.stack, policy=Adw.ViewSwitcherPolicy.WIDE)
-        hb2.pack_start(switcher)
+        hb = Adw.HeaderBar(show_title=False)
         rb = Gtk.Button(icon_name="view-refresh-symbolic", tooltip_text="Reindexar vaults")
         rb.connect("clicked", lambda *_: threading.Thread(target=self.bg_index, daemon=True).start())
-        hb2.pack_end(rb)
-        tv.add_top_bar(hb2)
-        # página notas
-        paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, position=430, shrink_start_child=False, shrink_end_child=False)
-        self.results = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE, css_classes=["boxed-list-separate"])
-        self.results.set_margin_start(8)
-        self.results.set_margin_end(8)
-        self.results.set_margin_top(8)
-        self.results.connect("row-selected", self.on_result)
-        paned.set_start_child(Gtk.ScrolledWindow(child=self.results, hscrollbar_policy=Gtk.PolicyType.NEVER, width_request=330))
-        self.reader = self.make_webview(js=False)
-        paned.set_end_child(self.reader)
-        self.stack.add_titled_with_icon(paned, "notas", "Notas", "text-x-generic-symbolic")
-        # página grafo
+        hb.pack_end(rb)
+        tv.add_top_bar(hb)
+        self.stack = Adw.ViewStack()
+        self.stack.add_named(self.build_notes_page(), "notas")
         self.graph = self.make_webview(js=True)
         self.graph.get_user_content_manager().register_script_message_handler("sb")
         self.graph.get_user_content_manager().connect("script-message-received::sb", self.on_graph_click)
-        self.stack.add_titled_with_icon(self.graph, "grafo", "Grafo", "network-workgroup-symbolic")
-        # página pendências
+        self.stack.add_named(self.graph, "grafo")
         self.todos = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE, css_classes=["boxed-list"])
         for m in ("start", "end", "top", "bottom"):
-            getattr(self.todos, f"set_margin_{m}")(14)
-        self.stack.add_titled_with_icon(Gtk.ScrolledWindow(child=self.todos), "pendencias", "Pendências", "task-due-symbolic")
+            getattr(self.todos, f"set_margin_{m}")(24)
+        self.stack.add_named(Gtk.ScrolledWindow(child=self.todos), "pendencias")
+        self.stack.connect("notify::visible-child-name", self.sync_nav)
         tv.set_content(self.stack)
         split.set_content(tv)
-        self.status = Gtk.Label(xalign=0, css_classes=["dim-label", "caption"], margin_start=12, margin_bottom=4)
-        tv.add_bottom_bar(self.status)
         self.set_content(split)
+
+    def build_sidebar(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18, css_classes=["sb-side"], vexpand=True)
+        brand = Gtk.Box(spacing=10, margin_top=20, margin_start=24, margin_end=16)
+        brand.append(Gtk.Image(icon_name=APP_ID, pixel_size=28))
+        brand.append(Gtk.Label(label="SecondBrain", xalign=0, css_classes=["sb-brand"]))
+        box.append(brand)
+        self.nav = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE, css_classes=["sb-list"], margin_start=12, margin_end=12)
+        for page, label, icon in (("notas", "Notas", "text-x-generic-symbolic"),
+                                  ("grafo", "Grafo", "network-workgroup-symbolic"),
+                                  ("pendencias", "Pendências", "view-list-symbolic")):
+            row = Gtk.ListBoxRow()
+            line = Gtk.Box(spacing=12)
+            line.append(Gtk.Image(icon_name=icon))
+            line.append(Gtk.Label(label=label, xalign=0))
+            row.set_child(line)
+            row.page = page
+            self.nav.append(row)
+        self.nav.connect("row-selected", self.on_nav)
+        box.append(self.nav)
+        box.append(Gtk.Label(label="Projetos", xalign=0, css_classes=["sb-section"], margin_start=24))
+        self.plist = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE, css_classes=["sb-list"], margin_start=12, margin_end=12)
+        self.plist.connect("row-selected", self.on_project)
+        box.append(Gtk.ScrolledWindow(child=self.plist, vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER))
+        self.status = Gtk.Label(xalign=0, css_classes=["sb-foot"], margin_start=24, margin_bottom=16, margin_end=16,
+                                ellipsize=Pango.EllipsizeMode.END)
+        box.append(self.status)
+        self.nav.select_row(self.nav.get_row_at_index(0))
+        return box
+
+    def build_notes_page(self):
+        paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, position=400, shrink_start_child=False, shrink_end_child=False)
+        col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, css_classes=["sb-column"], width_request=360)
+        self.entry = Gtk.SearchEntry(placeholder_text="Buscar em todas as notas…", css_classes=["sb-search"],
+                                     margin_top=20, margin_start=20, margin_end=20)
+        self.entry.connect("search-changed", lambda *_: self.do_search())
+        col.append(self.entry)
+        seg = Gtk.Box(css_classes=["sb-seg"], homogeneous=True, margin_start=20, margin_end=20)
+        first = None
+        for key, label in self.SCOPES:
+            b = Gtk.ToggleButton(label=label)
+            if first is None:
+                first = b
+                b.set_active(True)
+            else:
+                b.set_group(first)
+            b.connect("toggled", self.on_scope, key)
+            seg.append(b)
+        col.append(seg)
+        row = Gtk.Box(spacing=8, margin_start=20, margin_end=20)
+        self.filter_btn = Gtk.MenuButton(label="Filtros", css_classes=["sb-filter"], tooltip_text="Filtros da busca")
+        pop = Gtk.Popover()
+        self.inact = Gtk.CheckButton(label="Incluir notas substituídas", margin_top=8, margin_bottom=8, margin_start=10, margin_end=10)
+        self.inact.connect("toggled", self.on_inactive)
+        pop.set_child(self.inact)
+        self.filter_btn.set_popover(pop)
+        row.append(self.filter_btn)
+        col.append(row)
+        self.count_line = Gtk.Label(xalign=0, css_classes=["sb-count-line"], margin_start=20, margin_end=20)
+        col.append(self.count_line)
+        self.results = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE, css_classes=["sb-cards"])
+        self.results.connect("row-selected", self.on_result)
+        col.append(Gtk.ScrolledWindow(child=self.results, vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER))
+        paned.set_start_child(col)
+        self.reader = self.make_webview(js=False)
+        paned.set_end_child(self.reader)
+        self.show_reader_empty()
+        return paned
+
+    def show_reader_empty(self):
+        msg = ('<div class="page" style="margin-top:22vh;text-align:center"><h1 style="font-size:20px">Escolha uma nota</h1>'
+               '<p style="color:var(--sub0);font-size:14px">Use a busca ou clique num resultado para ler aqui.</p></div>')
+        self.reader.load_html(f'<!doctype html><meta charset="utf-8"><style>{theme.reader_css(self.dark)}</style><body>{msg}</body>', "sb://reader/")
 
     def make_webview(self, js):
         wv = WebKit.WebView(vexpand=True, hexpand=True)
@@ -628,6 +713,43 @@ class Win(Adw.ApplicationWindow):
         wv.connect("decide-policy", self.on_policy)
         return wv
 
+    # ------------------------------------------------------------ navegação
+    def on_nav(self, _lb, row):
+        if row is not None and hasattr(self, "stack"):  # a barra lateral nasce antes das páginas
+            self.stack.set_visible_child_name(row.page)
+
+    def sync_nav(self, *_):
+        name = self.stack.get_visible_child_name()
+        row = self.nav.get_selected_row()
+        if row is not None and getattr(row, "page", None) == name:
+            return
+        for i in range(3):
+            r = self.nav.get_row_at_index(i)
+            if r is not None and r.page == name:
+                self.nav.select_row(r)
+                break
+
+    def on_scope(self, btn, key):
+        if btn.get_active():
+            self.scope = key
+            self.do_search()
+
+    def on_inactive(self, btn):
+        self.include_inactive = btn.get_active()
+        self.filter_btn.set_label("Filtros · 1" if self.include_inactive else "Filtros")
+        self.do_search()
+
+    def tick_footer(self):
+        self.update_footer()
+        return True
+
+    def update_footer(self):
+        if self.indexed_at is None:
+            self.status.set_text(f"{self.total_notes} notas")
+        else:
+            self.status.set_text(f"Índice atualizado {ago(time.time() - self.indexed_at)}")
+        self.status.set_tooltip_text(f"{self.total_notes} notas · {xmem.DB_PATH}")
+
     # ------------------------------------------------------------ dados
     def bg_index(self):
         GLib.idle_add(self.status.set_text, "Indexando vaults…")
@@ -636,35 +758,58 @@ class Win(Adw.ApplicationWindow):
         except Exception as e:  # noqa: BLE001
             GLib.idle_add(self.status.set_text, f"Falha ao indexar: {e}")
             return
+        self.indexed_at = time.time()
         GLib.idle_add(self.refresh_all)
+
+    def project_row(self, p):
+        """Duas linhas quando há o que dizer (sensível, parados): o nome do projeto nunca perde espaço para selo."""
+        row = Gtk.ListBoxRow()
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, margin_top=6, margin_bottom=6)
+        line = Gtk.Box(spacing=10)
+        dot = Gtk.Label(use_markup=True)
+        dot.set_markup(f'<span foreground="{self.colors[p["project"]]}">●</span>')
+        line.append(dot)
+        line.append(Gtk.Label(label=p["project"], xalign=0, hexpand=True, ellipsize=Pango.EllipsizeMode.END))
+        line.append(Gtk.Label(label=str(p["n"]), css_classes=["sb-count"]))
+        outer.append(line)
+        if p["sens"] == "alta" or p["stale"]:
+            sub = Gtk.Box(spacing=8, margin_start=22)
+            if p["sens"] == "alta":
+                sub.append(Gtk.Label(label="sensível", css_classes=["sb-badge"], valign=Gtk.Align.CENTER,
+                                     tooltip_text="Sensibilidade alta: outros projetos só veem o título"))
+            if p["stale"]:
+                sub.append(Gtk.Label(label=f"{p['stale']} parados", css_classes=["sb-warn"], tooltip_text="Itens em aberto há mais de 14 dias"))
+            outer.append(sub)
+        row.set_child(outer)
+        row.proj = p["project"]
+        return row
 
     def refresh_all(self):
         self.c = xmem.connect()
         projs = xmem.projects_summary(self.c)
         self.colors = {p["project"]: PALETTE[i % len(PALETTE)] for i, p in enumerate(projs)}
-        while (r := self.plist.get_first_child()):
-            self.plist.remove(r)
-        allrow = Adw.ActionRow(title="Todos os projetos", subtitle=f"{sum(p['n'] for p in projs)} notas")
+        self.total_notes = sum(p["n"] for p in projs)
+        keep = self.project
+        self.plist.remove_all()
+        allrow = Gtk.ListBoxRow()
+        line = Gtk.Box(spacing=10)
+        line.append(Gtk.Label(label="Todos os projetos", xalign=0, hexpand=True))
+        line.append(Gtk.Label(label=str(self.total_notes), css_classes=["sb-count"]))
+        allrow.set_child(line)
         allrow.proj = None
         self.plist.append(allrow)
         for p in projs:
-            sub = f"{p['n']} notas · devtrack {p['last_devtrack'] or '—'}"
-            row = Adw.ActionRow(title=p["project"], subtitle=sub)
-            dot = Gtk.Label(label="●")
-            dot.add_css_class("title-3")
-            row.add_prefix(dot)
-            dot.set_markup(f'<span foreground="{self.colors[p["project"]]}">●</span>')
-            if p["sens"] == "alta":
-                row.add_suffix(Gtk.Label(label="🔒"))
-            if p["stale"]:
-                row.add_suffix(Gtk.Label(label=f"⚠ {p['stale']}", css_classes=["caption", "dim-label"], tooltip_text="itens em aberto parados há mais de 14 dias"))
-            row.proj = p["project"]
-            self.plist.append(row)
-        self.plist.select_row(self.plist.get_row_at_index(0))
+            self.plist.append(self.project_row(p))
+        sel = allrow
+        for i in range(1, len(projs) + 1):
+            r = self.plist.get_row_at_index(i)
+            if keep and r.proj == keep:
+                sel = r
+        self.plist.select_row(sel)
         self.do_search()
         self.refresh_graph()
         self.fill_todos()
-        self.status.set_text(f"{self.c.execute('select count(*) from notes').fetchone()[0]} notas · {len(projs)} projetos · índice {xmem.DB_PATH}")
+        self.update_footer()
 
     def on_project(self, _lb, row):
         self.project = getattr(row, "proj", None) if row else None
@@ -680,28 +825,49 @@ class Win(Adw.ApplicationWindow):
         except Exception:  # noqa: BLE001
             self.refresh_graph(force=True)
 
+    def result_row(self, r, snip):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_top=12, margin_bottom=12, margin_start=14, margin_end=14)
+        box.append(Gtk.Label(label=r["title"], xalign=0, wrap=True, lines=2, ellipsize=Pango.EllipsizeMode.END, css_classes=["sb-title"]))
+        meta = Gtk.Box(spacing=8)
+        dot = Gtk.Label(use_markup=True)
+        dot.set_markup(f'<span foreground="{self.colors.get(r["project"], "#8087a2")}">●</span>')
+        meta.append(dot)
+        parts = [r["project"], r["tipo"] or r["kind"]]
+        if r["data"]:
+            parts.append(fmt_date(r["data"]))
+        meta.append(Gtk.Label(label=" · ".join(parts), xalign=0, css_classes=["sb-meta"], ellipsize=Pango.EllipsizeMode.END))
+        if r["sens"] == "alta":
+            meta.append(Gtk.Label(label="Sensível", css_classes=["sb-sens"], valign=Gtk.Align.CENTER))
+        box.append(meta)
+        if snip:
+            box.append(Gtk.Label(label=snip, xalign=0, wrap=True, lines=2, ellipsize=Pango.EllipsizeMode.END, css_classes=["sb-snip"]))
+        row = Gtk.ListBoxRow(child=box)
+        row.nid = r["id"]
+        return row
+
     def do_search(self):
         q = self.entry.get_text().strip()
         self.results.remove_all()
         rows = []
+        outros = self.scope == "outros"
+        proj = self.project if self.scope == "projeto" else None
         if q:
-            cur = self.project
-            hits = xmem.hybrid(self.c, q, k=40, project=None if self.recall.get_active() else self.project,
-                               exclude_project=cur if self.recall.get_active() else None, include_inactive=self.inact.get_active())
+            hits = xmem.hybrid(self.c, q, k=40, project=proj, exclude_project=self.project if outros else None,
+                               include_inactive=self.include_inactive)
             rows = [(h["row"], xmem.snippet(h["row"]["text"], q, 140)) for h in hits]
         else:
-            where, args = ("where project=?", (self.project,)) if self.project else ("", ())
+            where, args = ("where project=?", (proj,)) if proj else ("where project!=?", (self.project,)) if outros and self.project else ("", ())
             for r in self.c.execute(f"select * from notes {where} order by data desc, id desc limit 80", args):
                 rows.append((r, ""))
         for r, snip in rows:
-            row = Adw.ActionRow(title=GLib.markup_escape_text(r["title"]), subtitle=GLib.markup_escape_text(f"{r['project']} · {r['tipo'] or r['kind']} · {r['data']}" + (("\n" + snip) if snip else "")))
-            row.set_subtitle_lines(3)
-            row.set_title_lines(2)
-            if r["sens"] == "alta":
-                row.add_suffix(Gtk.Label(label="🔒"))
-            row.nid = r["id"]
-            self.results.append(row)
-        self.status.set_text(f"{len(rows)} resultado(s)" + (f" para “{q}”" if q else " (recentes)"))
+            self.results.append(self.result_row(r, snip))
+        escopo = {"projeto": f"em {self.project}" if self.project else "em todos os projetos", "todos": "em todos os projetos",
+                  "outros": f"fora de {self.project}" if self.project else "em todos os projetos"}[self.scope]
+        n = len(rows)
+        if not rows and q:
+            self.count_line.set_text(f"Nada encontrado para “{q}” {escopo}")
+        else:
+            self.count_line.set_text((f"{n} resultado(s) {escopo}" if q else f"{n} nota(s) recentes {escopo}"))
 
     def on_result(self, _lb, row):
         if row is not None:
@@ -749,7 +915,8 @@ class Win(Adw.ApplicationWindow):
         edges = [{"src": e["src"], "dst": e["dst"], "type": e["type"], "score": e["score"], "cross": e["cross"]}
                  for e in g["edges"]]
         data = json.dumps({"nodes": nodes, "edges": edges}, ensure_ascii=False).replace("<", "\\u003c")
-        html_ = (GRAPH_HTML.replace("{{DATA}}", data)
+        html_ = (GRAPH_HTML.replace("{{THEME}}", graph_theme())
+                 .replace("{{DATA}}", data)
                  .replace("{{COLORS}}", json.dumps(self.colors))
                  .replace("{{SIG}}", sig[:12])
                  .replace("{{PROJECT}}", json.dumps(self.project)))
@@ -758,6 +925,7 @@ class Win(Adw.ApplicationWindow):
 
     def on_theme(self, style_manager, _pspec=None):
         self.dark = style_manager.get_dark()
+        self.apply_css()
         try:
             self.graph.evaluate_javascript(f"window.sbSetDark&&window.sbSetDark({str(self.dark).lower()});",
                                           -1, None, None, None, None, None)
@@ -765,6 +933,8 @@ class Win(Adw.ApplicationWindow):
             pass
         if self.cur_id:
             self.open_note(self.cur_id)
+        else:
+            self.show_reader_empty()
 
     def on_graph_click(self, _ucm, value):
         try:
@@ -803,6 +973,18 @@ class Win(Adw.ApplicationWindow):
         return True
 
 
+def save_window_png(win, path):
+    """Captura a janela inteira num PNG (usado só pelo selftest, para conferir o desenho sem tela de apoio)."""
+    paintable = Gtk.WidgetPaintable.new(win)
+    w, h = win.get_width(), win.get_height()
+    snap = Gtk.Snapshot()
+    paintable.snapshot(snap, w, h)
+    node = snap.to_node()
+    tex = win.get_native().get_renderer().render_texture(node, None)
+    tex.save_to_png(path)
+    print(f"captura: {path} ({w}x{h})")
+
+
 class App(Adw.Application):
     def __init__(self):
         super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
@@ -812,8 +994,22 @@ class App(Adw.Application):
         Gtk.Window.set_default_icon_name(APP_ID)  # ícone instalado por scripts/install-tools.sh
         win = Win(self)
         win.present()
-        if self.selftest:  # fumaça: abre, indexa, fecha sozinho
-            GLib.timeout_add(7000, lambda: (print("selftest: janela e dados ok"), self.quit()))
+        if self.selftest:  # fumaça: abre, indexa, fecha sozinho (SB_SELFTEST_MS e SB_SELFTEST_PAGE servem para capturar a tela)
+            want = os.environ.get("SB_SELFTEST_NOTE")
+            if want:
+                def _open():
+                    r = win.c.execute("select id from notes where title like ? order by id limit 1", (f"%{want}%",)).fetchone()
+                    if r:
+                        win.open_note(r["id"])
+                    return False
+                GLib.timeout_add(3000, _open)
+            page = os.environ.get("SB_SELFTEST_PAGE")
+            if page:
+                GLib.timeout_add(2500, lambda: win.stack.set_visible_child_name(page) and False)
+            shot = os.environ.get("SB_SELFTEST_SHOT")
+            if shot:
+                GLib.timeout_add(int(os.environ.get("SB_SELFTEST_SHOT_MS", "5000")), lambda: (save_window_png(win, shot), False)[1])
+            GLib.timeout_add(int(os.environ.get("SB_SELFTEST_MS", "7000")), lambda: (print("selftest: janela e dados ok"), self.quit()))
 
 
 if __name__ == "__main__":
