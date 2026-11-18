@@ -5,7 +5,7 @@ Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões se
 ## [0.8.0] - 2026-11-18
 
 ### Adicionado
-- CI no GitHub Actions (`.github/workflows/tests.yml`): suíte do motor em Python 3.11 e 3.13; job da interface com GTK do sistema, informativo até passar no runner.
+- CI no GitHub Actions (`.github/workflows/tests.yml`): suíte do motor em Python 3.11 e 3.13; job da interface com GTK do sistema (passou no runner e agora bloqueia).
 - `tests/eval_xmem.py --auto [N]`: consultas de item conhecido geradas do índice real (sem gravar conteúdo no git, sem imprimir texto de vault sensível), `--save` para linha de base com diferença nas execuções seguintes, e `--local` para casos escritos à mão fora do repositório.
 - Aviso no hook de sessão quando a sessão carregou uma versão do plugin mais antiga que a instalada (`xmem.plugin_version_notice`).
 - README: guia "Qual usar quando" para `/context`, `/resume`, `/standup`, `/board` e `/priority`.

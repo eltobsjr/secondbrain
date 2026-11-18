@@ -26,9 +26,8 @@ jobs:
 
   gui:
     # Roda também os testes de lógica da interface (leitor seguro, JS do grafo) com GTK4/libadwaita/WebKitGTK do sistema.
-    # Informativo: ainda não foi visto passando no runner; quando passar, remova o continue-on-error.
+    # Passou no runner em 2026-11-18 (93 testes): agora bloqueia como o job do motor.
     runs-on: ubuntu-24.04
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Dependências do sistema
