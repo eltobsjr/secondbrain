@@ -28,7 +28,7 @@ from _vault import first_h1, read_manifest  # noqa: E402
 
 HOME = os.path.expanduser("~")
 DB_PATH = os.environ.get("SECONDBRAIN_XMEM_DB") or os.path.join(HOME, ".local/share/secondbrain/xmem.db")
-SCHEMA_VERSION = 4  # mudou o esquema ou o tokenizador => reconstrução completa (falha fechada)
+SCHEMA_VERSION = 5  # mudou o esquema ou o tokenizador => reconstrução completa (falha fechada); v5: linha das caixas passa a ser a do arquivo
 
 # Limiares (equivalentes aos do Memora, recalibrados para TF-IDF lexical; ajustáveis por env)
 T_DUP = float(os.environ.get("XMEM_T_DUP", "0.80"))        # duplicata provável
@@ -297,10 +297,12 @@ def index(full=False, quiet=False):
             c.execute("update notes set mtime=?,size=? where path=?", (st.st_mtime, st.st_size, s["path"]))
             continue
         fm, body = parse_note(text)
+        lineoff = text[:len(text) - len(body)].count("\n")      # linhas do frontmatter: a linha da caixa é a do ARQUIVO, não a do corpo
         title = first_h1(body) or str(fm.get("name") or os.path.basename(s["path"])[:-3])
         desc = flat(fm.get("description", "")).strip()
         if desc:
             body = f"{desc}\n\n{body}"
+            lineoff -= desc.count("\n") + 2
         mt = fm.get("metadata")
         tipo = flat(fm.get("tipo") or (mt.get("type") if isinstance(mt, dict) else "") or s["kind"])
         status = flat(fm.get("status", ""))
@@ -327,7 +329,7 @@ def index(full=False, quiet=False):
             cur = c.execute("insert into chunks(note_id,ord,heading,text,tf) values(?,?,?,?,?)", (nid, i, head, txt, json.dumps(tf_of(head + "\n" + txt))))
             c.execute("insert into chunks_fts(rowid,text,heading) values(?,?,?)", (cur.lastrowid, txt, head))
         if s["kind"] in ("devtrack", "estado", "prioridade", "feature", "checklist", "analise"):
-            for n, ln in enumerate(body.splitlines(), 1):
+            for n, ln in enumerate(body.splitlines(), 1 + lineoff):
                 m = re.match(r"^\s*[-*]\s*\[( |x|X)\]\s*(.+)$", ln)
                 if m:
                     t = m.group(2).strip()

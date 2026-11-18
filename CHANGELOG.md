@@ -22,6 +22,8 @@ Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões se
 - `xmem.open_items` (hook de sessão, `digest`, `insights`) passa a ler do quadro: o que foi fechado ou descartado no `quadro.md` e o que o motor oculta não conta mais como pendência aberta.
 
 ### Corrigido
+- O número de linha que o cartão mostra ("Origem: nota, linha N") contava a partir do corpo da nota, sem o frontmatter, e não batia com o arquivo. Agora é a linha do arquivo (esquema do índice v5, reconstrução automática).
+- O instalador (`install-tools.sh`) não copiava `semana.py`, e a cópia instalada, que a interface e o hook usam, quebrava no import. Agora um teste exige que todo script do repositório esteja na lista.
 - Privacidade: `/patterns` mostrava "Termos em comum" derivados do conteúdo de notas de vaults com `crossmem: titulos`. Agora os termos saem só de notas com política `completo`, e só quando há ao menos duas. Lógica extraída para `xmem.patterns_data`, com teste.
 - README: contagem de testes defasada.
 

@@ -166,6 +166,13 @@ class QuadroSemanaTest(unittest.TestCase):
         self.assertTrue(doc["backlog"])
         self.assertEqual(doc["semana_ef"], "")
 
+    def test_linha_do_cartao_e_a_linha_do_arquivo(self):
+        """Regressão: a linha vinha do corpo da nota (sem o frontmatter) e não batia com o arquivo que o usuário abre."""
+        k = self.cards()["Revisar contrato com o fornecedor de pagamentos"]
+        arquivo = os.path.join(self.vault, k["origem"]["nota"])
+        linhas = open(arquivo, encoding="utf-8").read().splitlines()
+        self.assertIn("Revisar contrato com o fornecedor de pagamentos", linhas[k["origem"]["linha"] - 1])
+
     def test_feito_pela_origem_leva_a_data_da_sessao_que_marcou(self):
         k = self.cards()["Configurar monitoramento do servidor de relatórios"]
         self.assertEqual(k["status"], "feito")
