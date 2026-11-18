@@ -19,6 +19,7 @@ Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões se
 - Testes: `tests/test_semana.py` (23, com data fixa), incluindo a sintaxe do JS das páginas.
 
 ### Alterado
+- `tests/eval_xmem.py`: os 7 casos que tocavam vaults de sensibilidade alta saíram do repositório (que é público) e vivem em `~/.local/share/secondbrain/eval_local.json`, carregado sozinho. O histórico anterior do git ainda contém o texto antigo.
 - "Parado" passa a valer só para item que veio de **devtrack** (retrato de sessão) e que não tem prazo. Para item de CHECKLIST, feature ou prioridade a idade é a do documento, não de esquecimento, e com prazo quem avisa é a flag. Vale no quadro, nos insights, no hook e no `digest`.
 - `xmem.open_items` (hook de sessão, `digest`, `insights`) passa a ler do quadro: o que foi fechado ou descartado no `quadro.md` e o que o motor oculta não conta mais como pendência aberta.
 

@@ -3,6 +3,8 @@
 
 Cada caso: pergunta + trecho do caminho da nota que DEVE aparecer + projeto de origem da consulta
 (para recall, que exclui o projeto atual). As respostas foram verificadas à mão nos vaults reais.
+Casos que tocam vault de sensibilidade alta NÃO ficam aqui (o repositório é público): vivem em ~/.local/share/secondbrain/eval_local.json,
+que o script carrega sozinho (--local ARQ usa outro arquivo).
 Métrica: posição da nota esperada (hit@3 / hit@5) e MRR.
 
 Uso: eval_xmem.py [--verbose] [--auto [N]] [--local ARQUIVO.json] [--save]

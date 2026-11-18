@@ -236,6 +236,7 @@ secondbrain/
 ```bash
 python3 -I -m unittest discover -s tests          # motor, privacidade, linhagem, quadro, hook, interface (a interface se pula sem GTK)
 python3 -I tests/eval_xmem.py                     # qualidade da busca (conjuntos de ajuste e reservado)
+# casos que tocam vault sensível ficam fora do repositório: ~/.local/share/secondbrain/eval_local.json (carregado sozinho)
 python3 -I tests/eval_xmem.py --auto --save       # 150 consultas geradas do seu índice; --save grava a linha de base, as próximas execuções mostram a diferença
 python3 -I scripts/check_vault.py <pasta-do-vault>   # integridade de um vault
 ```
