@@ -1163,11 +1163,11 @@ class Win(Adw.ApplicationWindow):
         d.connect("response", lambda _d, r: callback() if r == "ok" else None)
         d.present(self)
 
-    def board_write(self, project, changes, done_msg):
+    def board_write(self, project, changes, done_msg, order=None):
         """Grava no quadro.md do projeto (backup fora do vault). Vault sensível/versionado pede confirmação."""
         def attempt(confirmo):
             try:
-                board.apply_changes(self.c, project, changes, confirmo=confirmo)
+                board.apply_changes(self.c, project, changes, confirmo=confirmo, order=order)
             except SystemExit as e:
                 msg = str(e)
                 if "confirmação explícita" in msg and not confirmo:
@@ -1209,8 +1209,23 @@ class Win(Adw.ApplicationWindow):
             if "bloqueado_por" in m:
                 campos["bloqueado-por"] = m["bloqueado_por"] or ""
             prio = (m.get("prioridade") or "") if "prioridade" in m else None
-            ch = board.change_from_card(card, m["col"], prio, None, campos)
-            self.board_write(proj, [ch], f"Movido para {board.LABEL.get(m['col'], m['col'])}.")
+            changes = [board.change_from_card(card, m["col"], prio, None, campos)]
+            order = None
+            if m.get("order"):          # soltou numa posição: grava a ordem da coluna inteira (só dos cartões listados)
+                by_id = {k["id"]: k for k in board.build(self.c, proj)}
+                for oid in m["order"]:
+                    if oid != card["id"] and oid in by_id:
+                        changes.append(board.change_from_card(by_id[oid], by_id[oid]["status"]))
+                order = {m["col"]: list(m["order"])}
+            self.board_write(proj, changes, f"Movido para {board.LABEL.get(m['col'], m['col'])}.", order=order)
+        elif op == "add":
+            titulo = (m.get("titulo") or "").strip()
+            if not titulo or m.get("col") not in board.KEYS:
+                self.board_toast("Informe o título e a coluna.")
+                return
+            nid = "m" + hashlib.sha1(f"{proj}\0{titulo}\0{time.time()}".encode()).hexdigest()[:6]
+            ch = {"id": nid, "titulo": titulo, "col": m["col"], "prioridade": m.get("prioridade") or "", "etiquetas": [], "campos": {}}
+            self.board_write(proj, [ch], "Cartão criado.")
         elif op == "discard-old":
             days, n = int(m.get("days", board.TRIAGE_DAYS)), int(m.get("n", 0))
 

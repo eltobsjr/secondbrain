@@ -63,21 +63,34 @@ aside h3{margin:0 0 14px;font-size:18px;line-height:1.35;font-weight:700;overflo
 .fld select,.fld input{height:30px;border-radius:8px;border:1px solid var(--bd);background-color:var(--bg);padding:0 8px;width:170px}
 .acts{display:flex;gap:10px;margin-top:20px}
 .acts .btn{flex:1}
+#vseg{display:flex;padding:3px;border-radius:10px;background:var(--panel);border:1px solid var(--bd);margin-left:auto}
+#vseg button{border:0;background:transparent;border-radius:8px;padding:5px 12px;font-size:13px;font-weight:500;color:var(--mut);cursor:pointer}
+#vseg button.on{background:var(--chip);color:var(--fg)}
+#list{flex:1;overflow:auto;padding:14px 28px;display:none}
+#list table{width:100%;border-collapse:collapse;font-size:14px}
+#list th{text-align:left;font-size:12px;font-weight:600;color:var(--mut);padding:8px 10px;border-bottom:1px solid var(--bd)}
+#list td{padding:10px;border-bottom:1px solid var(--bd);vertical-align:top}
+#list tr.row{cursor:pointer}#list tr.row:hover td{background:var(--panel)}
+.none{font-size:12px;color:var(--mut);padding:8px 4px}
+.form label{display:block;font-size:12px;font-weight:600;color:var(--mut);margin:14px 0 6px}
+.form input,.form select{width:100%;height:38px;border-radius:10px;border:1px solid var(--bd);background-color:var(--bg);color:var(--fg);padding:0 12px}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:10px 16px;font-size:13px;display:none;z-index:9;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 #empty{padding:40px 28px;color:var(--mut);display:none}
 </style><body>
 <div id="app">
 <main>
   <header>
-    <div class="h1"><h1 id="ttl">Quadro</h1><span class="chip" id="pj"></span><span id="cnt"></span></div>
+    <div class="h1"><h1 id="ttl">Quadro</h1><span class="chip" id="pj"></span><span id="cnt"></span>
+      <div id="vseg"><button id="vq" class="on">Quadro</button><button id="vl">Lista</button></div><button class="btn pri" id="newb" title="Atalho: n">Novo cartão</button></div>
     <div class="filters">
       <input id="f" placeholder="Filtrar cartões" spellcheck="false">
       <select id="fp"><option value="">Prioridade: todas</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option></select>
+      <select id="fe"><option value="">Etiqueta: todas</option></select>
       <select id="ft"><option value="">Tipo: todos</option><option value="todo">todo</option><option value="manual">manual</option><option value="criterio-feature">critério de feature</option></select>
     </div>
   </header>
   <div id="banner"><span id="bt"></span><button class="btn" id="bdisc">Descartar em lote…</button></div>
-  <div id="cols"></div><div id="overview"></div><div id="empty"></div>
+  <div id="cols"></div><div id="list"></div><div id="overview"></div><div id="empty"></div>
 </main>
 <aside id="drawer"></aside>
 </div>
@@ -86,7 +99,7 @@ aside h3{margin:0 0 14px;font-size:18px;line-height:1.35;font-weight:700;overflo
 const COLS={{COLS}}, HINT={{HINT}}, COLORS={{COLORS}};
 let DATA={{DATA}};
 const CC={triagem:'var(--mut)','a-fazer':'var(--ac)',fazendo:'var(--warn)',bloqueado:'var(--err)',revisao:'var(--kind)',feito:'var(--ok)',descartado:'var(--mut)'};
-const state={sel:null,q:'',prio:'',tipo:'',open:new Set(['triagem','a-fazer','fazendo','bloqueado','revisao']),more:{}};
+const state={sel:null,q:'',prio:'',tipo:'',tag:'',view:'quadro',newForm:false,open:new Set(['triagem','a-fazer','fazendo','bloqueado','revisao']),more:{}};
 const $=id=>document.getElementById(id);
 const send=o=>{try{window.webkit.messageHandlers.bd.postMessage(JSON.stringify(o))}catch(e){}};
 const clean=t=>String(t||'').replace(/[`*]/g,'');
@@ -95,6 +108,7 @@ function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';cle
 function visible(k){
   if(state.prio&&k.prioridade!==state.prio)return false;
   if(state.tipo&&k.tipo!==state.tipo)return false;
+  if(state.tag&&!(k.etiquetas||[]).includes(state.tag))return false;
   if(state.q&&!(k.titulo+' '+k.projeto+' '+(k.etiquetas||[]).join(' ')).toLowerCase().includes(state.q))return false;
   return true;
 }
@@ -105,19 +119,26 @@ function render(){
   const pj=$('pj');pj.innerHTML='';
   if(single){const i=el('i');i.style.background=COLORS[single]||'#8a97b2';pj.append(i,document.createTextNode(single))}
   else pj.append(document.createTextNode('Todos os projetos'));
-  $('cols').style.display=single?'flex':'none';
+  $('cols').style.display=single&&state.view==='quadro'?'flex':'none';
+  $('list').style.display=single&&state.view==='lista'?'block':'none';
+  $('newb').style.display=single?'inline-flex':'none';
+  $('vseg').style.display=single?'flex':'none';
+  $('vq').classList.toggle('on',state.view==='quadro');$('vl').classList.toggle('on',state.view==='lista');
   $('overview').style.display=single?'none':'grid';
   $('f').parentElement.style.display=single?'flex':'none';
   if(!single){renderOverview();$('banner').classList.remove('show');$('cnt').textContent=Object.keys(DATA.resumo||{}).length+' projetos';return}
+  const tags=[...new Set(cards.flatMap(k=>k.etiquetas||[]))].sort();
+  const fe=$('fe');if(fe.options.length!==tags.length+1){fe.innerHTML='<option value="">Etiqueta: todas</option>';for(const t of tags){const o=el('option',null,'#'+t);o.value=t;fe.append(o)}fe.value=state.tag}
   const vis=cards.filter(visible);
   const open=cards.filter(k=>k.status!=='feito'&&k.status!=='descartado').length;
-  const filtering=state.q||state.prio||state.tipo;
+  const filtering=state.q||state.prio||state.tipo||state.tag;
   $('cnt').textContent=open+' abertos'+(filtering?' · '+vis.length+' no filtro':'');
   const old=cards.filter(k=>k.status==='triagem'&&k.idade_dias>=DATA.triagem_dias);
   const b=$('banner');
   if(old.length){b.classList.add('show');$('bt').innerHTML='<b>'+old.length+'</b> '+(old.length===1?'cartão em Triagem tem':'cartões em Triagem têm')+' mais de '+DATA.triagem_dias+' dias. A maioria costuma ser caixa esquecida em devtrack antigo.';
     $('bdisc').onclick=()=>send({op:'discard-old',project:single,days:DATA.triagem_dias,n:old.length})}
   else b.classList.remove('show');
+  if(state.view==='lista'){renderList(vis);renderDrawer();return}
   const root=$('cols');root.innerHTML='';
   for(const [key,label] of COLS){
     const list=vis.filter(k=>k.status===key);
@@ -128,13 +149,20 @@ function render(){
     col.append(hd,el('div','hint',HINT[key]||''));
     const body=el('div','body');
     const cap=state.more[key]||40;
+    if(!list.length)body.appendChild(el('div','none',all?'Nenhum cartão neste filtro':'Nenhum cartão'));
     for(const k of list.slice(0,cap))body.appendChild(cardEl(k));
     if(list.length>cap){const m=el('button','more','Mostrar mais '+Math.min(40,list.length-cap)+' de '+(list.length-cap));m.onclick=()=>{state.more[key]=cap+40;render()};body.appendChild(m)}
     col.append(body);
     col.addEventListener('dragover',ev=>{ev.preventDefault();col.classList.add('over')});
     col.addEventListener('dragleave',()=>col.classList.remove('over'));
     col.addEventListener('drop',ev=>{ev.preventDefault();col.classList.remove('over');const id=ev.dataTransfer.getData('text/plain');const k=cards.find(x=>x.id===id);
-      if(k&&k.status!==key){state.open.add(key);send({op:'move',project:k.projeto,id:k.id,col:key})}});
+      if(!k)return;
+      const over=ev.target.closest?ev.target.closest('.card'):null;
+      const ids=[...col.querySelectorAll('.card')].map(c=>c.dataset.id).filter(x=>x!==id);
+      const at=over&&over.dataset.id!==id?ids.indexOf(over.dataset.id):ids.length;
+      ids.splice(at<0?ids.length:at,0,id);
+      if(k.status===key&&ids.join()===[...col.querySelectorAll('.card')].map(c=>c.dataset.id).join())return;
+      state.open.add(key);send({op:'move',project:k.projeto,id:k.id,col:key,order:ids})});
     root.appendChild(col);
   }
   renderDrawer();
@@ -151,13 +179,33 @@ function cardEl(k){
   if(k.bloqueado_por&&k.bloqueado_por.length)m.append(el('span','warn','bloqueado: '+k.bloqueado_por[0]));
   (k.etiquetas||[]).slice(0,2).forEach(t=>m.append(el('span',null,'#'+t)));
   c.append(m);
-  c.onclick=()=>{state.sel=k.id;$('app').classList.add('sel');render()};
+  c.onclick=()=>{state.sel=k.id;state.newForm=false;$('app').classList.add('sel');render()};
   c.addEventListener('dragstart',ev=>{ev.dataTransfer.setData('text/plain',k.id);ev.dataTransfer.effectAllowed='move';c.classList.add('drag')});
   c.addEventListener('dragend',()=>c.classList.remove('drag'));
   return c;
 }
+function renderList(vis){
+  const root=$('list');root.innerHTML='';
+  if(!vis.length){root.append(el('div','none','Nenhum cartão neste filtro'));return}
+  const t=el('table');const hd=el('tr');for(const h of ['Prio','Cartão','Status','Parado há'])hd.append(el('th',null,h));t.append(hd);
+  for(const k of vis.filter(x=>state.q||state.prio||state.tag||state.tipo||(x.status!=='feito'&&x.status!=='descartado'))){
+    const r=el('tr','row');r.append(el('td',null,k.prioridade||'—'),el('td',null,clean(k.titulo)),el('td',null,COLS.find(c=>c[0]===k.status)[1]),el('td',null,k.parado?k.idade_dias+' d':''));
+    r.onclick=()=>{state.sel=k.id;state.newForm=false;$('app').classList.add('sel');render()};t.append(r)}
+  root.append(t);
+}
+function showNew(){state.newForm=true;state.sel=null;$('app').classList.add('sel');renderDrawer()}
 function renderDrawer(){
   const d=$('drawer');d.innerHTML='';
+  if(state.newForm){
+    d.append(el('h3',null,'Novo cartão'));const f=el('div','form');
+    const ti=el('input');ti.placeholder='O que precisa ser feito?';
+    const sc=el('select');for(const [key,label] of COLS){if(key==='descartado')continue;const o=el('option',null,label);o.value=key;if(key==='a-fazer')o.selected=true;sc.append(o)}
+    const sp=el('select');for(const p of ['','P0','P1','P2','P3']){const o=el('option',null,p||'sem prioridade');o.value=p;sp.append(o)}
+    const lab=(t,x)=>{f.append(el('label',null,t),x)};lab('Título',ti);lab('Coluna',sc);lab('Prioridade',sp);d.append(f);
+    const go=()=>{const t=ti.value.trim();if(!t){ti.focus();return}send({op:'add',project:DATA.project,titulo:t,col:sc.value,prioridade:sp.value||null});state.newForm=false;state.sel=null;$('app').classList.remove('sel')};
+    ti.onkeydown=e=>{if(e.key==='Enter')go()};
+    const acts=el('div','acts');const ok=el('button','btn pri','Criar');ok.onclick=go;const no=el('button','btn','Cancelar');no.onclick=()=>{state.newForm=false;$('app').classList.remove('sel');d.innerHTML=''};acts.append(ok,no);d.append(acts);
+    setTimeout(()=>ti.focus(),30);return}
   const k=(DATA.cartoes||[]).find(x=>x.id===state.sel);
   if(!k){$('app').classList.remove('sel');return}
   const tags=el('div','tags');
@@ -208,10 +256,20 @@ function renderOverview(){
 $('f').oninput=e=>{state.q=e.target.value.trim().toLowerCase();render()};
 $('fp').onchange=e=>{state.prio=e.target.value;render()};
 $('ft').onchange=e=>{state.tipo=e.target.value;render()};
+$('fe').onchange=e=>{state.tag=e.target.value;render()};
+$('vq').onclick=()=>{state.view='quadro';render()};$('vl').onclick=()=>{state.view='lista';render()};
+$('newb').onclick=showNew;
 window.sbBoardData=d=>{DATA=d;render()};
 window.sbToast=toast;
 window.sbSetDark=on=>document.body.classList.toggle('dark',!!on);
-window.addEventListener('keydown',ev=>{if(ev.key==='Escape'){state.sel=null;render()}});
+window.addEventListener('keydown',ev=>{
+  const typing=/^(INPUT|SELECT|TEXTAREA)$/.test((ev.target||{}).tagName||'');
+  if(ev.key==='Escape'){state.sel=null;state.newForm=false;$('app').classList.remove('sel');render();return}
+  if(typing||ev.ctrlKey||ev.metaKey||ev.altKey||!DATA.project)return;
+  if(ev.key==='n'){ev.preventDefault();showNew()}
+  else if(ev.key==='/'){ev.preventDefault();$('f').focus()}
+  else if(ev.key==='l'){state.view=state.view==='quadro'?'lista':'quadro';render()}
+});
 render();
 </script>"""
 

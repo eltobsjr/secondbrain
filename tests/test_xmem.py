@@ -55,6 +55,19 @@ class XmemTest(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.home, ignore_errors=True)
 
+    def test_reindexar_nota_alterada_nao_quebra_nem_deixa_lixo_na_busca(self):
+        """Regressão: apagar trechos sem apagar o FTS fazia o índice quebrar ao alterar a última nota indexada."""
+        path = os.path.join(self.a, "devtrack", "zz-ultima-nota.md")
+        write(path, "---\ntipo: devtrack\ndata: 2026-11-01\n---\n\n# Ultima\n\n## Status\n\n- [ ] primeira versao do texto exclusivo alfa\n")
+        c = self.xmem.index(quiet=True)
+        write(path, "---\ntipo: devtrack\ndata: 2026-11-01\n---\n\n# Ultima\n\n## Status\n\n- [ ] segunda versao do texto exclusivo beta\n")
+        os.utime(path, (time.time() + 5, time.time() + 5))
+        c = self.xmem.index(quiet=True)   # não pode levantar IntegrityError
+        orfas = c.execute("select count(*) from chunks_fts where rowid not in (select id from chunks)").fetchone()[0]
+        self.assertEqual(orfas, 0, "nenhuma linha de FTS sem trecho correspondente")
+        hits = [h["row"]["rel"] for h in self.xmem.hybrid(c, "texto exclusivo beta", k=5)]
+        self.assertIn("devtrack/zz-ultima-nota.md", hits)
+
     def test_indexa_vaults_e_memoria(self):
         n = self.c.execute("select count(*) from notes").fetchone()[0]
         self.assertGreaterEqual(n, 5)

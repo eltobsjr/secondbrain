@@ -28,7 +28,7 @@ from _vault import first_h1, read_manifest  # noqa: E402
 
 HOME = os.path.expanduser("~")
 DB_PATH = os.environ.get("SECONDBRAIN_XMEM_DB") or os.path.join(HOME, ".local/share/secondbrain/xmem.db")
-SCHEMA_VERSION = 3  # mudou o esquema ou o tokenizador => reconstrução completa (falha fechada)
+SCHEMA_VERSION = 4  # mudou o esquema ou o tokenizador => reconstrução completa (falha fechada)
 
 # Limiares (equivalentes aos do Memora, recalibrados para TF-IDF lexical; ajustáveis por env)
 T_DUP = float(os.environ.get("XMEM_T_DUP", "0.80"))        # duplicata provável
@@ -311,6 +311,8 @@ def index(full=False, quiet=False):
         tags = flat(fm.get("tags", ""))
         if old:
             nid = old and c.execute("select id from notes where path=?", (s["path"],)).fetchone()[0]
+            # a busca por palavra (FTS) precisa perder os mesmos trechos; senão o SQLite reaproveita o id e a inserção quebra
+            c.execute("delete from chunks_fts where rowid in (select id from chunks where note_id=?)", (nid,))
             c.execute("delete from chunks where note_id=?", (nid,))
             c.execute("delete from todos where note_id=?", (nid,))
             c.execute("delete from edges where src=? and origin!='auto'", (nid,))

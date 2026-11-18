@@ -136,7 +136,7 @@ def build(c, project=None, current_project=None):
         vault = vault_of(c, proj)
         if not vault:
             continue
-        for ov in load_overrides(vault):
+        for pos, ov in enumerate(load_overrides(vault)):
             cid = ov["id"] or card_id(proj, re.sub(r"\W+", " ", xm.strip_acc(ov["titulo"].lower())).strip()[:120])
             d = derived.get(cid)
             if d is None:
@@ -148,7 +148,7 @@ def build(c, project=None, current_project=None):
                     "parado": False, "bloqueado_por": [x for x in [ov["campos"].get("bloqueado-por", "")] if x],
                     "relacionadas": [x.strip() for x in ov["campos"].get("relacionadas", "").split(",") if x.strip()],
                     "etiquetas": ov["etiquetas"], "modo": "derivado" if orig else "manual", "responsavel": ov["campos"].get("responsavel", ""),
-                    "prazo": ov["campos"].get("prazo", ""), "orfao": bool(orig), "status_origem": "quadro", "sens": "", "policy": "",
+                    "prazo": ov["campos"].get("prazo", ""), "orfao": bool(orig), "status_origem": "quadro", "sens": "", "policy": "", "ordem": pos,
                 }
                 continue
             if d["status"] == "feito" and ov["col"] != "descartado":
@@ -159,7 +159,7 @@ def build(c, project=None, current_project=None):
                       "bloqueado_por": [x for x in [ov["campos"].get("bloqueado-por", "")] if x],
                       "relacionadas": [x.strip() for x in ov["campos"].get("relacionadas", "").split(",") if x.strip()],
                       "responsavel": ov["campos"].get("responsavel", ""), "prazo": ov["campos"].get("prazo", ""),
-                      "status_origem": "quadro"})
+                      "status_origem": "quadro", "ordem": pos})
     cards = list(derived.values())
     if current_project:                # privacidade: o mesmo critério do hook (nada de texto de vault 'nenhum'; 'titulos' sem origem)
         keep = []
@@ -172,7 +172,9 @@ def build(c, project=None, current_project=None):
             keep.append(k)
         cards = keep
     order = {p: i for i, p in enumerate(PRIORITIES)}
-    cards.sort(key=lambda k: (KEYS.index(k["status"]), order.get(k["prioridade"], 9), -k["idade_dias"]))
+    # dentro da coluna: o que alguém decidiu vem primeiro, na ordem do quadro.md; depois o derivado por prioridade e idade
+    cards.sort(key=lambda k: (KEYS.index(k["status"]), 0 if k.get("ordem") is not None else 1, k.get("ordem") or 0,
+                              order.get(k["prioridade"], 9), -k["idade_dias"]))
     return cards
 
 
@@ -213,7 +215,7 @@ def _policy_gate(c, project, vault, confirmo):
         raise SystemExit(f"quadro: {project} é sensível ou versionado; gravar `quadro.md` exige confirmação explícita (--confirmo). Nada foi gravado.")
 
 
-def apply_changes(c, project, changes, confirmo=False, dry_run=False):
+def apply_changes(c, project, changes, confirmo=False, dry_run=False, order=None):
     """changes: lista de dicts {id, titulo, col, prioridade, etiquetas, campos}. Mescla no quadro.md do projeto."""
     vault = vault_of(c, project)
     if not vault:
@@ -244,6 +246,9 @@ def apply_changes(c, project, changes, confirmo=False, dry_run=False):
     cols = defaultdict(list)
     for k in cur:
         cols[k["col"]].append(k)
+    for col, ids in (order or {}).items():        # reordenação: os ids dados vêm primeiro, na ordem pedida
+        pos = {i: n for n, i in enumerate(ids)}
+        cols[col].sort(key=lambda k: (pos.get(k["id"], len(ids)),))
     text = render(project, cols)
     path = quadro_path(vault)
     if dry_run:

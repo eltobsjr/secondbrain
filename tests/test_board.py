@@ -161,6 +161,17 @@ class BoardTest(unittest.TestCase):
         self.assertTrue(s)
         self.assertTrue(all(k["origem"] == {} for k in s), "vault sensível vira só título para outro projeto")
 
+    def test_reordenar_dentro_da_coluna_preserva_a_ordem(self):
+        cs = self.cards()
+        a, b = cs["Revisar permissões do bucket"], cs["Publicar versão nova do serviço"]
+        ch = [self.board.change_from_card(b, "fazendo"), self.board.change_from_card(a, "fazendo")]
+        self.board.apply_changes(self.c, "proj_a", ch, order={"fazendo": [b["id"], a["id"]]})
+        ordem = [k["titulo"] for k in self.board.build(self.c, "proj_a") if k["status"] == "fazendo"]
+        self.assertEqual(ordem[:2], ["Publicar versão nova do serviço", "Revisar permissões do bucket"])
+        self.board.apply_changes(self.c, "proj_a", ch, order={"fazendo": [a["id"], b["id"]]})
+        ordem = [k["titulo"] for k in self.board.build(self.c, "proj_a") if k["status"] == "fazendo"]
+        self.assertEqual(ordem[:2], ["Revisar permissões do bucket", "Publicar versão nova do serviço"])
+
     def test_resumo_conta_por_coluna(self):
         s = self.board.summary(self.board.build(self.c, "proj_a"))
         self.assertIn("proj_a", s)
