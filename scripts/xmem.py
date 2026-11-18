@@ -879,41 +879,61 @@ def cmd_dups(a, c):
         print("Nenhuma.")
 
 
-def cmd_insights(a, c):
-    since = parse_since(a.period)
-    rows = c.execute("select project,kind,count(*) n from notes where data>=? and kind in ('devtrack','decisao','feature','rfc','postmortem','analise','release') group by project,kind", (since,)).fetchall()
-    print(f"# Insights (desde {since})\n\n## Atividade por projeto")
+def insights_data(c, period="30d", stale=STALE_OPEN_DAYS):
+    """Retrato para humanos e IA: atividade, itens parados, projetos quietos, contradições e saúde do quadro."""
+    since = parse_since(period)
     agg = defaultdict(dict)
-    for r in rows:
+    for r in c.execute("select project,kind,count(*) n from notes where data>=? and kind in ('devtrack','decisao','feature','rfc','postmortem','analise','release') group by project,kind", (since,)):
         agg[r["project"]][r["kind"]] = r["n"]
-    for p, d in sorted(agg.items(), key=lambda x: -sum(x[1].values())):
-        print(f"- {p}: " + ", ".join(f"{k} {n}" for k, n in sorted(d.items(), key=lambda x: -x[1])))
-    stale = [t for t in open_items(c, limit=400) if t["idade"] > a.stale]
-    print(f"\n## Itens em aberto parados há mais de {a.stale} dias: {len(stale)}")
-    byp = defaultdict(int)
-    for t in stale:
-        byp[t["project"]] += 1
-    for p, n in sorted(byp.items(), key=lambda x: -x[1])[:10]:
-        print(f"- {p}: {n}")
-    quiet = [r for r in c.execute("select project, max(data) d from notes where kind='devtrack' group by project")
-             if (date.today() - date.fromisoformat(r["d"][:10])).days > 30]
-    print(f"\n## Projetos sem devtrack há mais de 30 dias: {len(quiet)}")
-    for r in sorted(quiet, key=lambda r: r["d"]):
-        print(f"- {r['project']} (último {r['d']})")
+    atividade = [{"projeto": p, "tipos": d, "total": sum(d.values())} for p, d in sorted(agg.items(), key=lambda x: -sum(x[1].values()))]
+    parados = defaultdict(int)
+    for t in open_items(c, limit=100000):
+        if t["idade"] > stale:
+            parados[t["project"]] += 1
+    quietos = [{"projeto": r["project"], "ultimo": r["d"]} for r in sorted(
+        (r for r in c.execute("select project, max(data) d from notes where kind='devtrack' group by project")
+         if (date.today() - date.fromisoformat(r["d"][:10])).days > 30), key=lambda r: r["d"])]
+    contra = [{"de": f"{r['pa']}:{r['ra'][:-3]}", "para": f"{r['pb']}:{r['rb'][:-3]}"} for r in c.execute(
+        "select a.project pa,a.rel ra,b.project pb,b.rel rb from edges e join notes a on a.id=e.src join notes b on b.id=e.dst "
+        "where e.type='contradicts' and a.inactive=0 and b.inactive=0")]
+    quadro = {"orfaos": [], "parados": []}
     try:
         import board
         cards = board.build(c)
-        orfaos = [k for k in cards if k["orfao"]]
-        paradas = [k for k in cards if k["status"] in ("fazendo", "bloqueado") and k["idade_dias"] > a.stale]
-        print(f"\n## Quadro: cartões órfãos (origem sumiu): {len(orfaos)}; em Fazendo/Bloqueado há mais de {a.stale} dias: {len(paradas)}")
-        for k in (orfaos + paradas)[:10]:
-            print(f"- {k['projeto']} {k['id']} [{k['status']}] {k['titulo'][:80]}" + (" (órfão)" if k["orfao"] else ""))
+        for k in cards:
+            slim = {"projeto": k["projeto"], "id": k["id"], "status": k["status"], "titulo": k["titulo"][:100], "idade_dias": k["idade_dias"]}
+            if k["orfao"]:
+                quadro["orfaos"].append(slim)
+            elif k["status"] in ("fazendo", "bloqueado") and k["idade_dias"] > stale:
+                quadro["parados"].append(slim)
     except Exception:
         pass
-    conf = c.execute("select a.project pa,a.rel ra,b.project pb,b.rel rb from edges e join notes a on a.id=e.src join notes b on b.id=e.dst where e.type='contradicts' and a.inactive=0 and b.inactive=0").fetchall()
-    print(f"\n## Contradições declaradas e não resolvidas: {len(conf)}")
-    for r in conf[:10]:
-        print(f"- `{r['pa']}:{r['ra'][:-3]}` contradiz `{r['pb']}:{r['rb'][:-3]}`")
+    return {"schema_version": 1, "desde": since, "dias_parado": stale, "atividade": atividade,
+            "parados_por_projeto": dict(sorted(parados.items(), key=lambda x: -x[1])), "total_parados": sum(parados.values()),
+            "projetos_sem_devtrack": quietos, "contradicoes": contra, "quadro": quadro}
+
+
+def cmd_insights(a, c):
+    d = insights_data(c, a.period, a.stale)
+    if getattr(a, "json", False):
+        print(json.dumps(d, ensure_ascii=False, indent=1))
+        return
+    print(f"# Insights (desde {d['desde']})\n\n## Atividade por projeto")
+    for r in d["atividade"]:
+        print(f"- {r['projeto']}: " + ", ".join(f"{k} {n}" for k, n in sorted(r["tipos"].items(), key=lambda x: -x[1])))
+    print(f"\n## Itens em aberto parados há mais de {a.stale} dias: {d['total_parados']}")
+    for p, n in list(d["parados_por_projeto"].items())[:10]:
+        print(f"- {p}: {n}")
+    print(f"\n## Projetos sem devtrack há mais de 30 dias: {len(d['projetos_sem_devtrack'])}")
+    for r in d["projetos_sem_devtrack"]:
+        print(f"- {r['projeto']} (último {r['ultimo']})")
+    q = d["quadro"]
+    print(f"\n## Quadro: cartões órfãos (origem sumiu): {len(q['orfaos'])}; em Fazendo/Bloqueado há mais de {a.stale} dias: {len(q['parados'])}")
+    for k in (q["orfaos"] + q["parados"])[:10]:
+        print(f"- {k['projeto']} {k['id']} [{k['status']}] {k['titulo'][:80]}")
+    print(f"\n## Contradições declaradas e não resolvidas: {len(d['contradicoes'])}")
+    for r in d["contradicoes"][:10]:
+        print(f"- `{r['de']}` contradiz `{r['para']}`")
 
 
 def cmd_hook_context(a, c):
@@ -1318,7 +1338,7 @@ def main():
     s = sp.add_parser("related"); s.add_argument("note")
     s = sp.add_parser("patterns"); s.add_argument("--min-projects", type=int, default=2); s.add_argument("--min-score", type=float, default=0.30); s.add_argument("--limit", type=int, default=12)
     s = sp.add_parser("dups"); s.add_argument("--min", type=float, default=T_DUP); s.add_argument("--limit", type=int, default=20)
-    s = sp.add_parser("insights"); s.add_argument("--period", default="30d"); s.add_argument("--stale", type=int, default=STALE_OPEN_DAYS)
+    s = sp.add_parser("insights"); s.add_argument("--period", default="30d"); s.add_argument("--stale", type=int, default=STALE_OPEN_DAYS); s.add_argument("--json", action="store_true")
     s = sp.add_parser("hook-context"); s.add_argument("--cwd"); s.add_argument("--max-chars", type=int, default=1500)
     s = sp.add_parser("graph"); s.add_argument("--project"); s.add_argument("--min-score", type=float, default=0.0)
     s.add_argument("--layout", action="store_true", help="inclui posições pré-calculadas do grafo")

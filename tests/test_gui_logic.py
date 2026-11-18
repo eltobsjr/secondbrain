@@ -80,7 +80,7 @@ class GuiLogic(unittest.TestCase):
     def test_politica_de_navegacao_libera_as_tres_paginas(self):
         import inspect
         src = inspect.getsource(self.g.Win.on_policy)
-        for page in ("sb://reader", "sb://graph", "sb://board"):
+        for page in ("sb://reader", "sb://graph", "sb://board", "sb://insights"):
             self.assertIn(page, src, f"{page} precisa ser permitido, senão a página fica em branco")
 
     def test_grafo_tem_foco_em_projeto_e_animacao_continua(self):
@@ -88,6 +88,20 @@ class GuiLogic(unittest.TestCase):
         for marca in ("function focusProject", "function exitFocus", "function hitProject", "id=\"crumb\"", "if(tween)schedule()"):
             self.assertIn(marca, h, marca)
         self.assertIn("sb.cam3.", h, "chave da câmera nova: não herda a câmera salva do layout antigo")
+
+    def test_js_do_insights_e_valido(self):
+        node = shutil.which("node") or shutil.which("nodejs")
+        if not node:
+            self.skipTest("node ausente")
+        import insights_page
+        data = '{"desde":"2026-10-01","dias_parado":14,"atividade":[],"parados_por_projeto":{},"total_parados":0,"projetos_sem_devtrack":[],"contradicoes":[],"quadro":{"orfaos":[],"parados":[]}}'
+        h = insights_page.INSIGHTS_HTML.replace("{{THEME}}", self.g.graph_theme()).replace("{{DATA}}", data).replace("{{COLORS}}", "{}")
+        js = h.split("<script>")[1].split("</script>")[0]
+        with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
+            f.write(js)
+        r = subprocess.run([node, "--check", f.name], capture_output=True, text=True)
+        os.unlink(f.name)
+        self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_js_do_grafo_e_valido(self):
         node = shutil.which("node") or shutil.which("nodejs")

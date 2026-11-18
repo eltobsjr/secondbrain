@@ -34,6 +34,7 @@ if HERE not in sys.path:  # `python3 -I` não põe a pasta do script no caminho
 import theme  # noqa: E402
 import board  # noqa: E402  (scripts/ ou ~/.local/share/secondbrain/bin)
 import board_page  # noqa: E402
+import insights_page  # noqa: E402
 
 APP_ID = "io.github.eltobsjr.SecondBrain"
 PALETTE = theme.PALETTE
@@ -835,6 +836,8 @@ class Win(Adw.ApplicationWindow):
         self.board_page.get_user_content_manager().register_script_message_handler("bd")
         self.board_page.get_user_content_manager().connect("script-message-received::bd", self.on_board_msg)
         self.stack.add_named(self.board_page, "quadro")
+        self.insights_view = self.make_webview(js=True)
+        self.stack.add_named(self.insights_view, "insights")
         self.stack.connect("notify::visible-child-name", self.sync_nav)
         tv.set_content(self.stack)
         split.set_content(tv)
@@ -849,7 +852,8 @@ class Win(Adw.ApplicationWindow):
         self.nav = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE, css_classes=["sb-list"], margin_start=12, margin_end=12)
         for page, label, icon in (("notas", "Notas", "text-x-generic-symbolic"),
                                   ("grafo", "Grafo", "network-workgroup-symbolic"),
-                                  ("quadro", "Quadro", "view-list-symbolic")):
+                                  ("quadro", "Quadro", "view-list-symbolic"),
+                                  ("insights", "Insights", "dialog-information-symbolic")):
             row = Gtk.ListBoxRow()
             line = Gtk.Box(spacing=12)
             line.append(Gtk.Image(icon_name=icon))
@@ -932,7 +936,7 @@ class Win(Adw.ApplicationWindow):
         row = self.nav.get_selected_row()
         if row is not None and getattr(row, "page", None) == name:
             return
-        for i in range(3):
+        for i in range(4):
             r = self.nav.get_row_at_index(i)
             if r is not None and r.page == name:
                 self.nav.select_row(r)
@@ -1018,6 +1022,7 @@ class Win(Adw.ApplicationWindow):
         self.do_search()
         self.refresh_graph()
         self.refresh_board()
+        self.refresh_insights()
         self.update_footer()
 
     def on_project(self, _lb, row):
@@ -1153,6 +1158,7 @@ class Win(Adw.ApplicationWindow):
         self.dark = style_manager.get_dark()
         self.apply_css()
         self.js(self.board_page, f"window.sbSetDark&&window.sbSetDark({str(self.dark).lower()});")
+        self.js(self.insights_view, f"window.sbSetDark&&window.sbSetDark({str(self.dark).lower()});")
         try:
             self.graph.evaluate_javascript(f"window.sbSetDark&&window.sbSetDark({str(self.dark).lower()});",
                                           -1, None, None, None, None, None)
@@ -1197,6 +1203,19 @@ class Win(Adw.ApplicationWindow):
             slim = [{k: v for k, v in x.items() if k not in ("sens", "policy")} for x in cards]
             return dict(base, cartoes=slim)
         return dict(base, resumo=board.summary(cards), cartoes=[])
+
+    def refresh_insights(self):
+        try:
+            data = json.dumps(xmem.insights_data(self.c), ensure_ascii=False).replace("<", "\\u003c")
+        except Exception as e:  # noqa: BLE001
+            data = json.dumps({"schema_version": 1, "desde": "", "dias_parado": xmem.STALE_OPEN_DAYS, "atividade": [], "parados_por_projeto": {},
+                               "total_parados": 0, "projetos_sem_devtrack": [], "contradicoes": [], "quadro": {"orfaos": [], "parados": []},
+                               "erro": str(e)})
+        html_ = (insights_page.INSIGHTS_HTML.replace("{{THEME}}", graph_theme()).replace("{{DATA}}", data)
+                 .replace("{{COLORS}}", json.dumps(self.colors)))
+        if self.dark:
+            html_ = html_.replace("<body>", '<body class="dark">', 1)
+        self.insights_view.load_html(html_, "sb://insights/")
 
     def refresh_board(self):
         data = json.dumps(self.board_payload(), ensure_ascii=False).replace("<", "\\u003c")
@@ -1308,7 +1327,7 @@ class Win(Adw.ApplicationWindow):
         if ptype != WebKit.PolicyDecisionType.NAVIGATION_ACTION:
             return False
         uri = decision.get_navigation_action().get_request().get_uri()
-        if uri.startswith(("sb://reader", "sb://graph", "sb://board", "about:")):
+        if uri.startswith(("sb://reader", "sb://graph", "sb://board", "sb://insights", "about:")):
             return False
         if uri.startswith("sb://note/"):
             decision.ignore()
