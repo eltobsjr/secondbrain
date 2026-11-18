@@ -1,0 +1,39 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  motor:
+    # xmem.py, board.py, hook e scripts: só biblioteca padrão do Python; os testes da interface se pulam sem GTK.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Testes
+        run: python3 -I -m unittest discover -s tests -v
+
+  gui:
+    # Roda também os testes de lógica da interface (leitor seguro, JS do grafo) com GTK4/libadwaita/WebKitGTK do sistema.
+    # Informativo: ainda não foi visto passando no runner; quando passar, remova o continue-on-error.
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependências do sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-webkit-6.0 nodejs
+      - name: Testes (com a interface)
+        run: python3 -I -m unittest discover -s tests -v

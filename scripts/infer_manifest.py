@@ -13,6 +13,9 @@ import subprocess
 import sys
 from datetime import date
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _vault import detectar_repos  # noqa: E402
+
 ALIASES = {
     "devtrack": ["devtrack"],
     "decisoes": ["decisions", "decisoes", "decisões", "adr"],
@@ -201,6 +204,11 @@ def main():
     if campos:
         out.append("campos-extra:")
         out += [f"  {r}: [{', '.join(c)}]" for r, c in campos.items()]
+    proj_dir = os.path.dirname(os.path.abspath(vault))
+    repos = [r for r in detectar_repos(proj_dir, os.path.abspath(vault)) if r["valido"] and not re.search(r"\s", os.path.relpath(r["caminho"], proj_dir))]
+    if repos:
+        out.append("repos:   # repositórios git do projeto (ativo = conciliação; referencia = só se consulta sob pedido)")
+        out += [f"  - {os.path.relpath(r['caminho'], proj_dir)} {r['papel']}" for r in repos]
     out += [f"criado: {date.today().isoformat()}", "migrado-de: legado", "---", "",
             f"# {name.replace('SecondBrain', '')} — Manifesto do vault", "",
             "Mapa humano do vault. Edite livremente; as skills leem o frontmatter acima.", ""]

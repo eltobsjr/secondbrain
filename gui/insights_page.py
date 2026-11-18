@@ -45,8 +45,17 @@ const g=el('div','grid');root.append(g);
   const bar=el('div','bar');bar.style.maxWidth=(r.total/max*100)+'%';for(const [k,n] of Object.entries(r.tipos)){const s=el('span');s.style.flex=n;s.style.background=KC[k]||'var(--mut)';bar.append(s)}
   const w=el('div');w.style.flex='1';w.append(bar);row.append(w,el('span','v',String(r.total)));c.append(row)}
  g.append(c)}
+// prazos
+{const P=D.prazos||{atrasados:0,hoje:0,chegando:0,sem_prazo:0,por_projeto:{},lista:[]};
+ const c=card('Prazos','Só tarefa com prazo atrasa. Dentro do prazo não é atrasada; "chegando" usa a janela de alerta do projeto (3 dias por padrão).');
+ const line=el('div','leg');
+ for(const [k,l,cls] of [['atrasados','atrasados','err'],['hoje','vencem hoje','warn'],['chegando','chegando','warn'],['sem_prazo','sem prazo','tag']]){const s=el('span',cls);s.textContent=P[k]+' '+l;line.append(s)}
+ c.append(line);
+ if(!P.lista.length)c.append(el('div','ok','Nada atrasado, vencendo hoje ou chegando.'));
+ for(const r of P.lista)c.append(el('div','item',r.projeto+' · '+r.titulo+' · '+r.texto+(r.prazo?' ('+r.prazo+')':'')));
+ g.append(c)}
 // parados
-{const c=card('Itens em aberto parados','Caixas "- [ ]" antigas. A maioria é ruído: use a Triagem do Quadro.');
+{const c=card('Itens em aberto parados','Caixas "- [ ]" abertas há muito tempo, já sem pergunta, frase de estado, repetido e superado (ocultos: '+(D.total_ocultos||0)+'). O que tem prazo não entra: quem avisa é a flag.');
  c.append(el('div','big warn',String(D.total_parados)));
  const ent=Object.entries(D.parados_por_projeto);const max=Math.max(1,...ent.map(e=>e[1]));
  if(!ent.length)c.append(el('div','ok','Nada parado. Tudo em dia.'));

@@ -57,7 +57,7 @@ class XmemTest(unittest.TestCase):
 
     def test_reindexar_nota_alterada_nao_quebra_nem_deixa_lixo_na_busca(self):
         """Regressão: apagar trechos sem apagar o FTS fazia o índice quebrar ao alterar a última nota indexada."""
-        path = os.path.join(self.a, "devtrack", "zz-ultima-nota.md")
+        path = os.path.join(self.b, "devtrack", "zz-ultima-nota.md")  # em proj_b: não polui os itens em aberto de proj_a
         write(path, "---\ntipo: devtrack\ndata: 2026-11-01\n---\n\n# Ultima\n\n## Status\n\n- [ ] primeira versao do texto exclusivo alfa\n")
         c = self.xmem.index(quiet=True)
         write(path, "---\ntipo: devtrack\ndata: 2026-11-01\n---\n\n# Ultima\n\n## Status\n\n- [ ] segunda versao do texto exclusivo beta\n")
@@ -114,6 +114,62 @@ class XmemTest(unittest.TestCase):
         self.assertEqual(self.xmem.visible(row, "proj_a"), "titulos")
         self.assertEqual(self.xmem.visible(row, "proj_b"), "completo")
         self.assertEqual(self.xmem.visible(row, None), "completo", "busca solta/GUI vê tudo")
+
+    def _enche_corpus(self):
+        """O motor ignora termos presentes em >25% das notas; sem preenchimento a fixture é pequena demais para agrupar."""
+        raiz = os.path.join(self.home, "dev/proj_f/ProjFSecondBrain")
+        write(raiz + "/_secondbrain.md", MANIFEST.format(sens="normal"))
+        for i in range(14):
+            write(raiz + f"/decisions/{i:03d} - Assunto {i}.md",
+                  f"---\ntipo: decisao\ndata: 2026-05-{i + 1:02d}\nstatus: aceita\n---\n\n# {i:03d} — Assunto {i}\n\n## Contexto\n\nTema isolado numero{i} wombat{i} sem relacao com os demais.\n")
+
+    def test_patterns_nao_expoe_termos_de_nota_restrita(self):
+        """Regressão: os "termos em comum" saíam do conteúdo de notas `titulos` (vault sensível) e apareciam para outros projetos."""
+        self._enche_corpus()
+        c = self.xmem.index(quiet=True)
+        grupos = self.xmem.patterns_data(c, min_projects=2, min_score=0.05)
+        com_restrita = [g for g in grupos if any(n["project"] == "proj_b" for n in g["notes"])]
+        self.assertTrue(com_restrita, "a fixture deve formar um grupo entre proj_a e proj_b (senão o teste não prova nada)")
+        for g in com_restrita:
+            self.assertEqual(g["terms"], [], "só 1 nota aberta no grupo: nenhum termo pode ser derivado da nota restrita")
+
+    def test_patterns_mostra_termos_quando_as_notas_sao_abertas(self):
+        """Sem nota restrita, o comportamento antigo continua: termos comuns aparecem."""
+        self._enche_corpus()
+        for nome in ("proj_c", "proj_d"):
+            raiz = os.path.join(self.home, f"dev/{nome}/{nome}SecondBrain")
+            write(raiz + "/_secondbrain.md", MANIFEST.format(sens="normal"))
+            write(raiz + "/decisions/001 - Fila.md",
+                  "---\ntipo: decisao\ndata: 2026-04-01\nstatus: aceita\n---\n\n# 001 — Fila\n\n## Contexto\n\nZephyrqueue garante entrega idempotente de mensagens com deduplicação por chave.\n")
+        c = self.xmem.index(quiet=True)
+        grupos = [g for g in self.xmem.patterns_data(c, min_projects=2, min_score=0.05) if {"proj_c", "proj_d"} <= set(g["projects"])]
+        self.assertTrue(grupos)
+        self.assertIn("zephyrqueue", grupos[0]["terms"])
+        self.assertTrue({"proj_c", "proj_d"} <= set(grupos[0]["projects"]))
+
+    def test_aviso_de_versao_do_plugin(self):
+        """Sessão aberta com plugin antigo recebe aviso; versão igual/maior ou arquivo ausente não geram ruído."""
+        import json
+        raiz = os.path.join(self.home, "plug", "cache", "0.6.0")
+        write(os.path.join(raiz, ".claude-plugin", "plugin.json"), json.dumps({"version": "0.6.0"}))
+        script = os.path.join(raiz, "scripts", "xmem.py")
+        inst = os.path.join(self.home, "installed_plugins.json")
+
+        def registro(*versoes):
+            write(inst, json.dumps({"plugins": {"secondbrain@secondbrain": [{"version": v} for v in versoes], "outro@x": [{"version": "9.9.9"}]}}))
+
+        registro("0.7.0")
+        aviso = self.xmem.plugin_version_notice(script, inst)
+        self.assertIn("0.6.0", aviso)
+        self.assertIn("0.7.0", aviso)
+        registro("0.6.0")
+        self.assertEqual(self.xmem.plugin_version_notice(script, inst), "", "mesma versão: nada a avisar")
+        registro("0.5.0")
+        self.assertEqual(self.xmem.plugin_version_notice(script, inst), "", "instalada mais antiga (checkout de desenvolvimento): sem aviso")
+        registro("0.6.0", "0.10.0")
+        self.assertIn("0.10.0", self.xmem.plugin_version_notice(script, inst), "compara como número (0.10 > 0.9), não como texto")
+        os.remove(inst)
+        self.assertEqual(self.xmem.plugin_version_notice(script, inst), "", "sem registro de instalação: silêncio, nunca erro")
 
     def test_item_em_aberto_parado(self):
         itens = self.xmem.open_items(self.c, project="proj_a")

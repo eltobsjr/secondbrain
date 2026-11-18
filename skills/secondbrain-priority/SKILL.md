@@ -23,6 +23,8 @@ description: |
 
 Consolida todas as pendências abertas do projeto em uma lista de prioridades única.
 
+**O arquivo gerado é uma visão, não a fonte.** A fonte das pendências é o quadro (`board`); a lista escrita é um retrato dele num dia. Escreva no topo a data e que a lista vem do quadro, e **não** copie para ela itens ocultos (ruído, repetido, superado): eles voltam como pendência velha.
+
 O problema que esta skill resolve: pendências ficam espalhadas em vários devtracks,
 no CHECKLIST.md e na memória. Esta skill as reúne em um único lugar ordenado.
 

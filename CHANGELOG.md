@@ -2,6 +2,29 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem o `plugin.json`. A fonte é o `git log` e os devtracks do vault do plugin.
 
+## [0.8.0] - 2026-11-18
+
+### Adicionado
+- CI no GitHub Actions (`.github/workflows/tests.yml`): suíte do motor em Python 3.11 e 3.13; job da interface com GTK do sistema, informativo até passar no runner.
+- `tests/eval_xmem.py --auto [N]`: consultas de item conhecido geradas do índice real (sem gravar conteúdo no git, sem imprimir texto de vault sensível), `--save` para linha de base com diferença nas execuções seguintes, e `--local` para casos escritos à mão fora do repositório.
+- Aviso no hook de sessão quando a sessão carregou uma versão do plugin mais antiga que a instalada (`xmem.plugin_version_notice`).
+- README: guia "Qual usar quando" para `/context`, `/resume`, `/standup`, `/board` e `/priority`.
+- **Pendências vivas (decisão 011).** `scripts/pend.py` e o `board` passam a ocultar por padrão, sem apagar, o que não é pendência viva: `pergunta` e `narrativo` (só em devtrack), `repetido` e `superado` (o projeto seguiu 14+ dias e nem o `ESTADO.md` nem a `prioridade/atual.md` citam o item). Item que uma sessão posterior marcou `[x]` com outra redação vira Feito (`status_origem: evidencia`). `board show --ocultos`, `board summary` com a contagem de ocultos, `build(ocultos=True)`, e `ocultos_por_projeto` no `insights --json`. Uma decisão no `quadro.md` sempre vence.
+- **`xmem.py reconcile <projeto>`** (`scripts/reconcile.py`): confronta as pendências com o git em três níveis de evidência; só o A fecha (`--aplicar A --sim`, etiquetas `#ja-feito #reconciliado`). Lista hashes citados nas notas que não existem em nenhum repositório e avisa de `.git` que o git não reconhece. Commits com mais de 150 arquivos não valem como evidência de arquivo.
+- **`repos:` no manifesto** (e `_vault.read_repos`/`detectar_repos`): repositórios `ativo` ou `referencia`; repositório antigo só entra sob pedido. `infer_manifest.py` sugere o bloco.
+- `/devtrack` ganha o Passo 0 (concilia a sessão anterior ao abrir) e a regra de onde vai a pendência; `/audit`, `/context`, `/priority` e `/board` passam a usar o quadro filtrado.
+- Testes: `tests/test_pend.py` (20, com repositórios git temporários).
+- **Calendário por semana, prazo e janelas (decisão 012).** `scripts/semana.py` (semana ISO, flags `sem-prazo`, `no-prazo`, `chegando`, `hoje`, `atrasado`, janelas, revisão semanal, capacidade) e campos `semana::`, `prazo::` e `feito-em::` no `quadro.md`. Dentro do prazo nunca é atrasado, e sem prazo nunca atrasa. Comandos `board semana` (abre na última semana com registro), `board agenda`, `board plan`, `board prazo` e `board revisao`. Concluir carimba `feito-em`; a conciliação grava a data do commit. Manifesto: `quadro-alerta:` (dias, padrão 3) e `quadro-capacidade:` (por semana, padrão 7, 0 desliga; só avisa).
+- Interface: a página Quadro abre no **Calendário** (faixa de semanas, cabeçalho do sprint, arrastar para uma semana planeja), com **Agenda**, Quadro, Lista e Projetos, filtros por situação e projeto, e visão global. Detalhe do cartão com prazo (data), semana e situação. Insights ganha o cartão **Prazos**. O hook de sessão e `insights --json` informam atrasados, vencendo hoje e chegando.
+- Testes: `tests/test_semana.py` (23, com data fixa), incluindo a sintaxe do JS das páginas.
+
+### Alterado
+- `xmem.open_items` (hook de sessão, `digest`, `insights`) passa a ler do quadro: o que foi fechado ou descartado no `quadro.md` e o que o motor oculta não conta mais como pendência aberta.
+
+### Corrigido
+- Privacidade: `/patterns` mostrava "Termos em comum" derivados do conteúdo de notas de vaults com `crossmem: titulos`. Agora os termos saem só de notas com política `completo`, e só quando há ao menos duas. Lógica extraída para `xmem.patterns_data`, com teste.
+- README: contagem de testes defasada.
+
 ## [0.7.0] - 2026-11-18
 
 ### Adicionado

@@ -75,10 +75,47 @@ Mostre ao usuário a quantidade e alguns exemplos **antes** de usar `--sim`. Nun
 4. **Cartão órfão** (origem sumiu): não apague; mostre e pergunte.
 5. Estando em outro projeto, use `--project-atual <projeto>` para respeitar a privacidade (vault `titulos` só entrega o título).
 
+## Semana, prazo e janelas (decisão 012)
+
+O quadro tem um calendário de sprints por semana ISO (segunda a domingo). Cada cartão tem `surgiu` (semana do primeiro aparecimento, só para devtrack; documento vivo vai para o **backlog**), `semana` (onde mora hoje, padrão `surgiu`), `prazo` e `feito-em` (a semana do calendário de um cartão feito é a da conclusão, não a de quando surgiu). Tudo é gravado no `quadro.md` como `semana::`, `prazo::` e `feito-em::`.
+
+```bash
+python3 -I "$SB/xmem.py" board semana [--project <p>] [--semana esta|proxima|anterior|2026-W47]   # abre na última semana com registro
+python3 -I "$SB/xmem.py" board agenda [--project <p>]                                              # janelas por prazo
+python3 -I "$SB/xmem.py" board plan <p> <id> --semana proxima [--prazo +3d|2026-11-27|fim-da-semana]  # sem prazo, vira o domingo da semana
+python3 -I "$SB/xmem.py" board prazo <p> <id> 2026-11-27     # ou --limpar
+python3 -I "$SB/xmem.py" board revisao [--project <p>] [--aplicar --sim]   # revisão semanal: propõe, só aplica o mecânico
+```
+
+| Flag | Quando |
+|---|---|
+| sem prazo | aberto sem prazo: pede "defina o prazo" e **nunca** vira atrasado |
+| no prazo | prazo além da janela de alerta |
+| vence hoje | prazo é hoje |
+| chegando | prazo em até 3 dias (`quadro-alerta:` no manifesto muda) |
+| atrasado | prazo vencido, "há N dias" |
+
+**Dentro do prazo nunca é atrasado.** Um cartão só muda de semana por ação do usuário, por proposta aceita da `revisao` (prazo futuro leva à semana do prazo; em andamento leva à atual) ou por mudança de prazo, nunca em silêncio. `quadro-capacidade:` (padrão 7, 0 desliga) só **avisa** "semana cheia"; Fazendo continua com o limite de 3. A interface abre no Calendário, na última semana com registro, com Agenda, filtros e arrastar um cartão para uma semana para planejá-lo.
+
+## Ocultos e conciliação
+
+O quadro **não mostra por padrão** o que não é pendência viva. Cada cartão oculto traz o motivo em `oculto`:
+
+| Motivo | O que é |
+|---|---|
+| `pergunta` | item de devtrack em forma de pergunta (modelo de checklist, não tarefa) |
+| `narrativo` | frase de estado em devtrack ("nenhum commit feito", "não testado") |
+| `repetido` | a mesma tarefa foi reescrita depois, em aberto; o cartão novo é o vivo |
+| `superado` | o projeto seguiu 14+ dias e o item nunca reapareceu, nem o `ESTADO.md` ou `prioridade/atual.md` o cita |
+
+Nada é apagado. `board show --ocultos` lista cada um (com `--json` para integrações), `board summary` informa quantos há por projeto, e **uma decisão sua no `quadro.md` sempre vence** o ocultar automático. Uma sessão posterior que marca `[x]` um item parecido já fecha o cartão antigo como Feito (`status_origem: evidencia`, com a frase em `evidencia`).
+
+Para decidir o que fazer com os ocultos, use `python3 -I "$SB/xmem.py" reconcile <projeto>`: confronta as pendências com o git e propõe fechamentos em três níveis (A forte, B e C só proposta). `--aplicar A --sim` fecha só o nível A, com a etiqueta `#reconciliado`. Os repositórios vêm da chave `repos:` do manifesto (ver `references/vault-resolve.md`); repositório marcado `referencia` só entra com `--incluir-referencias`.
+
 ## Integração com as outras skills
 
 - `/priority`: leia `board show --project <p>` em vez de varrer devtracks; grave a ordem com `--prioridade`.
 - `/context` e o hook de início de sessão: mostram Fazendo e Bloqueado.
-- `/devtrack`: continue escrevendo `- [ ]`; os itens novos aparecem no quadro sozinhos. Ao fechar a sessão, mova para Feito o que foi concluído (ou marque `- [x]` no devtrack seguinte).
-- `/audit`: lista cartões órfãos e cartões parados em Fazendo ou Bloqueado.
+- `/devtrack`: concilie a sessão anterior ao abrir (`reconcile`) e escreva `- [ ]` só para o que ainda vai ser feito; os itens novos aparecem no quadro sozinhos. Ao fechar a sessão, mova para Feito o que foi concluído (ou marque `- [x]` no devtrack seguinte).
+- `/audit`: lista cartões órfãos, cartões parados em Fazendo ou Bloqueado, quantos itens estão ocultos e os hashes citados que não existem no git.
 - Grafo: cartões em Fazendo, Bloqueado e Revisão aparecem como losangos ligados à nota de origem (`xmem.py graph --json --tarefas` entrega a mesma lista).

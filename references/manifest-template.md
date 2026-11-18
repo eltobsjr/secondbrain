@@ -10,6 +10,9 @@ sensibilidade: normal      # normal | alta (alta = startup/institucional: nunca 
 crossmem: completo         # completo | titulos | nenhum: o que OUTROS projetos veem na busca cruzada (padrão: titulos se sensibilidade alta)
 backup: true               # false = este vault fica fora do backup para HD externo (scripts/backup.sh)
 hooks: false               # true = ativa os hooks opcionais do plugin neste projeto
+repos:                     # repositórios git do projeto, relativos à pasta ao lado do vault
+  - codigo ativo           # ativo = entra na conciliação (xmem.py reconcile)
+  - referencias/antigo referencia   # só se consulta quando o usuário pedir
 diataxis: false            # true = usa tipo-doc e o aviso no /audit
 modulos: [devtrack, decisoes, features, rfcs, prioridade, estado]
 papeis:                    # papel -> caminho real dentro do vault

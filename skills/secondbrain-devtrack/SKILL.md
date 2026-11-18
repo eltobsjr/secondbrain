@@ -23,6 +23,17 @@ Gera e salva o log de sessão no vault do projeto.
 
 ---
 
+## Passo 0 — Fechar o ciclo da sessão anterior (se o motor existir)
+
+O devtrack é um retrato de fim de sessão. Na prática, a grande maioria das caixas `- [ ]` que ele deixa abertas nunca mais aparecem numa sessão seguinte: foram feitas ou largadas sem registro. Por isso, **antes de escrever o devtrack novo**, concilie o anterior. Com `$SB/xmem.py` (`references/vault-resolve.md`, seção 0):
+
+```bash
+python3 -I "$SB/xmem.py" board show --project <projeto> --status a-fazer,fazendo,bloqueado
+python3 -I "$SB/xmem.py" reconcile <projeto>
+```
+
+Rode também `python3 -I "$SB/xmem.py" board revisao --project <projeto>` (revisão semanal: propõe o que fazer com os abertos de semanas que passaram) e `board agenda --project <projeto>` (o que está atrasado, vence hoje ou está chegando). Pergunte uma vez, em lote, o destino de cada pendência da sessão anterior: **feito**, **segue** ou **descartado** (com o motivo, em uma frase). O que segue e tem data recebe prazo e semana: `board plan <projeto> <id> --semana esta|proxima --prazo +3d`. O que o git confirma (nível A do `reconcile`) pode ser proposto como feito; níveis B e C só se o usuário concordar. Registre no quadro (`board move <projeto> <id> feito|descartado`). **Nunca reescreva o devtrack antigo.** Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes. Sem o motor, pergunte só pelas pendências do último devtrack.
+
 ## Passo 1 — Coletar contexto da sessão
 
 Execute em paralelo:
@@ -119,6 +130,8 @@ commits: [{hashes curtos dos commits da sessão, se houver}]
 - [ ] {Cada pendência em aberto}
 ```
 
+**Onde vai a pendência.** Caixa `- [ ]` só para o que ainda vai ser feito. Não use caixa para pergunta (`...?`), para frase de estado ("nenhum commit feito", "não testado") nem para etapa de procedimento da sessão: escreva isso em texto. O quadro ignora pergunta e frase de estado em devtrack. Tarefa nova que você assume nesta sessão ganha prazo (`board plan` ou `board prazo`); sem prazo ela aparece como "sem prazo", nunca como atrasada. O que segue vivo vai também no `ESTADO.md` (Próximo passo, Bloqueios): se o estado vivo cita o item, ele continua aberto; se não cita e o item não reaparece em 14 dias de projeto, o quadro o oculta como superado.
+
 ### Modo curto
 
 Sessão pequena (poucos arquivos, nenhuma decisão, nenhum bug relevante): gere só `## O que foi feito`, `## Status` e, se houver, `## Próximos passos`. Não encha seções por obrigação. Respeite também o `nomes.devtrack` e os `campos-extra.devtrack` do manifesto, se existirem.
@@ -170,7 +183,7 @@ Se não encontrar o vault na raiz, procure no diretório pai ou pergunte ao usu�
 
 ## Passo 4a — Atualizar o quadro (se o motor existir)
 
-Se `$SB/xmem.py` existir, o quadro já mostra os `- [ ]` deste devtrack como cartões novos. Para o que foi **concluído nesta sessão**, mova para Feito (`python3 -I "$SB/xmem.py" board move <projeto> <id> feito`; ids em `board show --project <projeto>`) ou, se preferir, marque `- [x]` no devtrack seguinte (a origem concluída vence). O que ficou **bloqueado**, mova para `bloqueado --bloqueado-por "<motivo>"`. Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes. Se o projeto não tem `quadro.md` e o usuário não usa o quadro, pule sem perguntar.
+Se `$SB/xmem.py` existir, o quadro já mostra os `- [ ]` deste devtrack como cartões novos. Para o que foi **concluído nesta sessão**, mova para Feito (`python3 -I "$SB/xmem.py" board move <projeto> <id> feito`; ids em `board show --project <projeto>`) ou, se preferir, marque `- [x]` no devtrack seguinte (a origem concluída vence). O que ficou **bloqueado**, mova para `bloqueado --bloqueado-por "<motivo>"`. Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes. Se o projeto não tem `quadro.md` e o usuário não usa o quadro, pule sem perguntar. O quadro oculta por padrão o que é ruído, repetido ou superado (`board show --ocultos` lista, com o motivo).
 
 ## Passo 4b — Atualizar o ESTADO.md
 

@@ -78,7 +78,7 @@ ls {caminho-mencionado} 2>/dev/null || echo "não encontrado"
 
 ### Verificação 3 — Tarefas abandonadas
 
-Cruze os `- [ ]` de todos os devtracks com os `- [x]` dos devtracks mais recentes:
+Com o motor, não cruze à mão: `python3 -I "$SB/xmem.py" board summary` já mostra, por projeto, quantos itens estão **ocultos** (ruído, repetido, superado) e `board show --ocultos` lista cada um com o motivo. Sem o motor, cruze os `- [ ]` de todos os devtracks com os `- [x]` dos mais recentes:
 
 - Item aparece como `[ ]` em devtrack antigo **e** como `[x]` em devtrack recente → concluído, OK
 - Item aparece como `[ ]` em devtrack antigo **e** não aparece mais nos recentes → **abandonado**
@@ -229,6 +229,8 @@ Com `$SB` definido, rode (somente leitura):
 python3 -I "$SB/xmem.py" insights --period 30d
 python3 -I "$SB/xmem.py" dups --min 0.80
 ```
+
+Rode também `python3 -I "$SB/xmem.py" reconcile <projeto> --json` por projeto com repositório e informe: propostas de fechamento com evidência do git (nível A) e **hashes citados nas notas que não existem em nenhum repositório** (nota errada ou repositório que saiu do disco). Repositório com `.git` que o git não reconhece vem em `avisos`.
 
 Informe: itens em aberto parados há mais de 14 dias por projeto, projetos sem devtrack há mais de 30 dias, **contradições declaradas e não resolvidas** (`contradiz:`) e **duplicatas prováveis** (inclusive entre projetos: pode ser cópia que deve virar padrão em `/patterns`). Nunca mescle nem apague por conta própria; proponha.
 

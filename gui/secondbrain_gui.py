@@ -33,6 +33,8 @@ if HERE not in sys.path:  # `python3 -I` não põe a pasta do script no caminho
     sys.path.insert(0, HERE)
 import theme  # noqa: E402
 import board  # noqa: E402  (scripts/ ou ~/.local/share/secondbrain/bin)
+import semana as sm  # noqa: E402
+from datetime import date  # noqa: E402
 import board_page  # noqa: E402
 import insights_page  # noqa: E402
 
@@ -1198,11 +1200,17 @@ class Win(Adw.ApplicationWindow):
     # ------------------------------------------------------------ quadro (kanban)
     def board_payload(self):
         cards = board.build(self.c, self.project)
-        base = {"project": self.project, "triagem_dias": board.TRIAGE_DAYS}
+        hoje = date.today()
+        cfg = board.config_projetos(self.c, {self.project}) if self.project else {}
+        semanas = sm.semanas_do_calendario(cards, hoje)
+        base = {"project": self.project, "triagem_dias": board.TRIAGE_DAYS, "hoje": hoje.isoformat(), "semana_hoje": sm.semana_iso(hoje),
+                "ultima_semana": sm.ultima_semana(cards), "semanas": semanas, "rotulos": {w: sm.rotulo(w) for w in semanas},
+                "janelas": [list(j) for j in sm.JANELAS], "capacidade": (cfg.get(self.project) or {}).get("capacidade", 0),
+                "projetos": sorted({k["projeto"] for k in cards})}
+        slim = [{k: v for k, v in x.items() if k not in ("sens", "policy")} for x in cards]
         if self.project:
-            slim = [{k: v for k, v in x.items() if k not in ("sens", "policy")} for x in cards]
             return dict(base, cartoes=slim)
-        return dict(base, resumo=board.summary(cards), cartoes=[])
+        return dict(base, resumo=board.summary(cards), cartoes=slim)
 
     def refresh_insights(self):
         try:
@@ -1294,6 +1302,7 @@ class Win(Adw.ApplicationWindow):
             campos = {}
             if "bloqueado_por" in m:
                 campos["bloqueado-por"] = m["bloqueado_por"] or ""
+            campos.update(board.campos_ao_mover(card, m["col"]))     # concluir carimba `feito-em`; reabrir limpa
             prio = (m.get("prioridade") or "") if "prioridade" in m else None
             changes = [board.change_from_card(card, m["col"], prio, None, campos)]
             order = None
@@ -1304,6 +1313,23 @@ class Win(Adw.ApplicationWindow):
                         changes.append(board.change_from_card(by_id[oid], by_id[oid]["status"]))
                 order = {m["col"]: list(m["order"])}
             self.board_write(proj, changes, f"Movido para {board.LABEL.get(m['col'], m['col'])}.", order=order)
+        elif op in ("plan", "prazo"):
+            card = next((k for k in board.build(self.c, proj, ocultos=True) if k["id"] == m.get("id")), None)
+            if card is None or card["status"] in ("feito", "descartado"):
+                self.board_toast("Cartão não encontrado ou já concluído; atualize o quadro.")
+                return
+            try:
+                if op == "plan":
+                    col, campos = board.planejar(card, m.get("semana") or "", m.get("prazo") or None)
+                    msg = "Movido para o backlog." if campos["semana"] == sm.BACKLOG else f"Planejado para {campos['semana']} (prazo {campos.get('prazo') or card.get('prazo') or 'sem prazo'})."
+                else:
+                    col = card["status"]
+                    campos = {"prazo": sm.resolver_data(m["prazo"], date.today()).isoformat() if m.get("prazo") else ""}
+                    msg = f"Prazo definido: {campos['prazo']}." if campos["prazo"] else "Prazo removido."
+            except ValueError as e:
+                self.board_toast(str(e))
+                return
+            self.board_write(proj, [board.change_from_card(card, col, None, None, campos)], msg)
         elif op == "add":
             titulo = (m.get("titulo") or "").strip()
             if not titulo or m.get("col") not in board.KEYS:

@@ -121,13 +121,37 @@ Cartões **derivados** das caixas `- [ ]` (um por projeto + texto normalizado, v
 
 | Coluna inicial | Regra |
 |---|---|
-| Triagem | aberto há mais de 60 dias |
+| Triagem | aberto há mais de 60 dias (só os que passam pelas regras da 8d) |
 | A fazer | aberto recente |
 | Feito | `[x]` na ocorrência mais recente (concluir na origem vence o quadro) |
 
 Colunas: `triagem, a-fazer, fazendo, bloqueado, revisao, feito, descartado`. Campos do cartão (`board show --json`, `schema` 1): `id, titulo, status, prioridade, tipo, projeto, origem{nota,linha,data}, criado, atualizado, idade_dias, parado, bloqueado_por, relacionadas, etiquetas, modo, responsavel, prazo, orfao, status_origem, ordem`.
 
 Segurança: backup do `quadro.md` anterior fora do vault; escrita atômica; vault sensível ou versionado exige `--confirmo`; `quadro: false` no manifesto desliga; descarte em lote exige `--sim`; descartar é mover para `Descartado` (a nota de origem nunca é alterada); privacidade de leitura igual à do hook. Ordem manual dentro da coluna vem da ordem do `quadro.md`. Comandos: `board show|summary|proposals|move|add|discard`.
+
+## 8d. Pendências vivas, ocultas e conciliadas (decisão 011, `scripts/pend.py` e `scripts/reconcile.py`)
+
+Devtrack é retrato de fim de sessão: toda caixa `- [ ]` fica aberta para sempre, a menos que uma sessão posterior a reescreva. Em projetos reais, **a grande maioria dos itens abertos nunca reaparece** numa sessão seguinte. A causa é o processo, e por isso o histórico não é reescrito.
+
+**Regras (`pend.py`, sem modelo, determinístico).** O `board.derive` marca cada cartão com `oculto` e `evidencia`:
+
+| Motivo | Regra |
+|---|---|
+| `pergunta` | item de **devtrack** terminado em `?` (em CHECKLIST, feature e prioridade, pergunta é verificação real) |
+| `narrativo` | item de devtrack que é frase de estado ("nenhum commit feito", "não testado") |
+| `repetido` | uma sessão posterior reescreveu o item (semelhança ≥ 0,50, IDF por projeto) e ele segue aberto |
+| `superado` | o projeto teve devtrack 14+ dias depois, o item nunca reapareceu **e o `ESTADO.md` e a `prioridade/atual.md` não o citam** (contenção ≥ 0,60 do peso do item) |
+| feito por outra redação | uma sessão posterior marcou `[x]` um item com semelhança ≥ 0,50: o cartão vira Feito (`status_origem: evidencia`) |
+
+`build(ocultos=False)` esconde os ocultos; `ocultos=True` traz tudo. **Uma decisão no `quadro.md` sempre vence** o ocultar. Projeto dormido não gera superado (a condição é medida contra o último devtrack, não contra a data de hoje). `xmem.open_items` (hook, digest, insights) lê do quadro, então respeita o que foi fechado ou descartado.
+
+**Conciliação (`xmem.py reconcile <projeto>`).** Confronta as pendências abertas com o git dos repositórios `ativo` do manifesto (`repos:`; `referencia` só com `--incluir-referencias`): **A** hash citado existe, ou commit posterior com o mesmo assunto (≥ 0,50 e 3+ termos); **B** parece tratar do assunto (≥ 0,35, 2+ termos); **C** arquivo citado foi alterado depois (commits com mais de 150 arquivos são ignorados). Só `--aplicar A --sim` grava, com as etiquetas `#ja-feito #reconciliado`. Também lista hashes citados nas notas que não existem em nenhum repositório e avisa de `.git` que o git não reconhece.
+
+**Limite medido num projeto real:** o texto do commit e o arquivo citado confirmam só uma pequena parte do que foi feito. Commit não é o mecanismo principal; é evidência para você decidir. O guarda do estado vivo existe porque 28 superados de 20 a 27/10 ainda estavam vivos em prosa no `prioridade/atual.md`.
+
+## 8e. Semana, prazo e janelas (decisão 012, `scripts/semana.py`)
+
+Funções puras com `hoje` injetável. Semana ISO; `surgiu` só de devtrack (documento vivo carrega a data da migração e vai para o backlog); `semana` explícita ou `surgiu`; `prazo`; `feito-em` (carimbado ao concluir; a conciliação grava a data do commit; fechamento de limpeza, etiqueta `limpeza-*`, fica fora do calendário). Flags por cartão aberto: `sem-prazo`, `no-prazo`, `chegando` (até `quadro-alerta` dias, padrão 3), `hoje`, `atrasado`; sem prazo nunca atrasa. `anotar()` no `build` acrescenta `semana_ef`, `planejado`, `backlog`, `feito_semana`, `flag`, `flag_texto`, `janela`. A revisão semanal propõe por critério (prazo futuro, em andamento, bloqueado, prazo vencido, sem prazo) e só os dois primeiros são mecânicos. Capacidade por semana (`quadro-capacidade`, padrão 7) é aviso, nunca bloqueio, e conta só o que foi planejado explicitamente. Interface: Calendário (abre na última semana com registro), Agenda, Quadro e Lista; visão global com filtro de projeto. `insights --json` traz `prazos`.
 
 ## 8c. Grafo, foco e Insights
 

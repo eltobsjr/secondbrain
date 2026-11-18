@@ -43,6 +43,7 @@ Leia `{vault}/_secondbrain.md` (frontmatter YAML). Modelo completo em `reference
 - `modulos:` papéis ativos. Papel fora da lista → pergunte antes de criar a pasta ("o módulo X não está ligado neste projeto; ligar?") e, se confirmado, atualize o manifesto.
 - `versionado:` `true` se o vault vai para o git; `false` se está no `.gitignore`.
 - `sensibilidade:` `alta` marca vault de startup/institucional: nunca sugerir versionar nem publicar; cuidado ao citar conteúdo fora do projeto.
+- `repos:` os repositórios git do projeto, um por linha, relativos à pasta do projeto (ao lado do vault): `- ds-evidencia ativo` ou `- referencias/antigo referencia`. `ativo` entra na conciliação (`xmem.py reconcile`); `referencia` é repositório antigo que só se consulta **quando o usuário pedir**. Sem a chave, o motor detecta repositórios até 2 níveis abaixo da pasta do projeto e trata os que estão numa pasta `referencias` como `referencia`. Um `.git` que o git não reconhece é sinalizado como inválido.
 - `crossmem:` o que **outros projetos** enxergam na memória cruzada (`xmem.py`): `completo`, `titulos` (só título, projeto, data e caminho) ou `nenhum`. Sem a chave: `titulos` se `sensibilidade: alta`, senão `completo`. Dentro do próprio projeto o conteúdo é sempre completo.
 - `backup:` `false` exclui o vault do backup para HD externo (`scripts/backup.sh`).
 - `hooks:` `true` ativa os hooks opcionais do plugin neste projeto.

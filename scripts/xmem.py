@@ -119,7 +119,8 @@ def manifest_scalars(vault):
     g = lambda k, d: (re.search(rf"^{k}:\s*([A-Za-z0-9_\-]+)", body, re.M) or [None, d])[1]
     return {"sens": g("sensibilidade", "normal"), "crossmem": g("crossmem", ""), "backup": g("backup", "true"),
             "versionado": g("versionado", "false"), "quadro": g("quadro", "true"),
-            "global": g("tipo-vault", "") == "global"}
+            "global": g("tipo-vault", "") == "global",
+            "quadro_alerta": g("quadro-alerta", ""), "quadro_capacidade": g("quadro-capacidade", "")}
 
 
 def crossmem_policy(sens, declared):
@@ -723,6 +724,28 @@ def cmd_digest(a, c):
 
 
 def open_items(c, project=None, topic=None, limit=10):
+    """Itens ainda em aberto, do mais antigo ao mais novo (ou, com `topic`, do mais recente).
+
+    Lê do quadro: o que você fechou ou descartou no quadro.md não conta, e o que o motor reconhece como ruído, repetido ou
+    superado (pend.py) também não. Se o quadro não puder ser carregado, cai na regra antiga (última ocorrência da caixa)."""
+    try:
+        import board
+        cards = board.build(c, project)
+    except Exception:
+        return _open_items_legacy(c, project, topic, limit)
+    tw = set(tokens(topic)) if topic else set()
+    out = []
+    for k in cards:
+        if k["status"] in ("feito", "descartado"):
+            continue
+        if tw and not (set(tokens(k["titulo"])) & tw):
+            continue
+        o = k.get("origem") or {}
+        out.append({"text": k["titulo"], "data": o.get("data") or k.get("criado", ""), "project": k["projeto"], "rel": o.get("nota", ""), "idade": k["idade_dias"]})
+    return sorted(out, key=lambda x: -x["idade"])[:limit] if not tw else sorted(out, key=lambda x: x["idade"])[:limit]
+
+
+def _open_items_legacy(c, project=None, topic=None, limit=10):
     q = "select t.text,t.norm,t.checked,t.line,n.data,n.project,n.rel,n.id from todos t join notes n on n.id=t.note_id"
     if project:
         q += " where n.project=?"
@@ -808,8 +831,11 @@ def components(nodes, edges):
     return list(g.values())
 
 
-def cmd_patterns(a, c):
-    """Padrões cruzados: grupos de notas (aprendizados/decisões/postmortems) de ≥N projetos que se parecem."""
+def patterns_data(c, min_projects=2, min_score=0.3):
+    """Grupos de notas (aprendizados/decisões/postmortems) de ≥N projetos que se parecem.
+
+    Privacidade: nota com política `titulos` participa do agrupamento, mas seu conteúdo nunca vira texto
+    exibido: os "termos em comum" saem só de notas com política `completo`, e só se houver ao menos duas."""
     kinds = ("decisao", "postmortem", "memory", "rfc", "analise", "feature")
     notes = {r["id"]: r for r in c.execute("select * from notes where inactive=0 and kind in (%s)" % ",".join("?" * len(kinds)), kinds)}
     nv = note_vectors(c)
@@ -817,7 +843,7 @@ def cmd_patterns(a, c):
     for nid in notes:
         for t, w in nv.get(nid, {}).items():
             post[t].append((nid, w))
-    edges, wt = [], {}
+    edges = []
     for nid in notes:
         acc = defaultdict(float)
         for t, w in nv.get(nid, {}).items():
@@ -827,26 +853,31 @@ def cmd_patterns(a, c):
             for o, ow in pl:
                 if o > nid and notes[o]["project"] != notes[nid]["project"]:
                     acc[o] += w * ow
-        for o, s in acc.items():
-            if s >= a.min_score:
-                edges.append((nid, o))
-                wt[(nid, o)] = s
-    groups = [g for g in components(list(notes), edges) if len({notes[i]["project"] for i in g}) >= a.min_projects]
+        edges += [(nid, o) for o, s in acc.items() if s >= min_score]
+    groups = [g for g in components(list(notes), edges) if len({notes[i]["project"] for i in g}) >= min_projects]
     groups.sort(key=lambda g: (-len({notes[i]["project"] for i in g}), -len(g)))
+    out = []
+    for g in groups:
+        abertas = [i for i in g if (notes[i]["policy"] or "completo") == "completo"]
+        shared = defaultdict(int)
+        for i in abertas:
+            for t in nv.get(i, {}):
+                if not t.startswith("~"):
+                    shared[t] += 1
+        top = [t for t, k in sorted(shared.items(), key=lambda x: (-x[1], x[0])) if k >= max(2, len(abertas) // 2)][:8] if len(abertas) >= 2 else []
+        out.append({"projects": sorted({notes[i]["project"] for i in g}), "notes": [notes[i] for i in g], "terms": top})
+    return out
+
+
+def cmd_patterns(a, c):
+    """Padrões cruzados entre projetos (ver `patterns_data`)."""
+    groups = patterns_data(c, a.min_projects, a.min_score)
     print(f"# Padrões candidatos entre projetos (≥{a.min_projects} projetos, similaridade ≥{a.min_score})\n")
     if not groups:
         print("Nenhum grupo encontrado. Reduza --min-score.")
     for n, g in enumerate(groups[:a.limit], 1):
-        projs = sorted({notes[i]["project"] for i in g})
-        shared = defaultdict(int)
-        for i in g:
-            for t in nv.get(i, {}):
-                if not t.startswith("~"):
-                    shared[t] += 1
-        top = [t for t, k in sorted(shared.items(), key=lambda x: (-x[1], x[0])) if k >= max(2, len(g) // 2)][:8]
-        print(f"## Candidato {n}: {', '.join(projs)}  ({len(g)} notas)\nTermos em comum: {', '.join(top) or '—'}")
-        for i in g[:8]:
-            r = notes[i]
+        print(f"## Candidato {n}: {', '.join(g['projects'])}  ({len(g['notes'])} notas)\nTermos em comum: {', '.join(g['terms']) or '—'}")
+        for r in g["notes"][:8]:
             print(f"- [{r['kind']}] **{r['title']}**{' 🔒' if r['sens'] == 'alta' else ''} `{ref(r)}` ({r['data']})")
         print()
     print("Para consolidar: crie `padroes/<nome>.md` no vault global com problema, solução comum, onde se aplica, exceções e `referencia: [[...]]` para as origens (sem copiar trechos de 🔒).")
@@ -897,10 +928,26 @@ def insights_data(c, period="30d", stale=STALE_OPEN_DAYS):
         "select a.project pa,a.rel ra,b.project pb,b.rel rb from edges e join notes a on a.id=e.src join notes b on b.id=e.dst "
         "where e.type='contradicts' and a.inactive=0 and b.inactive=0")]
     quadro = {"orfaos": [], "parados": []}
+    ocultos = {}
+    prazos = {"atrasados": 0, "hoje": 0, "chegando": 0, "sem_prazo": 0, "por_projeto": {}, "lista": []}
     try:
         import board
-        cards = board.build(c)
-        for k in cards:
+        cards = board.build(c, ocultos=True)
+        ocultos = board.resumo_ocultos(cards)
+        abertos = [x for x in cards if not x.get("oculto") and x["status"] not in ("feito", "descartado")]
+        prazos = {"atrasados": 0, "hoje": 0, "chegando": 0, "sem_prazo": 0, "por_projeto": {}, "lista": []}
+        for x in abertos:
+            fl = x.get("flag")
+            key = {"atrasado": "atrasados", "hoje": "hoje", "chegando": "chegando", "sem-prazo": "sem_prazo"}.get(fl)
+            if not key:
+                continue
+            prazos[key] += 1
+            prazos["por_projeto"].setdefault(x["projeto"], {"atrasados": 0, "hoje": 0, "chegando": 0, "sem_prazo": 0})[key] += 1
+            if fl in ("atrasado", "hoje", "chegando"):
+                prazos["lista"].append({"projeto": x["projeto"], "id": x["id"], "titulo": x["titulo"][:100], "prazo": x.get("prazo", ""), "texto": x.get("flag_texto", ""), "flag": fl})
+        prazos["lista"].sort(key=lambda r: (r["prazo"] or "9999"))
+        prazos["lista"] = prazos["lista"][:12]
+        for k in [x for x in cards if not x.get("oculto")]:
             slim = {"projeto": k["projeto"], "id": k["id"], "status": k["status"], "titulo": k["titulo"][:100], "idade_dias": k["idade_dias"]}
             if k["orfao"]:
                 quadro["orfaos"].append(slim)
@@ -910,7 +957,8 @@ def insights_data(c, period="30d", stale=STALE_OPEN_DAYS):
         pass
     return {"schema_version": 1, "desde": since, "dias_parado": stale, "atividade": atividade,
             "parados_por_projeto": dict(sorted(parados.items(), key=lambda x: -x[1])), "total_parados": sum(parados.values()),
-            "projetos_sem_devtrack": quietos, "contradicoes": contra, "quadro": quadro}
+            "projetos_sem_devtrack": quietos, "contradicoes": contra, "quadro": quadro,
+            "ocultos_por_projeto": ocultos, "total_ocultos": sum(sum(v.values()) for v in ocultos.values()), "prazos": prazos}
 
 
 def cmd_insights(a, c):
@@ -936,6 +984,30 @@ def cmd_insights(a, c):
         print(f"- `{r['de']}` contradiz `{r['para']}`")
 
 
+def _ver(v):
+    return tuple(int(x) for x in re.findall(r"\d+", str(v))[:3])
+
+
+def plugin_version_notice(script=None, installed_json=None):
+    """Aviso quando a sessão carregou uma versão do plugin mais antiga que a instalada em disco.
+
+    A sessão do Claude Code lê o plugin uma vez, ao abrir; atualizar depois não muda a sessão em curso, e as skills/hook
+    novos só valem numa sessão nova. Devolve "" quando não há o que avisar ou quando não dá para saber (nunca quebra o hook)."""
+    try:
+        raiz = os.path.dirname(os.path.dirname(os.path.abspath(script or __file__)))
+        with open(os.path.join(raiz, ".claude-plugin", "plugin.json"), encoding="utf-8") as fh:
+            carregada = json.load(fh)["version"]
+        with open(installed_json or os.path.join(HOME, ".claude/plugins/installed_plugins.json"), encoding="utf-8") as fh:
+            regs = next(v for k, v in json.load(fh)["plugins"].items() if k.startswith("secondbrain@"))
+        instalada = max((r["version"] for r in regs), key=_ver)
+        if _ver(instalada) > _ver(carregada):
+            return (f"⚠ SecondBrain: esta sessão carregou o plugin {carregada}, mas a {instalada} já está instalada. "
+                    f"Skills e hook novos só valem numa sessão nova: reinicie o Claude Code.")
+    except (OSError, ValueError, KeyError, StopIteration, TypeError):
+        pass
+    return ""
+
+
 def cmd_hook_context(a, c):
     cwd = a.cwd or os.getcwd()
     cur = detect_project(c, cwd)
@@ -943,6 +1015,9 @@ def cmd_hook_context(a, c):
         return
     v = c.execute("select vault from notes where project=? limit 1", (cur,)).fetchone()["vault"]
     out, used = [f"## SecondBrain — {cur}"], 0
+    aviso = plugin_version_notice()
+    if aviso:
+        out.append(aviso)
     est = os.path.join(v, "ESTADO.md")
     q = cur
     if os.path.isfile(est):
@@ -957,6 +1032,14 @@ def cmd_hook_context(a, c):
     try:
         import board
         mine = board.build(c, cur)
+        abertos_ = [k for k in mine if k["status"] not in ("feito", "descartado")]
+        atras = [k for k in abertos_ if k.get("flag") == "atrasado"]
+        hoje_ = [k for k in abertos_ if k.get("flag") == "hoje"]
+        cheg = [k for k in abertos_ if k.get("flag") == "chegando"]
+        if atras or hoje_ or cheg:
+            partes = [f"{len(atras)} atrasado(s)" if atras else "", f"{len(hoje_)} vence(m) hoje" if hoje_ else "", f"{len(cheg)} chegando" if cheg else ""]
+            top = sorted(atras + hoje_ + cheg, key=lambda k: k.get("prazo") or "9999")[:2]
+            out.append("Prazos: " + ", ".join(x for x in partes if x) + " — " + "; ".join(f"{k['titulo'][:50]} ({k['flag_texto']})" for k in top))
         doing = [k for k in mine if k["status"] == "fazendo"]
         blocked = [k for k in mine if k["status"] == "bloqueado"]
         if doing or blocked:
@@ -1347,6 +1430,8 @@ def main():
     s = sp.add_parser("global-init"); s.add_argument("--path", default="~/GlobalSecondBrain")
     import board  # noqa: E402  (mesma pasta; só carregado quando a linha de comando é montada)
     board.add_parser(sp)
+    import reconcile  # noqa: E402
+    reconcile.add_parser(sp)
     a = p.parse_args()
     if a.cmd == "index":
         index(full=a.full)
@@ -1363,7 +1448,8 @@ def main():
     {"status": cmd_status, "search": lambda a, c: cmd_search(a, c), "recall": lambda a, c: cmd_search(a, c, True),
      "digest": cmd_digest, "absorb-check": cmd_absorb_check, "related": cmd_related, "patterns": cmd_patterns,
      "dups": cmd_dups, "insights": cmd_insights, "hook-context": cmd_hook_context, "graph": cmd_graph,
-     "global-init": cmd_global_init, "board": lambda a, c: board.cmd(a, c)}[a.cmd](a, c)
+     "global-init": cmd_global_init, "board": lambda a, c: board.cmd(a, c),
+     "reconcile": lambda a, c: reconcile.cmd(a, c)}[a.cmd](a, c)
 
 
 if __name__ == "__main__":

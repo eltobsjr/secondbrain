@@ -62,6 +62,9 @@ Produza um output **compacto**. Máximo de 30 linhas. Sem seções desnecessári
 **Último trabalho:** {título do devtrack mais recente} ({data})
 
 ### Em aberto
+{Com o motor, as pendências vivas vêm de `board show --project <p>` (já sem ruído, repetidos e superados); cite quantos ficaram ocultos
+ (`board summary`), sem listá-los. Traga também os prazos: `board agenda --project <p>` mostra o que está atrasado, vence hoje ou está chegando;
+ `board semana --project <p>` abre na última semana com registro.}
 {Lista dos checkboxes [ ] do devtrack mais recente + CHECKLIST.md.
  Máximo 7 itens. Se tiver mais, agrupe ou priorize.
  Se não houver nenhum: "Nenhuma pendência registrada — pronto para nova tarefa."}

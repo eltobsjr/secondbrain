@@ -53,7 +53,8 @@ class BoardTest(unittest.TestCase):
         shutil.rmtree(cls.home, ignore_errors=True)
 
     def cards(self, project="proj_a"):
-        return {k["titulo"]: k for k in self.board.build(self.c, project)}
+        # ocultos=True: estes testes verificam a mecânica das colunas, não a visibilidade (ver test_pendencias_ocultas_*)
+        return {k["titulo"]: k for k in self.board.build(self.c, project, ocultos=True)}
 
     def test_colunas_iniciais_por_idade_e_checkbox(self):
         k = self.cards()

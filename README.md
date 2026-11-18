@@ -66,6 +66,28 @@ De vez em quando   →  /audit  e  /patterns
 | `/board` | Quadro kanban das pendências (Triagem, A fazer, Fazendo, Bloqueado, Revisão, Feito, Descartado). Os cartões vêm das caixas `- [ ]` dos vaults; as decisões ficam em `quadro.md` por projeto (formato do Obsidian Kanban), com backup e sem tocar nas notas de origem. Ver, mover, criar e fazer triagem em lote; `--json` para integrações. |
 | `/resume` | Revisão completa: o que foi feito, pendências abertas e próxima ação |
 
+### Qual usar quando (as que parecem se repetir)
+
+| Eu quero... | Use | Por quê |
+|---|---|---|
+| Começar a trabalhar agora (30 segundos) | `/context` | Briefing curto: estado, pendências e próxima ação. Não revisa histórico. |
+| Entender tudo o que aconteceu até aqui | `/resume` | Revisão histórica completa; mais lenta e mais longa. |
+| Dizer ao time o que fiz | `/standup` | Sai do devtrack mais recente (ontem / hoje / bloqueios). Não olha o quadro. |
+| Ver, mover ou criar pendências | `/board` | Quadro interativo (Triagem → Feito); as decisões ficam em `quadro.md`. |
+| Uma lista de prioridades escrita no vault | `/priority` | Grava `prioridade/atual.md`. Começa pelo quadro e grava a ordem com `--prioridade`. |
+
+Regra prática: **`/board` é onde a pendência vive; `/priority` é um retrato escrito dela.** Se só quer saber o que fazer agora, `/context`.
+
+### Calendário por semana, prazo e janelas
+
+A página Quadro abre no **Calendário**, na última semana que tem registro: o que foi feito numa semana fica nela (a data de conclusão manda, não a de quando o cartão surgiu), os abertos ficam na semana em que surgiram e podem ser arrastados para outra semana para planejá-los. A **Agenda** agrupa por janela de prazo (atrasadas, hoje, esta semana, próxima, mais adiante, sem prazo), com flags: "vence hoje", "chegando" (3 dias) e "atrasado há N dias". **Dentro do prazo nunca é atrasado, e sem prazo nunca atrasa.** Há visão por projeto e visão global, com filtro por semana, situação e projeto. Na linha de comando: `board semana`, `board agenda`, `board plan`, `board prazo` e `board revisao`. O limite por semana (`quadro-capacidade:`, padrão 7) só avisa. Detalhes na seção 8e da arquitetura.
+
+### Pendência viva, oculta e conciliada
+
+Devtrack é retrato de fim de sessão, e uma caixa `- [ ]` nele fica aberta para sempre se ninguém a reescrever. Em projetos reais, a grande maioria dos itens abertos nunca mais aparece numa sessão seguinte. Por isso o quadro **oculta por padrão** (sem apagar) o que não é pendência viva: pergunta de checklist, frase de estado, item repetido e item superado (o projeto seguiu 14+ dias e nem o `ESTADO.md` nem a `prioridade/atual.md` o citam). `board summary` mostra quantos há por projeto, `board show --ocultos` lista cada um com o motivo, e uma decisão sua no `quadro.md` sempre vence.
+
+`xmem.py reconcile <projeto>` confronta as pendências com o git e propõe o que fechar, em três níveis (só o A fecha, com `--aplicar A --sim`). Os repositórios vêm da chave `repos:` do manifesto; os marcados `referencia` só entram sob pedido. O `/devtrack` concilia a sessão anterior ao abrir e só usa caixa para o que ainda vai ser feito. Detalhes em `docs/ARQUITETURA-MEMORIA-CRUZADA.md`, seção 8d.
+
 ### Captura de conhecimento
 
 | Comando | O que faz |
@@ -79,7 +101,7 @@ De vez em quando   →  /audit  e  /patterns
 
 | Comando | O que faz |
 |---|---|
-| `/priority` | Consolida os `[ ]` abertos em `prioridade/atual.md` (Alta / Média / Baixa) |
+| `/priority` | Gera uma visão escrita do quadro em `prioridade/atual.md` (Alta / Média / Baixa). A fonte das pendências é o quadro |
 | `/feature` | Spec de funcionalidade com critérios de aceitação rastreáveis (🔲 🔄 ✅ ❌) |
 | `/audit` | 16 verificações: links, caminhos, tarefas abandonadas, devtracks, memórias conflitantes, vault x manifesto, limites do `MEMORY.md`, frescor, segredos, equipe nova em vault privado, índice/estado/backup, integridade de caminhos e memória cruzada (parados, contradições, duplicatas) |
 | `/analyze` | Análise completa em 16 dimensões, com nota geral, top 10 problemas e pontos fortes. Salva `PROJECT_CONTEXT.md`. |
@@ -212,8 +234,9 @@ secondbrain/
 ## Testes
 
 ```bash
-python3 -I -m unittest discover -s tests          # 14 testes: motor, privacidade, linhagem, interface
-python3 -I tests/eval_xmem.py                     # qualidade da busca (conjunto de ajuste e conjunto reservado)
+python3 -I -m unittest discover -s tests          # motor, privacidade, linhagem, quadro, hook, interface (a interface se pula sem GTK)
+python3 -I tests/eval_xmem.py                     # qualidade da busca (conjuntos de ajuste e reservado)
+python3 -I tests/eval_xmem.py --auto --save       # 150 consultas geradas do seu índice; --save grava a linha de base, as próximas execuções mostram a diferença
 python3 -I scripts/check_vault.py <pasta-do-vault>   # integridade de um vault
 ```
 
