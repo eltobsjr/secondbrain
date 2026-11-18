@@ -1,7 +1,7 @@
 {
   "name": "secondbrain",
   "description": "Persistent memory, documentation and knowledge tracking for software projects. 21 skills covering daily workflow, knowledge capture, project management, documentation, analysis and special events.",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "author": {
     "name": "eltobsjr",
     "url": "https://github.com/eltobsjr"

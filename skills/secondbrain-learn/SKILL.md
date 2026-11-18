@@ -93,6 +93,8 @@ python3 -I "$SB/xmem.py" absorb-check "<texto do aprendizado>" --project <projet
 
 Ele lista as notas parecidas (no projeto e nos outros) com a classificação provável e avisa se há **segredo** no texto. Siga a regra impressa: **substituir uma nota exige 3 "sim"** (mesmo projeto, mesma entidade, o fato novo torna TODA a antiga obsoleta); na dúvida é RELATED, nunca substituição. Escreva o aprendizado como fato **completo e autossuficiente** (uma frase ou parágrafo curto com contexto), não como lembrete solto. Se veio de outro projeto, registre `origem: projeto:nota` no frontmatter.
 
+**Arestas tipadas (para o grafo e para o `/audit`).** Quando o `absorb-check` mostrar nota parecida, declare a relação no frontmatter da nota nova em vez de deixar só a semelhança automática. Use um dos tipos: `estende: "[[nota]]"` (acrescenta algo à anterior), `contradiz: projeto:caminho` (afirma o oposto; o `/audit` lista as não resolvidas), `implementa:` (aplica uma decisão ou padrão), `referencia:` (apoia-se em) ou `relacionado:`. Valor: `"[[nota]]"` no mesmo vault ou `projeto:caminho-sem-.md` entre vaults. Só use `substitui:` com os 3 "sim". Proponha a relação ao usuário em uma linha e grave só se ele concordar; sem parecida relevante, não invente relação.
+
 Depois, a verificação manual abaixo continua valendo para a memória do Claude:
 
 Leia o `MEMORY.md` e busque nas descrições (e, se preciso, com `grep -ril "{palavras-chave}" "$MEM"`) uma memória sobre o mesmo assunto.

@@ -172,6 +172,35 @@ class BoardTest(unittest.TestCase):
         ordem = [k["titulo"] for k in self.board.build(self.c, "proj_a") if k["status"] == "fazendo"]
         self.assertEqual(ordem[:2], ["Revisar permissões do bucket", "Publicar versão nova do serviço"])
 
+    def test_hook_de_sessao_mostra_o_que_esta_em_andamento(self):
+        import io
+        from contextlib import redirect_stdout
+        from types import SimpleNamespace
+        k = self.cards()["Publicar versão nova do serviço"]
+        self.board.apply_changes(self.c, "proj_a", [self.board.change_from_card(k, "fazendo")])
+        self.board.apply_changes(self.c, "proj_a", [self.board.change_from_card(self.cards()["Revisar permissões do bucket"], "bloqueado", None, None, {"bloqueado-por": "aprovação"})])
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            self.xmem.cmd_hook_context(SimpleNamespace(cwd=os.path.dirname(self.a), max_chars=1500), self.c)
+        out = buf.getvalue()
+        self.assertIn("Quadro:", out)
+        self.assertIn("fazendo", out)
+        self.assertIn("bloqueado", out)
+        self.assertLessEqual(len(out), 1600, "o hook continua dentro do teto de caracteres")
+
+    def test_insights_inclui_o_quadro_e_e_serializavel(self):
+        import json
+        d = self.xmem.insights_data(self.c)
+        json.dumps(d)
+        self.assertEqual(d["schema_version"], 1)
+        self.assertIn("orfaos", d["quadro"])
+
+    def test_graph_tarefas_ligam_o_cartao_a_nota_de_origem(self):
+        k = self.cards()["Publicar versão nova do serviço"]
+        self.board.apply_changes(self.c, "proj_a", [self.board.change_from_card(k, "fazendo")])
+        t = [x for x in self.xmem.active_tasks(self.c, "proj_a") if x["id"] == k["id"]]
+        self.assertTrue(t and t[0]["nota_id"], "a tarefa aponta para a nota onde nasceu")
+
     def test_resumo_conta_por_coluna(self):
         s = self.board.summary(self.board.build(self.c, "proj_a"))
         self.assertIn("proj_a", s)

@@ -68,7 +68,7 @@ python3 -I "$SB/xmem.py" absorb-check "<título e resumo da decisão>" --project
 python3 -I "$SB/xmem.py" recall "<tema da decisão>" --limit 4
 ```
 
-- Se uma decisão ativa do projeto vira **obsoleta por inteiro** (3 "sim": mesmo projeto, mesma entidade, substituição integral), a nova leva `substitui: "[[NNN - Título antigo]]"` e a antiga muda **só** o `status` para `substituída por NNN`. Na dúvida, é decisão nova relacionada (`relacionado:`), não substituição.
+- Se uma decisão ativa do projeto vira **obsoleta por inteiro** (3 "sim": mesmo projeto, mesma entidade, substituição integral), a nova leva `substitui: "[[NNN - Título antigo]]"` e a antiga muda **só** o `status` para `substituída por NNN`. Na dúvida, é decisão nova relacionada (`relacionado:`), não substituição. Declare também as outras relações que o `absorb-check` revelar, uma linha cada, só com a concordância do usuário: `estende:` (acrescenta à decisão anterior sem torná-la obsoleta), `contradiz:` (se opõe a outra ainda ativa; fica listada no `/audit` até alguém resolver), `implementa:` (aplica um padrão ou RFC), `referencia:`. Valor: `"[[NNN - Título]]"` no mesmo vault ou `projeto:caminho-sem-.md` entre vaults. O grafo desenha cada tipo com cor e traço próprios.
 - Se contradiz outra decisão, use `contradiz:` e avise o usuário.
 - Mostre ao usuário os precedentes de outros projetos (🔒 só pelo título) antes de decidir; se a decisão repete um padrão, cite `origem: projeto:nota`.
 

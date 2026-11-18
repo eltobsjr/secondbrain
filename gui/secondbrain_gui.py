@@ -1365,6 +1365,11 @@ class App(Adw.Application):
     def do_activate(self):
         Gtk.Window.set_default_icon_name(APP_ID)  # ícone instalado por scripts/install-tools.sh
         win = Win(self)
+        size = os.environ.get("SB_SELFTEST_SIZE")   # ex.: 1360x860; só para capturas de tela (tamanho mínimo da janela)
+        if self.selftest and size and "x" in size:
+            w_, h_ = (int(x) for x in size.split("x", 1))
+            win.set_default_size(w_, h_)
+            win.set_size_request(w_, h_)
         win.present()
         if self.selftest:  # fumaça: abre, indexa, fecha sozinho (SB_SELFTEST_MS e SB_SELFTEST_PAGE servem para capturar a tela)
             want = os.environ.get("SB_SELFTEST_NOTE")

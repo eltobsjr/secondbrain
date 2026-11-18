@@ -89,6 +89,39 @@ class GuiLogic(unittest.TestCase):
             self.assertIn(marca, h, marca)
         self.assertIn("sb.cam3.", h, "chave da câmera nova: não herda a câmera salva do layout antigo")
 
+    def test_mensagens_do_quadro_viram_gravacoes_corretas(self):
+        """on_board_msg sem abrir janela: um objeto falso no lugar da Win, board.build trocado por cartões fixos."""
+        from types import SimpleNamespace
+        board = self.g.board
+        cards = [{"id": "ca", "titulo": "A", "status": "a-fazer", "origem": {"nota": "devtrack/x.md"}},
+                 {"id": "cb", "titulo": "B", "status": "fazendo", "origem": {}},
+                 {"id": "cc", "titulo": "C", "status": "fazendo", "origem": {}}]
+        orig = board.build
+        board.build = lambda c, p=None, cur=None: cards
+        gravado, avisos = [], []
+        win = SimpleNamespace(c=None, plist=None, board_toast=avisos.append,
+                              board_write=lambda proj, ch, msg, order=None: gravado.append((proj, ch, msg, order)))
+        msg = lambda d: SimpleNamespace(to_string=lambda: json.dumps(d))
+        try:
+            self.g.Win.on_board_msg(win, None, msg({"op": "move", "project": "p", "id": "ca", "col": "fazendo", "order": ["cb", "ca", "cc"]}))
+            proj, ch, texto, order = gravado[-1]
+            self.assertEqual(ch[0]["id"], "ca")
+            self.assertEqual(ch[0]["col"], "fazendo")
+            self.assertEqual({c["id"] for c in ch}, {"ca", "cb", "cc"})
+            self.assertEqual(order, {"fazendo": ["cb", "ca", "cc"]})
+            self.g.Win.on_board_msg(win, None, msg({"op": "add", "project": "p", "titulo": "  nova tarefa  ", "col": "a-fazer", "prioridade": "P1"}))
+            ch = gravado[-1][1][0]
+            self.assertEqual((ch["titulo"], ch["col"], ch["prioridade"]), ("nova tarefa", "a-fazer", "P1"))
+            self.assertTrue(ch["id"].startswith("m"))
+            n = len(gravado)
+            self.g.Win.on_board_msg(win, None, msg({"op": "add", "project": "p", "titulo": "   ", "col": "a-fazer"}))
+            self.assertEqual(len(gravado), n, "título vazio não grava")
+            self.assertTrue(avisos)
+            self.g.Win.on_board_msg(win, None, msg({"op": "move", "project": "p", "id": "nao-existe", "col": "feito"}))
+            self.assertEqual(len(gravado), n, "cartão inexistente não grava")
+        finally:
+            board.build = orig
+
     def test_js_do_insights_e_valido(self):
         node = shutil.which("node") or shutil.which("nodejs")
         if not node:

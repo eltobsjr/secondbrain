@@ -2,7 +2,7 @@
 tipo: arquitetura
 status: ativo
 data: 2026-11-16
-versao: 0.6.0
+versao: 0.7.0
 ---
 
 # Arquitetura da memória cruzada do SecondBrain
@@ -115,6 +115,29 @@ O mapa é **calculado em Python e cacheado**, não simulado no navegador — por
 
 A física de 16 ms/tick que existia antes (≈ 11 s para assentar e nós ainda se mexendo) foi removida: o navegador só desenha, então pan e zoom rodam a 60 fps mesmo com ~900 notas.
 
+## 8b. Quadro kanban (decisão 009, `scripts/board.py`)
+
+Cartões **derivados** das caixas `- [ ]` (um por projeto + texto normalizado, vale a ocorrência mais recente) e decisões em `{vault}/quadro.md`, criado só quando alguém mexe, no formato do Obsidian Kanban (`## Coluna`, `- [ ] texto #P1 #etiqueta ^id`, campos `chave:: valor`).
+
+| Coluna inicial | Regra |
+|---|---|
+| Triagem | aberto há mais de 60 dias |
+| A fazer | aberto recente |
+| Feito | `[x]` na ocorrência mais recente (concluir na origem vence o quadro) |
+
+Colunas: `triagem, a-fazer, fazendo, bloqueado, revisao, feito, descartado`. Campos do cartão (`board show --json`, `schema` 1): `id, titulo, status, prioridade, tipo, projeto, origem{nota,linha,data}, criado, atualizado, idade_dias, parado, bloqueado_por, relacionadas, etiquetas, modo, responsavel, prazo, orfao, status_origem, ordem`.
+
+Segurança: backup do `quadro.md` anterior fora do vault; escrita atômica; vault sensível ou versionado exige `--confirmo`; `quadro: false` no manifesto desliga; descarte em lote exige `--sim`; descartar é mover para `Descartado` (a nota de origem nunca é alterada); privacidade de leitura igual à do hook. Ordem manual dentro da coluna vem da ordem do `quadro.md`. Comandos: `board show|summary|proposals|move|add|discard`.
+
+## 8c. Grafo, foco e Insights
+
+- **Foco em projeto:** clique no casco ou no nome do projeto aproxima e isola as notas dele (inclui as sem relação); `Esc` ou "← Todos os projetos" restaura câmera e filtros.
+- **Clusters** (`xmem.graph_clusters`): componentes de notas de conhecimento do mesmo projeto ligadas por link ou semelhança ≥ 0,30, com ≥ 4 notas; rótulo = termo mais frequente nos títulos. Aparecem com zoom ≥ 1 ou em foco.
+- **Tarefas** em Fazendo, Bloqueado e Revisão aparecem como losangos ligados à nota de origem (`graph --json --tarefas` entrega a mesma lista).
+- **Busca no corpo:** a interface pergunta ao índice (`hybrid`) e o grafo só mostra notas cujo trecho contém todos os termos digitados.
+- **Insights** (`xmem.py insights --json`, `schema_version` 1): atividade, parados, projetos sem devtrack, contradições e saúde do quadro (órfãos, parados em andamento).
+- `graph --json`: `{schema_version, nodes, edges[, layout][, tarefas]}`; aresta = `src, dst, type, score, origin, cross`; tipos: `links_to, related_to, supersedes, extends, contradicts, implements, references`.
+
 ## 9. Mapa Memora → SecondBrain (verificado no código do Memora, commit 442ca1b)
 
 | Memora (fonte) | Aqui | Decisão |
@@ -130,6 +153,9 @@ A física de 16 ms/tick que existia antes (≈ 11 s para assentar e nós ainda s
 | hook SessionStart (5 hits, ≤1500 caracteres) | `hook-context` | adotado, opt-in |
 | `SECRET_PATTERNS` | `absorb-check`, `/audit` | adotado |
 | sem tipo automático (130 rotulagens erradas) | tipo só por papel/frontmatter | adotado |
+| `memory_create_todo` / `memory_create_issue` (status, prioridade, categoria) | `board` (7 colunas, P0 a P3, etiquetas, bloqueio) | adotado, derivado das caixas; kanban não existe no Memora |
+| `memory_clusters` | `graph_clusters` | adotado por projeto, com rótulo |
+| `memory_export_graph` (HTML estático) | `graph --json` (dados) | JSON em vez de HTML: serve a IA e integrações |
 | perfis de ferramentas (12.700 tokens de esquema) | skills por demanda, sem servidor MCP | desnecessário aqui |
 | hook PostToolUse de auto-captura | — | **não adotado**: `/devtrack` já lê o `git log`; captura sem contexto vira ruído (o próprio Memora ressalva isso) |
 | `calculate_importance`/`boost` (meia-vida 30 d) | — | **não adotado**: sem contador de acesso nos arquivos; o Memora não usa essa pontuação na busca |

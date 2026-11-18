@@ -168,6 +168,10 @@ Se não encontrar o vault na raiz, procure no diretório pai ou pergunte ao usu�
 
 ---
 
+## Passo 4a — Atualizar o quadro (se o motor existir)
+
+Se `$SB/xmem.py` existir, o quadro já mostra os `- [ ]` deste devtrack como cartões novos. Para o que foi **concluído nesta sessão**, mova para Feito (`python3 -I "$SB/xmem.py" board move <projeto> <id> feito`; ids em `board show --project <projeto>`) ou, se preferir, marque `- [x]` no devtrack seguinte (a origem concluída vence). O que ficou **bloqueado**, mova para `bloqueado --bloqueado-por "<motivo>"`. Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes. Se o projeto não tem `quadro.md` e o usuário não usa o quadro, pule sem perguntar.
+
 ## Passo 4b — Atualizar o ESTADO.md
 
 Se o vault tem o papel `estado` (arquivo `ESTADO.md` ou o caminho do manifesto) — ou o módulo `estado` está ligado — **reescreva-o inteiro** conforme `references/estado-format.md`: Agora, Próximo passo, Bloqueios, Fatos voláteis (com data). Se o arquivo não existe e o módulo está ligado, crie-o. Se o projeto não usa o módulo, pule este passo sem perguntar.
