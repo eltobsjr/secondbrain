@@ -46,7 +46,9 @@ class GuiLogic(unittest.TestCase):
         if not node:
             self.skipTest("node ausente")
         data = {"nodes": [{"id": 1, "project": "a", "title": "t", "tipo": "x", "kind": "x", "data": "", "sens": "normal", "inactive": 0}], "edges": []}
-        html_ = self.g.GRAPH_HTML.replace("{{DATA}}", json.dumps(data)).replace("{{COLORS}}", '{"a":"#fff"}').replace("{{DARK}}", "")
+        html_ = (self.g.GRAPH_HTML.replace("{{DATA}}", json.dumps(data))
+                 .replace("{{COLORS}}", '{"a":"#fff"}').replace("{{SIG}}", "teste")
+                 .replace("{{PROJECT}}", "null"))
         js = html_.split("<script>")[1].split("</script>")[0]
         with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
             f.write(js)

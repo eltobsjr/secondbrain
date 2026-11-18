@@ -37,6 +37,14 @@ T_RELATED = float(os.environ.get("XMEM_T_REL", "0.25"))    # candidato a relacio
 RRF_K, W_SEM = 60, 0.6
 STALE_OPEN_DAYS, STALE_CLOSED_DAYS = 14, 30
 
+# Grafo: arestas automáticas e layout
+GRAPH_LAYOUT_PATH = os.environ.get("SECONDBRAIN_GRAPH_LAYOUT") or os.path.join(HOME, ".local/share/secondbrain/graph_layout.json")
+EDGES_VERSION = "3"      # mudou o modelo de arestas => recalcula sem apagar o banco
+AUTO_K, AUTO_MIN, AUTO_REL = 10, 0.16, 0.44   # vizinhos por nota, piso absoluto, fração do melhor vizinho
+KNOWLEDGE_KINDS = ("decisao", "feature", "rfc", "nota", "analise", "padrao", "aprendizado", "postmortem",
+                   "release", "memory", "visao-geral")
+REGISTRY_KINDS = ("devtrack", "commit", "estado", "prioridade", "claude-md", "checklist", "projeto")
+
 PRUNE = {"node_modules", "snap", "Downloads", "games", "venv", ".venv", "__pycache__", "build", "dist",
          "backups-secondbrain", "Agents", "OpenBot", "target", "Pods", "dart_tool"}
 INACTIVE_STATUS = ("obsolet", "substitu", "rejeitad", "arquivad", "descartad", "superseded", "deprecated",
@@ -264,6 +272,8 @@ def collect_sources():
 def index(full=False, quiet=False):
     c = connect()
     c.execute("begin")
+    ev = c.execute("select v from meta where k='edges-version'").fetchone()
+    stale_edges = not ev or ev[0] != EDGES_VERSION
     if full:
         for t in ("notes", "chunks", "chunks_fts", "post", "idf", "edges", "todos"):
             c.execute(f"delete from {t}")
@@ -328,7 +338,9 @@ def index(full=False, quiet=False):
         c.execute("delete from notes where id=?", (nid,))
     if changed or gone or full:
         rebuild_vectors(c)
+    if changed or gone or full or stale_edges:
         rebuild_edges(c)
+        c.execute("insert or replace into meta values('edges-version',?)", (EDGES_VERSION,))
     c.execute("commit")
     n = c.execute("select count(*) from notes").fetchone()[0]
     k = c.execute("select count(*) from chunks").fetchone()[0]
@@ -445,25 +457,41 @@ def rebuild_edges(c):
             for o in notes:
                 if o["vault"] == n["vault"] and o["kind"] == "decisao" and os.path.basename(o["rel"]).startswith(m.group(1)):
                     c.execute("insert into edges values(?,?,?,?,?)", (o["id"], n["id"], "supersedes", 1.0, "manual"))
-    # relacionados automáticos (top-5 por nota, cruzando projetos), via índice invertido
+    # relacionados automáticos: kNN adaptativo, um par canônico (a<b), sem duplicar link/aresta declarada.
+    # Só o conhecimento entra no cálculo: devtrack, commit, estado, CLAUDE.md etc. são registro, não assunto.
     nv = note_vectors(c)
-    N = max(1, len(nv))
+    kinds = {n["id"]: n["kind"] for n in notes}
+    known = {(min(r[0], r[1]), max(r[0], r[1])) for r in c.execute("select src,dst from edges")}
+    auto_ids = [nid for nid in nv if kinds.get(nid) in KNOWLEDGE_KINDS]
+    N = max(1, len(auto_ids))
     post = defaultdict(list)
-    for nid, v in nv.items():
-        for t, w in v.items():
+    for nid in auto_ids:
+        for t, w in nv[nid].items():
             post[t].append((nid, w))
-    for nid, v in nv.items():
+    best = {}
+    for nid in auto_ids:
         acc = defaultdict(float)
-        for t, w in v.items():
+        for t, w in nv[nid].items():
             plist = post[t]
-            if len(plist) > 0.35 * N:
+            if len(plist) > 0.35 * N:   # termo quase universal não diz nada sobre o par
                 continue
             for o, ow in plist:
                 if o != nid:
                     acc[o] += w * ow
-        for o, s in sorted(acc.items(), key=lambda x: -x[1])[:5]:
-            if s >= 0.15:
-                c.execute("insert into edges values(?,?,?,?,?)", (nid, o, "related_to", round(s, 4), "auto"))
+        if not acc:
+            continue
+        ranked = sorted(acc.items(), key=lambda x: -x[1])[:AUTO_K]
+        cut = max(AUTO_MIN, AUTO_REL * ranked[0][1])  # limiar próprio da nota: curta e longa ficam comparáveis
+        for o, s in ranked:
+            if s < cut:
+                continue
+            pair = (nid, o) if nid < o else (o, nid)
+            if pair in known:            # já é link ou aresta declarada: não desenha em dobro
+                continue
+            if s > best.get(pair, 0.0):
+                best[pair] = s
+    for (a_, b_), s in best.items():
+        c.execute("insert into edges values(?,?,?,?,?)", (a_, b_, "related_to", round(s, 4), "auto"))
     # linhagem: quem é substituído por nota ativa fica inativo
     c.execute("update notes set inactive=1 where id in (select dst from edges where type='supersedes')")
 
@@ -666,7 +694,12 @@ def cmd_digest(a, c):
     for hop in range(1, a.hops + 1):
         nxt = []
         for s in frontier:
-            for e in c.execute("select e.dst id,e.type,e.score,n.project,n.rel,n.title,n.inactive,n.policy,n.sens from edges e join notes n on n.id=e.dst where e.src=? and e.type!='supersedes' order by e.score desc limit 4", (s,)):
+            for e in c.execute(
+                    "select e.dst id,e.type,e.score,n.project,n.rel,n.title,n.inactive,n.policy,n.sens from edges e join notes n on n.id=e.dst "
+                    "where e.src=? and e.type!='supersedes' "
+                    "union all "
+                    "select e.src id,e.type,e.score,n.project,n.rel,n.title,n.inactive,n.policy,n.sens from edges e join notes n on n.id=e.src "
+                    "where e.dst=? and e.type='related_to' order by 3 desc limit 4", (s, s)):
                 if e["id"] in seenr or e["inactive"]:
                     continue
                 seenr.add(e["id"])
@@ -751,7 +784,7 @@ def cmd_related(a, c):
     if not r:
         sys.exit("nota não encontrada: use o caminho ou projeto:caminho-sem-.md")
     print(f"# Relacionadas a {ref(r)}\n")
-    for e in c.execute("select e.type,e.score,e.origin,n.project,n.rel,n.title,n.inactive,n.sens from edges e join notes n on n.id=e.dst where e.src=? union all select 'recebe_'||e.type,e.score,e.origin,n.project,n.rel,n.title,n.inactive,n.sens from edges e join notes n on n.id=e.src where e.dst=? and e.origin!='auto' order by 2 desc", (r["id"], r["id"])):
+    for e in c.execute("select e.type,e.score,e.origin,n.project,n.rel,n.title,n.inactive,n.sens from edges e join notes n on n.id=e.dst where e.src=? union all select 'recebe_'||e.type,e.score,e.origin,n.project,n.rel,n.title,n.inactive,n.sens from edges e join notes n on n.id=e.src where e.dst=? and (e.origin!='auto' or e.type='related_to') order by 2 desc", (r["id"], r["id"])):
         print(f"- [{e['type']} {e['score']:.2f}] {e['title']} `{e['project']}:{e['rel'][:-3]}`{' (inativa)' if e['inactive'] else ''}{' 🔒' if e['sens'] == 'alta' else ''}")
 
 
@@ -896,15 +929,22 @@ def cmd_hook_context(a, c):
     print(text)
 
 
-def graph_data(c, project=None, min_score=0.30):
+def graph_data(c, project=None, min_score=0.0):
+    """Grafo inteiro (o filtro fino é da interface): nós com posição lógica e arestas com cruzamento."""
     where, args = ("project=?", [project]) if project else ("1=1", [])
-    nodes = [dict(r) for r in c.execute(f"select id,project,rel,kind,title,tipo,data,status,sens,inactive,policy from notes where {where} and kind not in ('commit')", args)]
+    nodes = [dict(r) for r in c.execute(
+        f"select id,project,rel,kind,title,tipo,data,status,sens,inactive,policy from notes where {where} and kind not in ('commit')", args)]
+    if not nodes:
+        return {"nodes": [], "edges": []}
     ids = {n["id"] for n in nodes}
+    proj = {n["id"]: n["project"] for n in nodes}
     deg = defaultdict(int)
     edges = []
-    for e in c.execute("select src,dst,type,score,origin from edges where (origin!='auto' or score>=?)", (min_score,)):
+    for e in c.execute("select src,dst,type,score,origin from edges where origin!='auto' or score>=?", (min_score,)):
         if e["src"] in ids and e["dst"] in ids:
-            edges.append(dict(e))
+            d = dict(e)
+            d["cross"] = proj[e["src"]] != proj[e["dst"]]
+            edges.append(d)
             deg[e["src"]] += 1
             deg[e["dst"]] += 1
     for n in nodes:
@@ -912,8 +952,192 @@ def graph_data(c, project=None, min_score=0.30):
     return {"nodes": nodes, "edges": edges}
 
 
+def _graph_sig(g):
+    raw = [[n["id"], n["project"], n["kind"], int(n.get("inactive") or 0)] for n in g["nodes"]]
+    raw += [[e["src"], e["dst"], e["type"], round(float(e["score"]), 3)] for e in g["edges"]]
+    return hashlib.sha1(json.dumps(raw, sort_keys=True).encode()).hexdigest()
+
+
+def graph_signature(g):
+    """Identidade do grafo: se não mudou, a interface não recarrega nem perde câmera/filtros."""
+    return _graph_sig(g)
+
+
+def _island_layout(members, springs, iters=140):
+    """Layout determinístico dentro de um projeto: repulsão em grade, mola nas arestas, gravidade no centro."""
+    n = len(members)
+    idx = {m["id"]: i for i, m in enumerate(members)}
+    rmax = 24.0 + 9.0 * math.sqrt(n)
+    pos = [[0.0, 0.0] for _ in range(n)]
+    for k in range(n):
+        r = rmax * 0.55 * math.sqrt((k + 0.5) / n)
+        a = k * 2.399963229728653
+        pos[k][0], pos[k][1] = r * math.cos(a), r * math.sin(a)
+    sp = [(idx[e["src"]], idx[e["dst"]], (1.0 if e["type"] != "related_to" else 0.30 + 0.9 * min(1.0, float(e["score"]))))
+          for e in springs]
+    CELL, REACH, REP, REST = 30.0, 2, 620.0, 26.0
+    vel = [[0.0, 0.0] for _ in range(n)]
+    for it in range(iters):
+        cool = 0.5 * (1.0 - it / iters) + 0.05
+        grid = defaultdict(list)
+        for i, (x, y) in enumerate(pos):
+            grid[(int(math.floor(x / CELL)), int(math.floor(y / CELL)))].append(i)
+        fx = [0.0] * n
+        fy = [0.0] * n
+        for i, (x, y) in enumerate(pos):
+            gx, gy = int(math.floor(x / CELL)), int(math.floor(y / CELL))
+            for ddx in range(-REACH, REACH + 1):
+                for ddy in range(-REACH, REACH + 1):
+                    for j in grid.get((gx + ddx, gy + ddy), ()):
+                        if j <= i:
+                            continue
+                        dx, dy = x - pos[j][0], y - pos[j][1]
+                        d2 = dx * dx + dy * dy + 1e-6
+                        if d2 > (CELL * REACH) ** 2:
+                            continue
+                        f = min(4.0, REP / d2)
+                        d = math.sqrt(d2)
+                        ux, uy = dx / d * f, dy / d * f
+                        fx[i] += ux
+                        fy[i] += uy
+                        fx[j] -= ux
+                        fy[j] -= uy
+        for i, j, w in sp:
+            dx, dy = pos[j][0] - pos[i][0], pos[j][1] - pos[i][1]
+            d = math.sqrt(dx * dx + dy * dy) + 1e-6
+            f = 0.020 * w * (d - REST)
+            ux, uy = dx / d * f, dy / d * f
+            fx[i] += ux
+            fy[i] += uy
+            fx[j] -= ux
+            fy[j] -= uy
+        lim = rmax * 1.02
+        for i, (x, y) in enumerate(pos):
+            fx[i] -= 0.030 * x
+            fy[i] -= 0.030 * y
+            vel[i][0] = (vel[i][0] + fx[i]) * cool
+            vel[i][1] = (vel[i][1] + fy[i]) * cool
+            nx = x + max(-9.0, min(9.0, vel[i][0]))
+            ny = y + max(-9.0, min(9.0, vel[i][1]))
+            d = math.hypot(nx, ny)
+            if d > lim:      # a ilha não vaza: quem separa os projetos é o empacotamento
+                nx, ny = nx * lim / d, ny * lim / d
+            pos[i][0], pos[i][1] = nx, ny
+    return {m["id"]: pos[i] for i, m in enumerate(members)}
+
+
+def _pack_islands(radii, weights=None):
+    """Empacota as ilhas (arquipélago): espiral inicial, atração entre projetos que se referenciam,
+    repulsão que impede sobreposição e uma passada final que garante folga. Tudo determinístico."""
+    weights = weights or {}
+    wmax = max(weights.values(), default=1.0) or 1.0
+    ps = sorted(radii, key=lambda p: (-radii[p], p))
+    pos = {}
+    for k, p in enumerate(ps):
+        a = k * 2.399963229728653
+        d = 7.5 * math.sqrt(k + 0.5)
+        pos[p] = [d * math.cos(a), d * math.sin(a)]
+    for _ in range(260):
+        fx = {p: 0.0 for p in ps}
+        fy = {p: 0.0 for p in ps}
+        for i, a in enumerate(ps):
+            for b in ps[i + 1:]:
+                dx, dy = pos[a][0] - pos[b][0], pos[a][1] - pos[b][1]
+                d = math.hypot(dx, dy) + 1e-6
+                gap = radii[a] + radii[b] + 70.0
+                f = (gap - d) * 0.5 if d < gap else -0.9 * (weights.get((a, b) if a < b else (b, a), 0.0) / wmax) * (d - gap)
+                ux, uy = dx / d, dy / d
+                fx[a] += ux * f; fy[a] += uy * f
+                fx[b] -= ux * f; fy[b] -= uy * f
+        for p in ps:
+            pos[p][0] += max(-40.0, min(40.0, fx[p] * 0.35))
+            pos[p][1] += max(-40.0, min(40.0, fy[p] * 0.35))
+    for _ in range(400):  # folga dura: nenhuma ilha encosta na outra
+        moved = False
+        for i, a in enumerate(ps):
+            for b in ps[i + 1:]:
+                dx, dy = pos[a][0] - pos[b][0], pos[a][1] - pos[b][1]
+                d = math.hypot(dx, dy) + 1e-6
+                need = radii[a] + radii[b] + 70.0
+                if d < need:
+                    push = (need - d) / 2 + 0.5
+                    ux, uy = dx / d, dy / d
+                    pos[a][0] += ux * push; pos[a][1] += uy * push
+                    pos[b][0] -= ux * push; pos[b][1] -= uy * push
+                    moved = True
+        if not moved:
+            break
+    return {p: (pos[p][0], pos[p][1]) for p in ps}
+
+
+def _force_layout(g):
+    """Layout determinístico em duas fases: cada projeto é uma ilha arrumada por dentro, e as ilhas são empacotadas."""
+    nodes, edges = g["nodes"], g["edges"]
+    by = defaultdict(list)
+    proj_of = {}
+    for n in nodes:
+        by[n["project"]].append(n)
+        proj_of[n["id"]] = n["project"]
+    springs = defaultdict(list)
+    for e in edges:
+        springs[proj_of[e["src"]]].append(e)
+    local, radii = {}, {}
+    for p, members in by.items():
+        members = sorted(members, key=lambda n: n["id"])
+        inside = {m["id"] for m in members}
+        local.update(_island_layout(members, [e for e in springs[p] if e["dst"] in inside]))
+        radii[p] = max(math.hypot(*local[m["id"]]) for m in members) if members else 20.0
+        radii[p] += 30.0
+    weights = defaultdict(float)
+    for e in edges:
+        a, b = proj_of[e["src"]], proj_of[e["dst"]]
+        if a != b:
+            weights[(a, b) if a < b else (b, a)] += 0.6 if e["type"] == "related_to" else 1.0
+    centers = _pack_islands(radii, weights)
+    pos = {}
+    for p, members in by.items():
+        cx, cy = centers[p]
+        for m in members:
+            x, y = local[m["id"]]
+            pos[m["id"]] = [cx + x, cy + y]
+    xs = [p[0] for p in pos.values()] or [0.0]
+    ys = [p[1] for p in pos.values()] or [0.0]
+    cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+    span = max(1.0, max(max(xs) - min(xs), max(ys) - min(ys)) / 2)
+    scale = 1000.0 / span
+    return {nid: [round((x - cx) * scale, 2), round((y - cy) * scale, 2)] for nid, (x, y) in pos.items()}
+
+
+def graph_layout(g, recompute=False):
+    """Posições por id, cacheadas em disco e atreladas ao conteúdo do grafo (reindexar não remexe o mapa)."""
+    if not g["nodes"]:
+        return {}
+    sig = _graph_sig(g)
+    if not recompute and os.path.isfile(GRAPH_LAYOUT_PATH):
+        try:
+            with open(GRAPH_LAYOUT_PATH, encoding="utf-8") as fh:
+                cache = json.load(fh)
+            if cache.get("sig") == sig and len(cache.get("pos", {})) == len(g["nodes"]):
+                return {int(k): v for k, v in cache["pos"].items()}
+        except (OSError, ValueError):
+            pass
+    pos = _force_layout(g)
+    try:
+        os.makedirs(os.path.dirname(GRAPH_LAYOUT_PATH), exist_ok=True)
+        tmp = GRAPH_LAYOUT_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"sig": sig, "pos": {str(k): v for k, v in pos.items()}}, fh)
+        os.replace(tmp, GRAPH_LAYOUT_PATH)
+    except OSError:
+        pass
+    return pos
+
+
 def cmd_graph(a, c):
-    print(json.dumps(graph_data(c, a.project, a.min_score), ensure_ascii=False))
+    g = graph_data(c, a.project, a.min_score)
+    if getattr(a, "layout", False):
+        g["layout"] = graph_layout(g, recompute=getattr(a, "recompute", False))
+    print(json.dumps(g, ensure_ascii=False))
 
 
 def projects_summary(c):
@@ -938,7 +1162,11 @@ def note_detail(c, nid):
     except OSError:
         fm, body = {}, "(arquivo não encontrado)"
     rel = [dict(e) for e in c.execute(
-        "select e.type,e.score,e.origin,n.id,n.project,n.rel,n.title,n.inactive,n.sens from edges e join notes n on n.id=e.dst where e.src=? and e.type!='related_to' or (e.src=? and e.type='related_to' and e.score>=0.2) order by e.score desc", (nid, nid))]
+        "select e.type,e.score,e.origin,n.id,n.project,n.rel,n.title,n.inactive,n.sens from edges e join notes n on n.id=e.dst "
+        "where e.src=? and (e.type!='related_to' or e.score>=0.2) "
+        "union all "
+        "select e.type,e.score,e.origin,n.id,n.project,n.rel,n.title,n.inactive,n.sens from edges e join notes n on n.id=e.src "
+        "where e.dst=? and e.type='related_to' and e.score>=0.2 order by 2 desc", (nid, nid))]
     back = [dict(e) for e in c.execute(
         "select e.type,e.score,e.origin,n.id,n.project,n.rel,n.title,n.inactive,n.sens from edges e join notes n on n.id=e.src where e.dst=? and e.origin!='auto'", (nid,))]
     return {"note": dict(r), "frontmatter": {k: flat(v) for k, v in fm.items()}, "body": body, "out": rel, "in": back,
@@ -1007,7 +1235,9 @@ def main():
     s = sp.add_parser("dups"); s.add_argument("--min", type=float, default=T_DUP); s.add_argument("--limit", type=int, default=20)
     s = sp.add_parser("insights"); s.add_argument("--period", default="30d"); s.add_argument("--stale", type=int, default=STALE_OPEN_DAYS)
     s = sp.add_parser("hook-context"); s.add_argument("--cwd"); s.add_argument("--max-chars", type=int, default=1500)
-    s = sp.add_parser("graph"); s.add_argument("--project"); s.add_argument("--min-score", type=float, default=0.30)
+    s = sp.add_parser("graph"); s.add_argument("--project"); s.add_argument("--min-score", type=float, default=0.0)
+    s.add_argument("--layout", action="store_true", help="inclui posições pré-calculadas do grafo")
+    s.add_argument("--recompute", action="store_true", help="refaz o layout ignorando o cache")
     s = sp.add_parser("global-init"); s.add_argument("--path", default="~/GlobalSecondBrain")
     a = p.parse_args()
     if a.cmd == "index":

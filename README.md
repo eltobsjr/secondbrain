@@ -121,7 +121,7 @@ Detalhes: [`references/vault-resolve.md`](references/vault-resolve.md) e [`refer
 ## Memória cruzada, interface nativa e vault global
 
 - **`scripts/xmem.py`:** índice derivado (SQLite + FTS5, sem rede e sem modelo) sobre todos os vaults, a memória do Claude Code e os `CLAUDE.md`. Busca híbrida (RRF), arestas tipadas, linhagem de substituição e os comandos `recall`, `digest`, `absorb-check`, `patterns`, `dups`, `insights`. O índice pode ser apagado e reconstruído a qualquer momento: os `.md` continuam sendo a fonte da verdade.
-- **Interface nativa** (GTK4 + libadwaita + WebKitGTK): atalho "SecondBrain" no menu de aplicativos, ou `python3 ~/.local/share/secondbrain/bin/gui/secondbrain_gui.py`. Barra de projetos, busca, leitor de notas, grafo de todas as notas e lista de pendências. Somente leitura.
+- **Interface nativa** (GTK4 + libadwaita + WebKitGTK): atalho "SecondBrain" no menu de aplicativos, ou `python3 ~/.local/share/secondbrain/bin/gui/secondbrain_gui.py`. Barra de projetos, busca, leitor de notas, grafo de todas as notas e lista de pendências. O grafo tem layout pré-calculado (cada projeto vira uma ilha; nada de física no navegador, então pan e zoom não tremem), casco por projeto, filtros por camada, busca e painel de relacionadas; a câmera é preservada entre sessões. Somente leitura.
 - **Vault global** `~/GlobalSecondBrain/`: um cartão por projeto (só ponteiros), `padroes/`, `licoes/` e `docs/`.
 - **Qualidade da busca (medida):** em perguntas reais com resposta verificada à mão, a nota certa ficou no top 3 em 6 de 6 consultas que não foram usadas para calibrar (MRR 0,833). A busca é lexical (entende siglas e termos técnicos bem, mas não sinônimos).
 

@@ -46,7 +46,7 @@ Ferramentas em `~/.local/share/secondbrain/bin` (variável `$SB`), copiadas por 
 - **notes**: projeto, vault, caminho, `kind` (papel da pasta), `tipo`, data, `status`, sensibilidade, política de exposição (`policy`), `inactive`.
 - **chunks**: cada seção `##`/`###` vira um trecho buscável (seção longa é quebrada em parágrafos); a nota é achada pelo melhor trecho. O `description` do frontmatter entra no texto (nas memórias do Claude ele é o resumo principal).
 - **post/idf**: vetores TF-IDF esparsos (80 termos por trecho) e índice invertido; o radical de 5 letras (`~autent`) casa flexões.
-- **edges**: `links_to` (wikilink), arestas tipadas declaradas no frontmatter, e `related_to` automáticas (5 vizinhos por nota, também entre projetos).
+- **edges**: `links_to` (wikilink), arestas tipadas declaradas no frontmatter, e `related_to` automáticas (os 10 vizinhos mais próximos de cada nota, piso de 0,16 e corte em 0,44× o melhor vizinho; par canônico `a<b`, sem duplicar link nem aresta declarada, só entre notas de conhecimento).
 - **todos**: `- [ ]` e `- [x]` de devtrack, estado, prioridade, features. Item é "em aberto" se sua ocorrência **mais recente** está desmarcada.
 
 ### Relações no frontmatter (opcionais)
@@ -102,7 +102,18 @@ Segredos: os 10 padrões do Memora mais `sk-…` são checados no `absorb-check`
 
 ## 8. Interface (`gui/secondbrain_gui.py`)
 
-GTK4 + libadwaita + WebKitGTK 6 (já instalados). Barra de projetos (🔒, itens parados), busca híbrida, alternância "Outros projetos" (recall) e "Substituídas", leitor de nota (Markdown com HTML cru **escapado**, JavaScript desligado, imagens remotas bloqueadas, links `[[...]]` navegáveis), painéis de linhagem/relacionadas/citada por, **grafo** em canvas com layout próprio (sem CDN; cor por projeto, borda 🔒, tracejado para `supersedes`, filtros por projeto/similaridade) e **pendências**. Somente leitura sobre os vaults. Atalho: `~/.local/share/applications/io.github.eltobsjr.SecondBrain.desktop`.
+GTK4 + libadwaita + WebKitGTK 6 (já instalados). Barra de projetos (🔒, itens parados), busca híbrida, alternância "Outros projetos" (recall) e "Substituídas", leitor de nota (Markdown com HTML cru **escapado**, JavaScript desligado, imagens remotas bloqueadas, links `[[...]]` navegáveis), painéis de linhagem/relacionadas/citada por, **grafo** e **pendências**. Somente leitura sobre os vaults. Atalho: `~/.local/share/applications/io.github.eltobsjr.SecondBrain.desktop`.
+
+### Grafo
+
+O mapa é **calculado em Python e cacheado**, não simulado no navegador — por isso não treme:
+
+1. `graph_layout` monta cada projeto como uma ilha: repulsão em grade, mola nas arestas e gravidade no centro, posições iniciais determinísticas (espiral áurea) e nenhum sorteio.
+2. As ilhas são empacotadas como um arquipélago: espiral inicial, atração entre projetos que têm arestas entre si e folga mínima de 70 px entre cascos.
+3. O resultado vai para `~/.local/share/secondbrain/graph_layout.json`, atrelado a um hash do conteúdo do grafo (`graph_signature`: ids, projetos, tipos e arestas). Reindexar sem mudar nada mantém o mapa; mudar notas recalcula, e a interface só recarrega a página quando o hash muda (`--recompute` força).
+4. A página desenha um canvas estático com casco por projeto, rótulos em pílula, graus por nota, painel de relacionadas (clique seleciona, duplo clique abre a nota), busca, filtros por projeto/camada/tipo/similaridade, modo "entre projetos", modo **Local** (vizinhança de 1 ou 2 saltos da nota selecionada), zoom no cursor e "ajustar à tela". A câmera e os filtros ficam salvos em `localStorage` por assinatura do grafo.
+
+A física de 16 ms/tick que existia antes (≈ 11 s para assentar e nós ainda se mexendo) foi removida: o navegador só desenha, então pan e zoom rodam a 60 fps mesmo com ~900 notas.
 
 ## 9. Mapa Memora → SecondBrain (verificado no código do Memora, commit 442ca1b)
 

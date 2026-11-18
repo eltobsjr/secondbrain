@@ -119,6 +119,40 @@ class XmemTest(unittest.TestCase):
         self.xmem.index(quiet=True)
         self.assertFalse(self.xmem.hybrid(self.xmem.connect(), "zeppelin xylofone", k=3))
 
+    def test_arestas_automaticas_sem_duplicata_e_sem_registro(self):
+        c = self.xmem.connect()
+        auto = [dict(r) for r in c.execute(
+            "select src, dst, type, origin, score from edges where origin='auto'")]
+        pares = [(min(e["src"], e["dst"]), max(e["src"], e["dst"])) for e in auto]
+        self.assertEqual(len(pares), len(set(pares)), "cada par aparece uma vez só")
+        kinds = {r["id"]: r["kind"] for r in c.execute("select id, kind from notes")}
+        for e in auto:
+            self.assertIn(kinds[e["src"]], self.xmem.KNOWLEDGE_KINDS)
+            self.assertIn(kinds[e["dst"]], self.xmem.KNOWLEDGE_KINDS)
+            self.assertGreaterEqual(e["score"], self.xmem.AUTO_MIN)
+
+    def test_grafo_marca_cruzamento_entre_projetos(self):
+        c = self.xmem.connect()
+        g = self.xmem.graph_data(c, None, 0.0)
+        self.assertTrue(g["nodes"])
+        self.assertTrue(all("grau" in n and "cross" in e for n in g["nodes"] for e in g["edges"]))
+        proj = {n["id"]: n["project"] for n in g["nodes"]}
+        for e in g["edges"]:
+            self.assertEqual(e["cross"], proj[e["src"]] != proj[e["dst"]])
+        auto_forte = self.xmem.graph_data(c, None, 0.9)
+        self.assertLessEqual(len(auto_forte["edges"]), len(g["edges"]))
+        self.assertTrue(all(e["origin"] != "auto" or e["score"] >= 0.9 for e in auto_forte["edges"]))
+
+    def test_layout_do_grafo_e_deterministico_e_cacheado(self):
+        c = self.xmem.connect()
+        g = self.xmem.graph_data(c, None, 0.0)
+        a = self.xmem.graph_layout(g, recompute=True)
+        b = self.xmem.graph_layout(g, recompute=True)
+        self.assertEqual(len(a), len(g["nodes"]))
+        self.assertEqual(a, b, "mesmo grafo => mesmas posições")
+        self.assertTrue(os.path.isfile(self.xmem.GRAPH_LAYOUT_PATH), "layout fica em cache")
+        self.assertEqual(self.xmem.graph_signature(g), self.xmem.graph_signature(self.xmem.graph_data(c, None, 0.0)))
+
 
 if __name__ == "__main__":
     unittest.main()
