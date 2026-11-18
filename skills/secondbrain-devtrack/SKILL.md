@@ -25,7 +25,7 @@ Gera e salva o log de sessão no vault do projeto.
 
 ## Passo 0 — Fechar o ciclo da sessão anterior (se o motor existir)
 
-O devtrack é um retrato de fim de sessão. Na prática, a grande maioria das caixas `- [ ]` que ele deixa abertas nunca mais aparecem numa sessão seguinte: foram feitas ou largadas sem registro. Por isso, **antes de escrever o devtrack novo**, concilie o anterior. Com `$SB/xmem.py` (`references/vault-resolve.md`, seção 0):
+O devtrack é um retrato de fim de sessão. Na prática, a grande maioria das caixas `- [ ]` que ele deixa abertas nunca mais aparece numa sessão seguinte: foram feitas ou largadas sem registro. Por isso, **antes de escrever o devtrack novo**, concilie o anterior. Com `$SB/xmem.py` (`references/vault-resolve.md`, seção 0):
 
 ```bash
 python3 -I "$SB/xmem.py" board show --project <projeto> --status a-fazer,fazendo,bloqueado

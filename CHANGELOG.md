@@ -2,6 +2,16 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem o `plugin.json`. A fonte é o `git log` e os devtracks do vault do plugin.
 
+## [Não lançado]
+
+### Adicionado
+- **Guarda de publicação** (`scripts/guard_publico.py`): barra commit e push que citem nome de projeto, de pessoa ou de empresa do dono, caminho da pasta pessoal, e-mail ou chave. A lista de nomes é montada no computador a cada execução (projetos do índice local mais `~/.local/share/secondbrain/denylist.txt`) e nunca entra no repositório. `--instalar-hook` instala os hooks locais; `--tree`, `--range` e `--historico` conferem. No CI roda só a parte genérica.
+
+### Alterado
+- O repositório passa a conter só a ferramenta. O documento de revisão dos `CLAUDE.md` dos projetos do dono saiu do repositório (vai para o vault local), os casos de avaliação ficam todos em `~/.local/share/secondbrain/eval_local.json` (formato em `tests/eval_local.example.json`), e os exemplos reais das skills e da arquitetura viraram exemplos fictícios. Números de uso do dono foram generalizados.
+- `check_vault.py` deixa de ter o caminho de uma pasta pessoal embutido no código.
+- `.gitignore` cobre os dados pessoais (`*SecondBrain/`, `eval_local.json`, `denylist*.txt`). O histórico anterior do git ainda contém o que foi removido.
+
 ## [0.8.0] - 2026-11-18
 
 ### Adicionado

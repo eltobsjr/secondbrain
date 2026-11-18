@@ -1,0 +1,14 @@
+[
+ [
+  "como configurar o cache do build",
+  "decisao-cache",
+  null,
+  "exemplo sintético: decisão sobre cache"
+ ],
+ [
+  "regra de mensagens de commit",
+  "feedback_commits",
+  "outro_projeto",
+  "exemplo sintético: recall a partir de outro projeto"
+ ]
+]

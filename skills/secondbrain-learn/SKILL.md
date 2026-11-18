@@ -32,7 +32,7 @@ Captura um aprendizado e persiste nos dois lugares: memória do Claude Code + va
 O conteúdo pode vir de duas formas:
 
 **A) O usuário passou junto com o comando:**
-> `/learn O DSpace exige ENTRY_COMPONENTS e DECLARATIONS para @listableObjectComponent`
+> `/learn O framework exige ENTRY_COMPONENTS e DECLARATIONS para @listableObjectComponent`
 
 Use diretamente o que foi passado.
 
@@ -64,7 +64,7 @@ Em caso de dúvida entre `feedback` e `project`: se for uma **regra ou padrão d
 Crie um slug curto em inglês, snake_case, que descreva o aprendizado.
 
 Exemplos:
-- `dspace_entry_components_required`
+- `framework_entry_components_required`
 - `modal_view_encapsulation`
 - `i18n_merge_workflow`
 - `backend_filters_discovery_xml`

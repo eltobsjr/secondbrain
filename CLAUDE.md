@@ -44,6 +44,7 @@ Principais skills:
 - Antes de propor commit, rode `python3 -I -m unittest discover -s tests`.
 - Detalhes de arquitetura em `docs/ARQUITETURA-MEMORIA-CRUZADA.md`.
 - O logo é gerado por `assets/logo/build_logo.py`; não edite os SVGs à mão.
+- **Este repositório é público e só tem a ferramenta.** Nada dos projetos do dono pode entrar nele: nome de projeto, de pessoa ou de empresa, caso de teste real, número de uso, caminho da pasta pessoal. Use exemplos fictícios (`app-loja`, `projeto-exemplo`). O que é pessoal fica só no computador dele (`~/.local/share/secondbrain/`, os vaults e `SecondBrainSecondBrain/`). A guarda `scripts/guard_publico.py` barra commit e push; se ela reclamar, troque o texto por um exemplo fictício em vez de contorná-la.
 
 ## Commits
 

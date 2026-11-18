@@ -6,3 +6,9 @@ __pycache__/
 *.skill
 .worktrees/
 SecondBrainSecondBrain/
+
+# dados pessoais: nunca vão para o repositório público
+*SecondBrain/
+eval_local.json
+denylist*.txt
+.playwright-mcp/

@@ -87,7 +87,8 @@ def bad_frontmatter(vault):
     return bad
 
 
-PATH_TOKEN = re.compile(r"(?:(?<=`)|(?<=\s)|^)((?:/home/user|~)/[^\s`'\")\]]+)")
+HOME = os.path.expanduser("~")
+PATH_TOKEN = re.compile(r"(?:(?<=`)|(?<=\s)|^)((?:" + re.escape(HOME) + r"|~)/[^\s`'\")\]]+)")
 
 
 def claude_md_paths(project, claude_files):
@@ -98,7 +99,7 @@ def claude_md_paths(project, claude_files):
             p = raw.rstrip(".,;:)")
             if any(c in p for c in "*{}<>$|") or "…" in p or "..." in p:
                 continue
-            full = os.path.expanduser(p.replace("/home/user", "~", 1))
+            full = os.path.expanduser(p.replace(HOME, "~", 1))
             if not os.path.exists(full):
                 missing.append((os.path.relpath(cf, os.path.dirname(project)) if cf.startswith(project) else cf, raw))
     return missing

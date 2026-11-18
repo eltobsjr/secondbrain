@@ -34,7 +34,7 @@ O valor de um decision log não é o que foi decidido — isso está no código.
 O conteúdo pode vir de duas formas:
 
 **A) O usuário passou junto com o comando:**
-> `/decision usar @Input searchQuery em vez de service porque o DSpace cria cards dinamicamente`
+> `/decision usar @Input searchQuery em vez de service porque o componente de lista cria cards dinamicamente`
 
 Use como ponto de partida e expanda com o contexto da conversa.
 
@@ -91,7 +91,7 @@ Nome do arquivo: `{NNN} - {Título descritivo}.md`
 
 Exemplos:
 - `001 - Propagação de searchQuery via @Input.md`
-- `002 - Override de componentes DSpace via tema org-exemplo.md`
+- `002 - Override de componentes via tema.md`
 - `003 - i18n centralizado em pt-BR.json5.md`
 
 Conteúdo:

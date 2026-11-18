@@ -5,7 +5,7 @@ set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SB="$HOME/.local/share/secondbrain/bin"
 mkdir -p "$SB"
-for f in _vault.py xmem.py pend.py semana.py board.py reconcile.py infer_manifest.py add_frontmatter.py build_index.py gen_estado.py check_vault.py backup.sh install-backup.sh; do
+for f in _vault.py xmem.py pend.py semana.py board.py reconcile.py guard_publico.py infer_manifest.py add_frontmatter.py build_index.py gen_estado.py check_vault.py backup.sh install-backup.sh; do
   [ -f "$HERE/$f" ] && install -m 755 "$HERE/$f" "$SB/$f"
 done
 [ -f "$HERE/../gui/secondbrain_gui.py" ] && mkdir -p "$SB/gui" && cp -r "$HERE/../gui/." "$SB/gui/"

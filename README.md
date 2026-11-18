@@ -231,6 +231,10 @@ secondbrain/
 
 ---
 
+## Seus dados ficam só no seu computador
+
+O repositório é público e contém só a ferramenta. O que é seu fica fora dele, no seu computador: os vaults de cada projeto, o índice (`~/.local/share/secondbrain/xmem.db`), os backups, os casos de avaliação (`eval_local.json`) e uma lista de termos proibidos (`denylist.txt`). A **guarda de publicação** usa essa lista, mais os nomes dos projetos que o índice conhece, para barrar commit e push que citem qualquer um deles, e também caminho da pasta pessoal, e-mail e chaves. Instale uma vez, neste repositório: `python3 scripts/guard_publico.py --instalar-hook`. No CI roda só a parte genérica, porque os nomes não existem lá.
+
 ## Testes
 
 ```bash

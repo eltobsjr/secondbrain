@@ -64,7 +64,7 @@ Para cada entrada em `MEMORY.md`, confirme que o arquivo linkado existe na pasta
 
 ### Verificação 2 — Memórias que referenciam caminhos inexistentes
 
-Leia cada `feedback_*.md` e `project_*.md`. Se algum mencionar um caminho de arquivo (ex: `src/themes/org-exemplo/app/...`), verifique se o arquivo ainda existe:
+Leia cada `feedback_*.md` e `project_*.md`. Se algum mencionar um caminho de arquivo (ex: `src/themes/meu-tema/app/...`), verifique se o arquivo ainda existe:
 
 ```bash
 # Para cada caminho encontrado nas memórias:

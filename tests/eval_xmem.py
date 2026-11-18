@@ -3,8 +3,9 @@
 
 Cada caso: pergunta + trecho do caminho da nota que DEVE aparecer + projeto de origem da consulta
 (para recall, que exclui o projeto atual). As respostas foram verificadas à mão nos vaults reais.
-Casos que tocam vault de sensibilidade alta NÃO ficam aqui (o repositório é público): vivem em ~/.local/share/secondbrain/eval_local.json,
-que o script carrega sozinho (--local ARQ usa outro arquivo).
+NENHUM caso fica neste arquivo (o repositório é público e os casos citam assuntos dos seus projetos): todos vivem em
+~/.local/share/secondbrain/eval_local.json, que o script carrega sozinho (--local ARQ usa outro arquivo). Formato em
+tests/eval_local.example.json.
 Métrica: posição da nota esperada (hit@3 / hit@5) e MRR.
 
 Uso: eval_xmem.py [--verbose] [--auto [N]] [--local ARQUIVO.json] [--save]
@@ -25,10 +26,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "scripts"))
 import xmem  # noqa: E402
 
-# (consulta, trecho do rel esperado, projeto "atual" simulado ou None, descrição)
-GOLDEN = []
+# (consulta, trecho do rel esperado, projeto "atual" simulado ou None, descrição). O repositório é público e não
+# guarda nenhum caso: veja tests/eval_local.example.json para o formato e use ~/.local/share/secondbrain/eval_local.json.
+GOLDEN = []   # vazio de propósito: casos de avaliação citam assuntos reais e ficam só em eval_local.json (fora do git)
+
 # Conjunto SEPARADO, escrito depois do ajuste do motor: não foi usado para calibrar nada.
-HELDOUT = []
+HELDOUT = []   # vazio de propósito: casos de avaliação citam assuntos reais e ficam só em eval_local.json (fora do git)
+
 
 DATA = os.path.join(os.path.expanduser("~"), ".local", "share", "secondbrain")
 BASELINE = os.path.join(DATA, "eval_baseline.json")
@@ -127,7 +131,8 @@ def main():
     verbose = "--verbose" in sys.argv
     c = xmem.index(quiet=True)
     for label, cases in (("CONJUNTO DE AJUSTE", GOLDEN), ("CONJUNTO RESERVADO (não usado para ajustar)", HELDOUT)):
-        run(c, label, cases, verbose)
+        if cases:
+            run(c, label, cases, verbose)
     local = _arg("--local", LOCAL) or (LOCAL if os.path.isfile(LOCAL) else None)
     if local and os.path.isfile(local):
         run(c, f"LOCAL ({os.path.basename(local)}; fora do git)", [tuple(x) for x in json.load(open(local, encoding="utf-8"))], verbose)
