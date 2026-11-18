@@ -68,6 +68,19 @@ class XmemTest(unittest.TestCase):
         hits = [h["row"]["rel"] for h in self.xmem.hybrid(c, "texto exclusivo beta", k=5)]
         self.assertIn("devtrack/zz-ultima-nota.md", hits)
 
+    def test_clusters_do_grafo_agrupam_por_projeto_e_rotulam(self):
+        g = {"nodes": [{"id": i, "project": "p", "kind": "decisao", "title": f"Cache de relatorio {i}"} for i in range(1, 6)]
+                      + [{"id": 9, "project": "q", "kind": "decisao", "title": "Outro assunto"}],
+             "edges": [{"src": 1, "dst": 2, "score": 1.0, "origin": "link"}, {"src": 2, "dst": 3, "score": 1.0, "origin": "link"},
+                       {"src": 3, "dst": 4, "score": 0.5, "origin": "auto"}, {"src": 4, "dst": 9, "score": 1.0, "origin": "link"},
+                       {"src": 4, "dst": 5, "score": 0.1, "origin": "auto"}]}
+        cl = self.xmem.graph_clusters(g)
+        grupo = {cl["of"][i] for i in (1, 2, 3, 4)}
+        self.assertEqual(len(grupo), 1, "links e semelhança forte juntam as notas do mesmo projeto")
+        self.assertNotIn(5, cl["of"], "semelhança fraca não junta")
+        self.assertNotIn(9, cl["of"], "nunca cruza projetos")
+        self.assertEqual(cl["labels"][next(iter(grupo))]["label"], "relatorio")
+
     def test_indexa_vaults_e_memoria(self):
         n = self.c.execute("select count(*) from notes").fetchone()[0]
         self.assertGreaterEqual(n, 5)

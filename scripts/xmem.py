@@ -958,7 +958,7 @@ def graph_data(c, project=None, min_score=0.0):
     """Grafo inteiro (o filtro fino é da interface): nós com posição lógica e arestas com cruzamento."""
     where, args = ("project=?", [project]) if project else ("1=1", [])
     nodes = [dict(r) for r in c.execute(
-        f"select id,project,rel,kind,title,tipo,data,status,sens,inactive,policy from notes where {where} and kind not in ('commit')", args)]
+        f"select id,project,rel,kind,title,tipo,data,status,tags,sens,inactive,policy from notes where {where} and kind not in ('commit')", args)]
     if not nodes:
         return {"nodes": [], "edges": []}
     ids = {n["id"] for n in nodes}
@@ -974,7 +974,49 @@ def graph_data(c, project=None, min_score=0.0):
             deg[e["dst"]] += 1
     for n in nodes:
         n["grau"] = deg[n["id"]]
+        n["etiquetas"] = sorted({t.lower() for t in re.split(r"[,\s]+", re.sub(r"[\[\]#\"']", "", n.get("tags") or "")) if t})
     return {"nodes": nodes, "edges": edges}
+
+
+CLUSTER_STOP = set("decisao feature nota notas projeto feedback visao geral estado sobre como para fase item itens".split())
+
+
+def graph_clusters(g, min_size=4, min_score=0.30):
+    """Agrupa, dentro de cada projeto, as notas de conhecimento ligadas entre si (links e semelhança forte).
+    Devolve {"of": {id_da_nota: cluster}, "labels": {cluster: {"label","project","n"}}}. O rótulo é o termo mais frequente nos títulos."""
+    kn = {n["id"]: n for n in g["nodes"] if n["kind"] in KNOWLEDGE_KINDS}
+    parent = {i: i for i in kn}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for e in g["edges"]:
+        a, b = e["src"], e["dst"]
+        if a in kn and b in kn and kn[a]["project"] == kn[b]["project"] and (e.get("origin") != "auto" or e["score"] >= min_score):
+            parent[find(a)] = find(b)
+    groups = defaultdict(list)
+    for i in kn:
+        groups[find(i)].append(i)
+    of, labels = {}, {}
+    for root, ids in groups.items():
+        if len(ids) < min_size:
+            continue
+        proj = kn[ids[0]]["project"]
+        stop = set(tokens(proj)) | CLUSTER_STOP
+        cnt = defaultdict(int)
+        for i in ids:
+            for t in set(tokens(kn[i]["title"])):
+                if len(t) >= 4 and t not in stop and not t.isdigit():
+                    cnt[t] += 1
+        label = max(cnt.items(), key=lambda x: (x[1], len(x[0])))[0] if cnt else ""
+        cid = f"{proj}:{root}"
+        labels[cid] = {"label": label, "project": proj, "n": len(ids)}
+        for i in ids:
+            of[i] = cid
+    return {"of": of, "labels": labels}
 
 
 def _graph_sig(g):

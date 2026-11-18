@@ -225,6 +225,9 @@ canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab}canvas.drag{
     <div><div class="sec">Projetos</div><div id="plist"></div>
       <div class="row2"><button class="lnk" id="allp">Todos</button><button class="lnk" id="nonep">Nenhum</button></div></div>
     <div><div class="sec">Camadas</div><div class="chips" id="groups"></div></div>
+    <div id="tagsec" style="display:none"><div class="sec">Etiquetas</div><div class="chips" id="tags"></div></div>
+    <div><div class="lh"><span class="sec" style="margin:0">Período</span><b id="tl" style="font-size:13px;font-weight:500">todo</b></div>
+      <input id="t0" type="range" min="0" max="0" value="0"><input id="t1" type="range" min="0" max="0" value="0"></div>
     <div><div class="sec">Tipo de nota</div><select id="tipo" title="Filtrar por tipo de nota"></select></div>
     <div><div class="lh"><span class="sec" style="margin:0">Semelhança mínima</span><b id="sv">0.30</b></div>
       <input id="min" type="range" min="0.16" max="0.75" step="0.02" value="0.30">
@@ -271,7 +274,12 @@ for(const e of DATA.edges){ if(!byId.has(e.src)||!byId.has(e.dst)) continue;
   ADJ.get(e.src).push({e,other:e.dst}); ADJ.get(e.dst).push({e,other:e.src}); }
 const projects=[...new Set(N.map(n=>n.project))].sort((a,b)=>a.localeCompare(b));
 const projCount={}; N.forEach(n=>{projCount[n.project]=(projCount[n.project]||0)+1});
-const state={projects:new Set(projects),groups:new Set(['k','m','t']),min:0.30,cross:false,isolated:false,q:'',tipo:'',local:0,sel:null,hover:null,mode:'all',focus:null};
+const state={projects:new Set(projects),groups:new Set(['k','m','t']),min:0.30,cross:false,isolated:false,q:'',tipo:'',local:0,sel:null,hover:null,mode:'all',focus:null,tags:new Set(),t0:0,t1:0,bodyQ:'',bodyIds:new Set()};
+const CLUSTERS=DATA.clusters||{};
+const MONTHS=[...new Set(N.map(n=>(n.data||'').slice(0,7)).filter(Boolean))].sort();
+state.t1=Math.max(0,MONTHS.length-1);
+const inPeriod=n=>{if(!n.data||!MONTHS.length)return true;const m=n.data.slice(0,7);return m>=MONTHS[state.t0]&&m<=MONTHS[state.t1]};
+const tagOk=n=>!state.tags.size||(n.tags||[]).some(t=>state.tags.has(t));
 const cam={x:0,y:0,k:1};
 let W=0,H=0,dpr=window.devicePixelRatio||1,dirty=true,raf=0,tween=null,pan=null,dragN=null,down=null,moved=false;
 let vis={nodes:[],edges:[],deg:new Map(),projects:new Map()};
@@ -308,7 +316,8 @@ function build(){
   const q=state.q.trim().toLowerCase();
   const nodes=N.filter(n=>state.projects.has(n.project)&&state.groups.has(KG[n.kind]||'r')&&
     (!state.tipo||n.tipo===state.tipo)&&
-    (!q||(n.title+' '+n.project+' '+(n.tipo||'')).toLowerCase().includes(q)));
+    inPeriod(n)&&tagOk(n)&&
+    (!q||(n.title+' '+n.project+' '+(n.tipo||'')).toLowerCase().includes(q)||(state.bodyQ===q&&state.bodyIds.has(n.id))));
   const ids=new Set(nodes.map(n=>n.id));
   const edges=DATA.edges.filter(e=>ids.has(e.src)&&ids.has(e.dst)&&
     (e.type!=='related_to'||e.score>=state.min)&&(!state.cross||e.cross));
@@ -362,6 +371,21 @@ function smoothClosed(path,pts){
   path.closePath();return true;
 }
 
+/* ---------- clusters temáticos (cascos internos) ---------- */
+function drawClusters(){
+  if(!(state.focus||cam.k>=1.0))return;
+  const by=new Map();
+  for(const n of vis.nodes){if(!n.cluster)continue;(by.get(n.cluster)||by.set(n.cluster,[]).get(n.cluster)).push(n)}
+  for(const [cid,list] of by){
+    if(list.length<4)continue;const info=CLUSTERS[cid]||{};const color=COLORS[list[0].project]||'#8a97b2';
+    const h=convexHull(list.map(n=>[n.x,n.y]));if(h.length<3)continue;
+    ctx.beginPath();if(!smoothClosed(ctx,h.map(p=>[sx(p[0]),sy(p[1])])))continue;
+    ctx.fillStyle=rgb(color,0.05);ctx.fill();ctx.setLineDash([5,5]);ctx.strokeStyle=rgb(color,0.40);ctx.lineWidth=1;ctx.stroke();ctx.setLineDash([]);
+    if(info.label){const top=Math.min(...h.map(p=>sy(p[1]))),cx=h.reduce((s,p)=>s+sx(p[0]),0)/h.length;
+      ctx.font='italic 12px Inter,Cantarell,system-ui';ctx.textAlign='center';ctx.fillStyle=rgb(color,0.95);ctx.fillText(info.label+' · '+list.length,cx,top-6);ctx.textAlign='left'}
+  }
+}
+
 /* ---------- desenho ---------- */
 function draw(){
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
@@ -370,6 +394,7 @@ function draw(){
   if(!hulls)hulls=computeHulls();
   for(const h of hulls){ctx.beginPath();if(!smoothClosed(ctx,h.h.map(p=>[sx(p[0]),sy(p[1])])))continue;
     ctx.fillStyle=rgb(h.color,0.07);ctx.fill();ctx.strokeStyle=rgb(h.color,0.30);ctx.lineWidth=1.2;ctx.stroke()}
+  drawClusters();
   drawProjectLabels()
   const sel=state.sel,hover=state.hover;
   const focus=sel||hover;
@@ -656,7 +681,7 @@ document.getElementById('nbh').onclick=()=>{if(state.sel){setMode('local')}};
 document.getElementById('ftog').onclick=()=>document.getElementById('app').classList.toggle('fo');
 document.getElementById('zin').onclick=()=>zoomBy(1.25);
 document.getElementById('zout').onclick=()=>zoomBy(1/1.25);
-document.getElementById('reset').onclick=()=>{if(state.focus)exitFocus();state.projects=new Set(projects);state.groups=new Set(['k','m','t']);state.tipo='';state.min=0.30;state.q='';
+document.getElementById('reset').onclick=()=>{if(state.focus)exitFocus();state.projects=new Set(projects);state.groups=new Set(['k','m','t']);state.tipo='';state.min=0.30;state.q='';state.tags=new Set();state.t0=0;state.t1=Math.max(0,MONTHS.length-1);state.bodyQ='';state.bodyIds=new Set();buildTags();buildPeriod();
   document.getElementById('q').value='';document.getElementById('tipo').value='';document.getElementById('min').value='0.30';document.getElementById('sv').textContent='0.30';
   buildPanels();setMode('all');fit()};
 document.getElementById('min').oninput=ev=>{state.min=+ev.target.value;document.getElementById('sv').textContent=state.min.toFixed(2);build()};
@@ -671,6 +696,26 @@ function buildLegend(){
     leg.insertBefore(sp,leg.lastElementChild);
   }
 }
+function buildTags(){
+  const cnt={};for(const n of N)for(const t of n.tags||[])cnt[t]=(cnt[t]||0)+1;
+  const top=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||a.localeCompare(b)).slice(0,14);
+  document.getElementById('tagsec').style.display=top.length?'block':'none';
+  const box=document.getElementById('tags');box.innerHTML='';
+  for(const t of top){const b=document.createElement('button');b.className='chip'+(state.tags.has(t)?' on':'');b.textContent='#'+t;
+    const n=document.createElement('span');n.className='n';n.textContent=cnt[t];b.appendChild(n);
+    b.onclick=()=>{state.tags.has(t)?state.tags.delete(t):state.tags.add(t);buildTags();build()};box.appendChild(b)}
+}
+const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const fmtM=m=>m?MES[+m.slice(5,7)-1]+' '+m.slice(0,4):'';
+function buildPeriod(){
+  const a=document.getElementById('t0'),b=document.getElementById('t1');
+  a.max=b.max=Math.max(0,MONTHS.length-1);a.value=state.t0;b.value=state.t1;
+  const full=state.t0===0&&state.t1===MONTHS.length-1;
+  document.getElementById('tl').textContent=!MONTHS.length||full?'todo o período':fmtM(MONTHS[state.t0])+' → '+fmtM(MONTHS[state.t1]);
+  a.disabled=b.disabled=MONTHS.length<2;
+}
+document.getElementById('t0').oninput=e=>{state.t0=Math.min(+e.target.value,state.t1);buildPeriod();build()};
+document.getElementById('t1').oninput=e=>{state.t1=Math.max(+e.target.value,state.t0);buildPeriod();build()};
 function buildTipos(){
   const sel=document.getElementById('tipo'),count={};
   for(const n of N){if(n.tipo)count[n.tipo]=(count[n.tipo]||0)+1}
@@ -684,7 +729,9 @@ function buildTipos(){
 document.getElementById('tipo').onchange=ev=>{state.tipo=ev.target.value;build();
   clearTimeout(qtimer);qtimer=setTimeout(()=>fit(),200)};
 let qtimer=0;
+let bodyTimer=0;
 document.getElementById('q').oninput=ev=>{state.q=ev.target.value;build();
+  clearTimeout(bodyTimer);bodyTimer=setTimeout(()=>{const q=state.q.trim().toLowerCase();if(q.length>=3){try{window.webkit.messageHandlers.sb.postMessage(JSON.stringify({op:'body-search',q}))}catch(e){}}},280);
   clearTimeout(qtimer);qtimer=setTimeout(()=>{if(state.q.trim().length>=2)fit()},200)};
 document.getElementById('q').onkeydown=ev=>{if(ev.key==='Enter'){const n=vis.nodes[0];if(n){select(n.id);flyTo(n.x,n.y,Math.max(cam.k,1.2))}}};
 window.addEventListener('keydown',ev=>{
@@ -700,12 +747,13 @@ let userCam=false;
 function resize(){W=cv.clientWidth;H=cv.clientHeight;dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;
   if(!userCam&&W>0&&H>0&&vis.nodes.length)fit(false);else schedule()}
 new ResizeObserver(resize).observe(cv);
+window.sbBodyHits=(q,ids)=>{if(q.trim().toLowerCase()!==state.q.trim().toLowerCase())return;state.bodyQ=q.trim().toLowerCase();state.bodyIds=new Set(ids);build();clearTimeout(qtimer);qtimer=setTimeout(()=>fit(),120)};
 window.sbSetDark=on=>{document.body.classList.toggle('dark',!!on);schedule()};
 window.sbSetProject=p=>{if(p&&projects.includes(p)){focusProject(p)}else{if(state.focus)exitFocus();state.projects=new Set(projects);buildPanels();build();fit(true)}};
 window.sbRedraw=build;
 window.sbSelect=id=>select(id);
 
-buildTipos();buildLegend();buildPanels();resize();build();
+buildTipos();buildLegend();buildTags();buildPeriod();buildPanels();resize();build();
 if(!START_PROJECT&&loadCam()){userCam=true;schedule()}else fit(false);
 if(START_PROJECT&&projects.includes(START_PROJECT))focusProject(START_PROJECT);
 </script>"""
@@ -1068,11 +1116,12 @@ class Win(Adw.ApplicationWindow):
             return
         self.graph_sig = sig
         nodes = []
+        cl = xmem.graph_clusters(g)
         for n in g["nodes"]:
             x, y = lay.get(n["id"], (0.0, 0.0))
             nodes.append({"id": n["id"], "project": n["project"], "kind": n["kind"], "title": n["title"],
                           "tipo": n["tipo"], "data": n["data"], "sens": n["sens"], "inactive": n["inactive"],
-                          "x": x, "y": y})
+                          "tags": n["etiquetas"], "cluster": cl["of"].get(n["id"], ""), "x": x, "y": y})
         edges = [{"src": e["src"], "dst": e["dst"], "type": e["type"], "score": e["score"], "cross": e["cross"]}
                  for e in g["edges"]]
         try:  # cartões em andamento do quadro: losangos ligados à nota de origem
@@ -1091,7 +1140,7 @@ class Win(Adw.ApplicationWindow):
         except Exception:  # noqa: BLE001  (o quadro nunca pode impedir o grafo)
             pass
         sig = sig + hashlib.sha1(json.dumps([[n["id"], n["tipo"]] for n in nodes if n["kind"] == "tarefa"]).encode()).hexdigest()[:6]
-        data = json.dumps({"nodes": nodes, "edges": edges}, ensure_ascii=False).replace("<", "\\u003c")
+        data = json.dumps({"nodes": nodes, "edges": edges, "clusters": cl["labels"]}, ensure_ascii=False).replace("<", "\\u003c")
         html_ = (GRAPH_HTML.replace("{{THEME}}", graph_theme())
                  .replace("{{DATA}}", data)
                  .replace("{{COLORS}}", json.dumps(self.colors))
@@ -1116,8 +1165,26 @@ class Win(Adw.ApplicationWindow):
 
     def on_graph_click(self, _ucm, value):
         try:
-            nid = int(value.to_string())
-        except (ValueError, AttributeError):
+            raw = value.to_string()
+        except AttributeError:
+            return
+        if raw.startswith("{"):          # mensagens estruturadas: hoje só a busca no corpo das notas
+            try:
+                m = json.loads(raw)
+            except ValueError:
+                return
+            if m.get("op") == "body-search" and len(m.get("q", "")) >= 3:
+                hits = xmem.hybrid(self.c, m["q"], k=120, include_inactive=True)
+                terms = [xmem.strip_acc(t) for t in re.findall(r"[\w-]+", m["q"].lower()) if len(t) >= 2]
+                # o filtro do grafo tem de ser preciso: o trecho precisa conter todos os termos digitados
+                ids = sorted({h["row"]["id"] for h in hits
+                              if all(t in xmem.strip_acc((h["row"]["text"] or "").lower()) or t in xmem.strip_acc((h["row"]["title"] or "").lower())
+                                     for t in terms)})
+                self.js(self.graph, f"window.sbBodyHits&&window.sbBodyHits({json.dumps(m['q'])},{json.dumps(ids)});")
+            return
+        try:
+            nid = int(raw)
+        except ValueError:
             return
         self.open_note(nid)
         self.stack.set_visible_child_name("notas")
