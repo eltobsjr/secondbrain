@@ -43,7 +43,7 @@ EDGES_VERSION = "3"      # mudou o modelo de arestas => recalcula sem apagar o b
 AUTO_K, AUTO_MIN, AUTO_REL = 10, 0.16, 0.44   # vizinhos por nota, piso absoluto, fração do melhor vizinho
 KNOWLEDGE_KINDS = ("decisao", "feature", "rfc", "nota", "analise", "padrao", "aprendizado", "postmortem",
                    "release", "memory", "visao-geral")
-REGISTRY_KINDS = ("devtrack", "commit", "estado", "prioridade", "claude-md", "checklist", "projeto")
+REGISTRY_KINDS = ("devtrack", "commit", "estado", "prioridade", "claude-md", "checklist", "projeto", "quadro")
 
 PRUNE = {"node_modules", "snap", "Downloads", "games", "venv", ".venv", "__pycache__", "build", "dist",
          "backups-secondbrain", "Agents", "OpenBot", "target", "Pods", "dart_tool"}
@@ -118,6 +118,7 @@ def manifest_scalars(vault):
     body = fm.group(1) if fm else ""
     g = lambda k, d: (re.search(rf"^{k}:\s*([A-Za-z0-9_\-]+)", body, re.M) or [None, d])[1]
     return {"sens": g("sensibilidade", "normal"), "crossmem": g("crossmem", ""), "backup": g("backup", "true"),
+            "versionado": g("versionado", "false"), "quadro": g("quadro", "true"),
             "global": g("tipo-vault", "") == "global"}
 
 
@@ -213,6 +214,8 @@ def connect(create=True):
 
 
 def kind_for(rel, papeis):
+    if rel == "quadro.md":   # quadro kanban do projeto (decisão 009): registro, e nunca fonte de pendências
+        return "quadro"
     top = rel.split("/")[0]
     if top in ("padroes", "licoes", "projetos"):
         return {"padroes": "padrao", "licoes": "aprendizado", "projetos": "projeto"}[top]
@@ -1240,6 +1243,8 @@ def main():
     s.add_argument("--layout", action="store_true", help="inclui posições pré-calculadas do grafo")
     s.add_argument("--recompute", action="store_true", help="refaz o layout ignorando o cache")
     s = sp.add_parser("global-init"); s.add_argument("--path", default="~/GlobalSecondBrain")
+    import board  # noqa: E402  (mesma pasta; só carregado quando a linha de comando é montada)
+    board.add_parser(sp)
     a = p.parse_args()
     if a.cmd == "index":
         index(full=a.full)
@@ -1256,7 +1261,7 @@ def main():
     {"status": cmd_status, "search": lambda a, c: cmd_search(a, c), "recall": lambda a, c: cmd_search(a, c, True),
      "digest": cmd_digest, "absorb-check": cmd_absorb_check, "related": cmd_related, "patterns": cmd_patterns,
      "dups": cmd_dups, "insights": cmd_insights, "hook-context": cmd_hook_context, "graph": cmd_graph,
-     "global-init": cmd_global_init}[a.cmd](a, c)
+     "global-init": cmd_global_init, "board": lambda a, c: board.cmd(a, c)}[a.cmd](a, c)
 
 
 if __name__ == "__main__":
