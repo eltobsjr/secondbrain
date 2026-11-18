@@ -898,6 +898,16 @@ def cmd_insights(a, c):
     print(f"\n## Projetos sem devtrack há mais de 30 dias: {len(quiet)}")
     for r in sorted(quiet, key=lambda r: r["d"]):
         print(f"- {r['project']} (último {r['d']})")
+    try:
+        import board
+        cards = board.build(c)
+        orfaos = [k for k in cards if k["orfao"]]
+        paradas = [k for k in cards if k["status"] in ("fazendo", "bloqueado") and k["idade_dias"] > a.stale]
+        print(f"\n## Quadro: cartões órfãos (origem sumiu): {len(orfaos)}; em Fazendo/Bloqueado há mais de {a.stale} dias: {len(paradas)}")
+        for k in (orfaos + paradas)[:10]:
+            print(f"- {k['projeto']} {k['id']} [{k['status']}] {k['titulo'][:80]}" + (" (órfão)" if k["orfao"] else ""))
+    except Exception:
+        pass
     conf = c.execute("select a.project pa,a.rel ra,b.project pb,b.rel rb from edges e join notes a on a.id=e.src join notes b on b.id=e.dst where e.type='contradicts' and a.inactive=0 and b.inactive=0").fetchall()
     print(f"\n## Contradições declaradas e não resolvidas: {len(conf)}")
     for r in conf[:10]:
@@ -922,9 +932,19 @@ def cmd_hook_context(a, c):
     hits = hybrid(c, q, k=4, project=cur)
     if hits:
         out.append("Notas relevantes: " + "; ".join(f"{h['row']['title'][:60]} `{ref(h['row'])}`" for h in hits[:4]))
+    try:
+        import board
+        mine = board.build(c, cur)
+        doing = [k for k in mine if k["status"] == "fazendo"]
+        blocked = [k for k in mine if k["status"] == "bloqueado"]
+        if doing or blocked:
+            line = "Quadro: " + (f"fazendo {len(doing)}" if doing else "") + (", " if doing and blocked else "") + (f"bloqueado {len(blocked)}" if blocked else "")
+            out.append(line + (" — " + "; ".join(k["titulo"][:60] for k in doing[:2]) if doing else ""))
+    except Exception:  # o quadro nunca pode quebrar o início de sessão
+        pass
     st = [t for t in open_items(c, project=cur, limit=50) if t["idade"] > STALE_OPEN_DAYS]
     if st:
-        out.append(f"{len(st)} item(ns) em aberto parado(s) há mais de {STALE_OPEN_DAYS} dias.")
+        out.append(f"{len(st)} item(ns) em aberto parado(s) há mais de {STALE_OPEN_DAYS} dias (veja o quadro: `xmem.py board show`).")
     out.append("Memória cruzada: `python3 -I scripts/xmem.py recall \"<problema>\"` (busca em outros projetos).")
     text = "\n".join(out)
     if len(text) > a.max_chars:  # corta na última linha inteira, nunca no meio de uma frase
@@ -1136,10 +1156,27 @@ def graph_layout(g, recompute=False):
     return pos
 
 
+def active_tasks(c, project=None):
+    """Cartões do quadro em andamento (fazendo, bloqueado, revisão) com a nota de origem: viram nós no grafo."""
+    import board
+    ids = {(r["project"], r["rel"]): r["id"] for r in c.execute("select id,project,rel from notes")}
+    out = []
+    for k in board.build(c, project):
+        if k["status"] in ("fazendo", "bloqueado", "revisao"):
+            nota = (k.get("origem") or {}).get("nota", "")
+            out.append({"id": k["id"], "titulo": k["titulo"], "status": k["status"], "prioridade": k["prioridade"], "projeto": k["projeto"],
+                        "nota": nota, "nota_id": ids.get((k["projeto"], nota))})
+    return out
+
+
 def cmd_graph(a, c):
+    """JSON para IA e integrações: {schema_version, nodes, edges[, layout][, tarefas]}. Arestas: src,dst,type,score,origin,cross."""
     g = graph_data(c, a.project, a.min_score)
+    g["schema_version"] = 1
     if getattr(a, "layout", False):
         g["layout"] = graph_layout(g, recompute=getattr(a, "recompute", False))
+    if getattr(a, "tarefas", False):
+        g["tarefas"] = active_tasks(c, a.project)
     print(json.dumps(g, ensure_ascii=False))
 
 
@@ -1242,6 +1279,7 @@ def main():
     s = sp.add_parser("graph"); s.add_argument("--project"); s.add_argument("--min-score", type=float, default=0.0)
     s.add_argument("--layout", action="store_true", help="inclui posições pré-calculadas do grafo")
     s.add_argument("--recompute", action="store_true", help="refaz o layout ignorando o cache")
+    s.add_argument("--tarefas", action="store_true", help="inclui os cartões em andamento do quadro (fazendo, bloqueado, revisão)")
     s = sp.add_parser("global-init"); s.add_argument("--path", default="~/GlobalSecondBrain")
     import board  # noqa: E402  (mesma pasta; só carregado quando a linha de comando é montada)
     board.add_parser(sp)

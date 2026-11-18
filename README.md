@@ -2,7 +2,7 @@
 
 # secondbrain
 
-Suite de 20 skills para Claude Code que cria e mantém um sistema de memória persistente, documentação e rastreamento de conhecimento para projetos de software, com **memória cruzada entre projetos** e uma **interface nativa para Linux**.
+Suite de 21 skills para Claude Code que cria e mantém um sistema de memória persistente, documentação e rastreamento de conhecimento para projetos de software, com **memória cruzada entre projetos** e uma **interface nativa para Linux**.
 
 ## O que é
 
@@ -53,7 +53,7 @@ De vez em quando   →  /audit  e  /patterns
 
 ---
 
-## Skills (20)
+## Skills (21)
 
 ### Workflow diário
 
@@ -63,6 +63,7 @@ De vez em quando   →  /audit  e  /patterns
 | `/context` | Briefing compacto de início de sessão: estado, pendências e próxima ação. Usa o `ESTADO.md` e o `digest` da memória cruzada. |
 | `/devtrack` | Gera o log da sessão, reescreve o `ESTADO.md`, regenera o `INDEX.md` e reindexa a memória cruzada. |
 | `/standup` | Daily standup em 3 blocos (ontem / hoje / bloqueios) |
+| `/board` | Quadro kanban das pendências (Triagem, A fazer, Fazendo, Bloqueado, Revisão, Feito, Descartado). Os cartões vêm das caixas `- [ ]` dos vaults; as decisões ficam em `quadro.md` por projeto (formato do Obsidian Kanban), com backup e sem tocar nas notas de origem. Ver, mover, criar e fazer triagem em lote; `--json` para integrações. |
 | `/resume` | Revisão completa: o que foi feito, pendências abertas e próxima ação |
 
 ### Captura de conhecimento
@@ -121,7 +122,7 @@ Detalhes: [`references/vault-resolve.md`](references/vault-resolve.md) e [`refer
 ## Memória cruzada, interface nativa e vault global
 
 - **`scripts/xmem.py`:** índice derivado (SQLite + FTS5, sem rede e sem modelo) sobre todos os vaults, a memória do Claude Code e os `CLAUDE.md`. Busca híbrida (RRF), arestas tipadas, linhagem de substituição e os comandos `recall`, `digest`, `absorb-check`, `patterns`, `dups`, `insights`. O índice pode ser apagado e reconstruído a qualquer momento: os `.md` continuam sendo a fonte da verdade.
-- **Interface nativa** (GTK4 + libadwaita + WebKitGTK): atalho "SecondBrain" no menu de aplicativos, ou `python3 ~/.local/share/secondbrain/bin/gui/secondbrain_gui.py`. Barra de projetos, busca, leitor de notas, grafo de todas as notas e lista de pendências. O grafo tem layout pré-calculado (cada projeto vira uma ilha; nada de física no navegador, então pan e zoom não tremem), casco por projeto, filtros por camada, busca e painel de relacionadas; a câmera é preservada entre sessões. Somente leitura.
+- **Interface nativa** (GTK4 + libadwaita + WebKitGTK): atalho "SecondBrain" no menu de aplicativos, ou `python3 ~/.local/share/secondbrain/bin/gui/secondbrain_gui.py`. Barra lateral de navegação (Notas, Grafo, Quadro) e projetos, busca com escopo (este projeto / todos / outros), leitor de notas com coluna de contexto (sumário, relações, itens), grafo e quadro kanban. O grafo tem layout pré-calculado (cada projeto vira uma ilha; nada de física no navegador, então pan e zoom não tremem), filtros e detalhe encaixados nas laterais, modos Tudo / Entre projetos / Vizinhança / Isoladas, tarefas em andamento como losangos e **foco em projeto** (clique no casco ou no nome do projeto: aproxima e fica só nas notas dele; `Esc` volta). O quadro tem arrastar e soltar, detalhe do cartão e triagem em lote com confirmação. Tema claro e escuro por tokens únicos (`gui/theme.py`). Só o Quadro grava, e só `quadro.md` (com backup fora do vault).
 - **Vault global** `~/GlobalSecondBrain/`: um cartão por projeto (só ponteiros), `padroes/`, `licoes/` e `docs/`.
 - **Qualidade da busca (medida):** em perguntas reais com resposta verificada à mão, a nota certa ficou no top 3 em 6 de 6 consultas que não foram usadas para calibrar (MRR 0,833). A busca é lexical (entende siglas e termos técnicos bem, mas não sinônimos).
 
@@ -179,7 +180,7 @@ E na memória local do Claude Code:
 secondbrain/
 ├── .claude-plugin/                    ← plugin.json e marketplace.json
 ├── CLAUDE.md                          ← instruções do próprio repositório
-├── skills/                            ← as 20 skills (uma pasta por skill)
+├── skills/                            ← as 21 skills (uma pasta por skill)
 ├── hooks/                             ← SessionStart opcional (hooks.json, session-start.sh)
 ├── scripts/
 │   ├── xmem.py                        ← memória cruzada: índice, busca, recall, digest, absorb-check, patterns

@@ -4,6 +4,7 @@
 Lê o MESMO índice que o Claude usa. Só o Quadro grava, e só `quadro.md` (com backup fora do vault); notas nunca são alteradas.
 Páginas: Notas (busca híbrida + leitor), Grafo (todas as notas e relações), Quadro (kanban das pendências).
 """
+import hashlib
 import html
 import json
 import os
@@ -178,6 +179,9 @@ input[type=range]{width:100%;accent-color:var(--ac)}
 .seg button{border:0;background:transparent;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:500;color:var(--mut);cursor:pointer;white-space:nowrap}
 .seg button:hover{color:var(--fg)}
 .seg button.on{background:var(--chip);color:var(--fg)}
+#crumb{display:none;align-items:center;gap:10px;white-space:nowrap}
+#crumb.show{display:flex}
+#crumb b{font-size:15px}
 #hops{display:none}
 #hops.show{display:flex}
 #stats{margin-left:auto;color:var(--mut);font-size:13px;white-space:nowrap}
@@ -233,6 +237,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab}canvas.drag{
   </aside>
   <section id="main">
     <div id="top">
+      <div id="crumb"><button class="lnk" id="cback">← Todos os projetos</button><b id="crumbn"></b></div>
       <input id="q" placeholder="Buscar nota ou projeto no mapa" spellcheck="false">
       <button class="btn" id="ftog">Filtros</button>
       <div class="seg" id="modes">
@@ -254,9 +259,10 @@ canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab}canvas.drag{
 </div>
 <script>
 const DATA={{DATA}}, COLORS={{COLORS}}, SIG="{{SIG}}", START_PROJECT={{PROJECT}};
-const KG={decisao:'k',feature:'k',rfc:'k',nota:'k',analise:'k',padrao:'k',aprendizado:'k',postmortem:'k',release:'k','visao-geral':'k',
+const KG={tarefa:'t',decisao:'k',feature:'k',rfc:'k',nota:'k',analise:'k',padrao:'k',aprendizado:'k',postmortem:'k',release:'k','visao-geral':'k',
           memory:'m',devtrack:'r',commit:'r',estado:'r',prioridade:'r','claude-md':'r',checklist:'r',projeto:'r'};
-const GROUP_LABEL={k:'Conhecimento',m:'Memória',r:'Registro'};
+const GROUP_LABEL={k:'Conhecimento',m:'Memória',t:'Tarefas',r:'Registro'};
+const STATUS_VAR={fazendo:'--warn',bloqueado:'--err',revisao:'--kind'};
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),tip=document.getElementById('tip');
 const N=DATA.nodes.map(n=>Object.assign({},n));
 const byId=new Map(N.map(n=>[n.id,n]));
@@ -265,7 +271,7 @@ for(const e of DATA.edges){ if(!byId.has(e.src)||!byId.has(e.dst)) continue;
   ADJ.get(e.src).push({e,other:e.dst}); ADJ.get(e.dst).push({e,other:e.src}); }
 const projects=[...new Set(N.map(n=>n.project))].sort((a,b)=>a.localeCompare(b));
 const projCount={}; N.forEach(n=>{projCount[n.project]=(projCount[n.project]||0)+1});
-const state={projects:new Set(projects),groups:new Set(['k','m']),min:0.30,cross:false,isolated:false,q:'',tipo:'',local:0,sel:null,hover:null,mode:'all'};
+const state={projects:new Set(projects),groups:new Set(['k','m','t']),min:0.30,cross:false,isolated:false,q:'',tipo:'',local:0,sel:null,hover:null,mode:'all',focus:null};
 const cam={x:0,y:0,k:1};
 let W=0,H=0,dpr=window.devicePixelRatio||1,dirty=true,raf=0,tween=null,pan=null,dragN=null,down=null,moved=false;
 let vis={nodes:[],edges:[],deg:new Map(),projects:new Map()};
@@ -280,7 +286,8 @@ function schedule(){dirty=true;if(!raf)raf=requestAnimationFrame(frame)}
 function frame(){raf=0;if(tween){const t=Math.min(1,(performance.now()-tween.t0)/tween.ms),e=1-Math.pow(1-t,3);
     cam.x=tween.x0+(tween.x-tween.x0)*e;cam.y=tween.y0+(tween.y-tween.y0)*e;cam.k=tween.k0+(tween.k-tween.k0)*e;
     if(t>=1){cam.x=tween.x;cam.y=tween.y;cam.k=tween.k;tween=null}dirty=true}
-  if(dirty){draw();dirty=false}}
+  if(dirty){draw();dirty=false}
+  if(tween)schedule()}  /* animação em curso pede o próximo quadro (antes só avançava quando o mouse mexia) */
 
 /* ---------- filtros ---------- */
 function neighborhood(sel,hops,edges){
@@ -311,7 +318,7 @@ function build(){
     const dist=neighborhood(state.sel,state.local,edges);
     shown=nodes.filter(n=>dist.has(n.id));
   }else{
-    shown=state.isolated||q||state.tipo?nodes:nodes.filter(n=>deg.get(n.id));
+    shown=state.isolated||q||state.tipo||state.focus?nodes:nodes.filter(n=>deg.get(n.id));
   }
   const sid=new Set(shown.map(n=>n.id));
   const finalEdges=edges.filter(e=>sid.has(e.src)&&sid.has(e.dst));
@@ -373,6 +380,8 @@ function draw(){
     const d=vis.deg.get(n.id)||0, r=3+Math.min(9,Math.sqrt(d)*1.7)*(0.75+Math.min(.55,cam.k*.18));
     const dim=focus&&!near.has(n.id);
     ctx.globalAlpha=dim?0.22:(n.inactive?0.5:1);
+    if(n.kind==='tarefa'){const R=r+3,X=sx(n.x),Y=sy(n.y);ctx.beginPath();ctx.moveTo(X,Y-R);ctx.lineTo(X+R,Y);ctx.lineTo(X,Y+R);ctx.lineTo(X-R,Y);ctx.closePath();
+      ctx.fillStyle=cssv(STATUS_VAR[n.tipo]||'--warn');ctx.fill();ctx.strokeStyle=bg;ctx.lineWidth=1.5;ctx.stroke();continue}
     ctx.beginPath();ctx.arc(sx(n.x),sy(n.y),r,0,6.2832);ctx.fillStyle=COLORS[n.project]||'#8a97b2';ctx.fill();
     if(n.sens==='alta'){ctx.strokeStyle=rgb('#d98a1c',.9);ctx.lineWidth=1.4;ctx.stroke()}
     if(n.inactive){ctx.setLineDash([2,2]);ctx.strokeStyle=bg;ctx.lineWidth=1.2;ctx.stroke();ctx.setLineDash([])}
@@ -382,6 +391,7 @@ function draw(){
   }
   ctx.globalAlpha=1;
   if(sel){/* rótulo sempre para a selecionada */}
+  if(state.focus)labels=labels.concat(vis.nodes);
   if(!focus)labels=labels.concat(topHubs());
   if(sel&&byId.has(sel)&&vis.deg.has(sel))labels.push(byId.get(sel));
   if(hover&&byId.has(hover)&&vis.deg.has(hover))labels.push(byId.get(hover));
@@ -408,17 +418,17 @@ function pill(x,y,text,color){
   return w;
 }
 function drawProjectLabels(){
-  const placed=[];
+  const placed=[];pillRects=[];
   for(const [p,s] of vis.projects){
     if(s.n<3||state.q.trim())continue;
     const name=p,x=sx(s.cx),y=sy(s.miny)-18;
     ctx.font='600 12px Inter,Cantarell,system-ui';const w=ctx.measureText(name).width+12;
     if(placed.some(r=>Math.abs(x-r[0])<(w+r[1])/2+4&&Math.abs(y-r[2])<20))continue;
     placed.push([x,w,y]);
-    pill(x,y,name,COLORS[p]||'#8a97b2');
+    const pw=pill(x,y,name,COLORS[p]||'#8a97b2');pillRects.push([x-pw/2,y-11,pw,22,p]);
   }
 }
-const TYPED={supersedes:['--kind',[6,4]],extends:['--ok',[]],contradicts:['--err',[]],implements:['--warn',[]],references:['--mut',[2,3]]};
+const TYPED={task:['--warn',[3,3]],supersedes:['--kind',[6,4]],extends:['--ok',[]],contradicts:['--err',[]],implements:['--warn',[]],references:['--mut',[2,3]]};
 const cssv=v=>getComputedStyle(document.body).getPropertyValue(v).trim();
 function drawEdges(edges,focus,near){
   const b={at:[],am:[],ct:[],cm:[]};
@@ -487,6 +497,7 @@ cv.addEventListener('pointermove',ev=>{
   if(dragN){dragN.x=wx(mx);dragN.y=wy(my);schedule();return}
   if(pan){cam.x=pan.cx+(mx-pan.mx)/cam.k;cam.y=pan.cy+(my-pan.my)/cam.k;schedule();return}
   const n=pick(mx,my);const id=n?n.id:null;
+  cv.style.cursor=(!n&&!state.focus&&hitProject(mx,my))?'pointer':'';
   if(id!==state.hover){state.hover=id;schedule()}
   if(n){tip.style.display='block';tip.style.left=(mx+16)+'px';tip.style.top=(my+16)+'px';
     tip.innerHTML='<b>'+escapeHtml(n.title)+'</b><br><span>'+escapeHtml(n.project)+' · '+escapeHtml(n.tipo||n.kind)+(n.data?' · '+escapeHtml(n.data):'')+'</span>'}
@@ -495,7 +506,7 @@ cv.addEventListener('pointermove',ev=>{
 cv.addEventListener('pointerup',ev=>{
   cv.classList.remove('drag');
   if(dragN&&!moved)select(dragN.id);
-  else if(!dragN&&!moved)select(null);
+  else if(!dragN&&!moved){const r=cv.getBoundingClientRect(),hp=state.focus?null:hitProject(ev.clientX-r.left,ev.clientY-r.top);if(hp)focusProject(hp);else select(null)}
   dragN=null;pan=null;down=null;saveCam();schedule();
 });
 cv.addEventListener('pointerleave',()=>{tip.style.display='none';if(state.hover){state.hover=null;schedule()}});
@@ -523,7 +534,7 @@ function select(id){
   rm.appendChild(document.createTextNode(n.project+(n.data?' · '+n.data:'')+' · '+deg+' conexões'));
   const rc=document.getElementById('rc');rc.innerHTML='';
   const tag=(t,c)=>{const s=document.createElement('span');s.className='tag'+(c?' '+c:'');s.textContent=t;rc.appendChild(s)};
-  tag(n.tipo||n.kind,'kind');
+  tag(n.kind==='tarefa'?('Tarefa · '+n.tipo+(n.prio?' · '+n.prio:'')):(n.tipo||n.kind),'kind');
   if(n.sens==='alta')tag('Sensível','warn');
   if(n.inactive)tag('Substituída');
   const rel=(ADJ.get(id)||[]).slice().sort((a,b)=>b.e.score-a.e.score);
@@ -546,7 +557,7 @@ function select(id){
   if(state.local)build();
   schedule();
 }
-function openNote(id){try{window.webkit.messageHandlers.sb.postMessage(String(id))}catch(e){}}
+function openNote(id){const n=byId.get(id);const target=n&&n.origin?n.origin:id;try{window.webkit.messageHandlers.sb.postMessage(String(target))}catch(e){}}
 function flyTo(x,y,k,ms=280){
   tween={x0:cam.x,y0:cam.y,k0:cam.k,x:-x,y:-y,k:k||cam.k,t0:performance.now(),ms};
   schedule();
@@ -569,8 +580,8 @@ function fit(animate){
   else{cam.x=tx;cam.y=ty;cam.k=k;schedule()}
   saveCam();
 }
-function saveCam(){try{localStorage.setItem('sb.cam2.'+SIG,JSON.stringify(cam))}catch(e){}}
-function loadCam(){try{const c=JSON.parse(localStorage.getItem('sb.cam2.'+SIG)||'null');if(c&&isFinite(c.x)&&isFinite(c.y)&&c.k>0){cam.x=c.x;cam.y=c.y;cam.k=c.k;return true}}catch(e){}return false}
+function saveCam(){try{localStorage.setItem('sb.cam3.'+SIG,JSON.stringify(cam))}catch(e){}}
+function loadCam(){try{const c=JSON.parse(localStorage.getItem('sb.cam3.'+SIG)||'null');if(c&&isFinite(c.x)&&isFinite(c.y)&&c.k>0){cam.x=c.x;cam.y=c.y;cam.k=c.k;return true}}catch(e){}return false}
 
 /* ---------- controles ---------- */
 function buildPanels(){
@@ -582,11 +593,11 @@ function buildPanels(){
     const n=document.createElement('span');n.className='n';n.textContent=projCount[p];
     b.append(d,t,n);
     b.onclick=()=>{state.projects.has(p)?state.projects.delete(p):state.projects.add(p);buildPanels();build()};
-    b.ondblclick=()=>{state.projects=new Set([p]);buildPanels();build();fit()};
+    b.ondblclick=()=>focusProject(p);
     pl.appendChild(b);
   }
   const gc=document.getElementById('groups');gc.innerHTML='';
-  for(const g of ['k','m','r']){
+  for(const g of ['k','m','t','r']){
     let n=0;for(const x of N){if((KG[x.kind]||'r')===g&&state.projects.has(x.project))n++}
     const b=document.createElement('button');b.className='chip'+(state.groups.has(g)?' on':'');
     b.textContent=GROUP_LABEL[g];const s=document.createElement('span');s.className='n';s.textContent=n;b.appendChild(s);
@@ -597,6 +608,37 @@ function buildPanels(){
 document.getElementById('fit').onclick=()=>fit();
 document.getElementById('allp').onclick=()=>{state.projects=new Set(projects);buildPanels();build()};
 document.getElementById('nonep').onclick=()=>{state.projects=new Set();buildPanels();build()};
+/* ---------- foco em um projeto: aproxima e fica só nas notas dele ---------- */
+let focusPrev=null,pillRects=[];
+function focusProject(p){
+  if(!p||state.focus===p)return;
+  if(!state.focus)focusPrev={projects:new Set(state.projects),cam:{x:cam.x,y:cam.y,k:cam.k}};
+  state.focus=p;state.projects=new Set([p]);
+  if(state.sel)select(null);
+  document.getElementById('crumb').classList.add('show');document.getElementById('crumbn').textContent=p;
+  buildPanels();build();userCam=true;fit(true);
+}
+function exitFocus(){
+  if(!state.focus)return;
+  const prev=focusPrev;focusPrev=null;state.focus=null;
+  state.projects=prev?prev.projects:new Set(projects);
+  document.getElementById('crumb').classList.remove('show');
+  buildPanels();build();
+  if(prev){tween={x0:cam.x,y0:cam.y,k0:cam.k,x:prev.cam.x,y:prev.cam.y,k:prev.cam.k,t0:performance.now(),ms:320};schedule()}else fit(true);
+}
+function pointInPoly(x,y,pts){let ins=false;for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+  const xi=pts[i][0],yi=pts[i][1],xj=pts[j][0],yj=pts[j][1];
+  if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))ins=!ins}return ins}
+function hitProject(mx,my){
+  for(const r of pillRects)if(mx>=r[0]&&mx<=r[0]+r[2]&&my>=r[1]&&my<=r[1]+r[3])return r[4];
+  if(!hulls)hulls=computeHulls();
+  let best=null,ba=1e18;
+  for(const h of hulls){const pts=h.h.map(q=>[sx(q[0]),sy(q[1])]);
+    if(pointInPoly(mx,my,pts)){let a=0;for(let i=0;i<pts.length;i++){const j=(i+1)%pts.length;a+=pts[i][0]*pts[j][1]-pts[j][0]*pts[i][1]}a=Math.abs(a/2);
+      if(a<ba){ba=a;best=h.p}}}
+  return best;
+}
+document.getElementById('cback').onclick=()=>exitFocus();
 function setMode(m){
   state.cross=m==='cross';state.isolated=m==='iso';
   if(m==='local'){if(!state.local)state.local=1}else state.local=0;
@@ -614,7 +656,7 @@ document.getElementById('nbh').onclick=()=>{if(state.sel){setMode('local')}};
 document.getElementById('ftog').onclick=()=>document.getElementById('app').classList.toggle('fo');
 document.getElementById('zin').onclick=()=>zoomBy(1.25);
 document.getElementById('zout').onclick=()=>zoomBy(1/1.25);
-document.getElementById('reset').onclick=()=>{state.projects=new Set(projects);state.groups=new Set(['k','m']);state.tipo='';state.min=0.30;state.q='';
+document.getElementById('reset').onclick=()=>{if(state.focus)exitFocus();state.projects=new Set(projects);state.groups=new Set(['k','m','t']);state.tipo='';state.min=0.30;state.q='';
   document.getElementById('q').value='';document.getElementById('tipo').value='';document.getElementById('min').value='0.30';document.getElementById('sv').textContent='0.30';
   buildPanels();setMode('all');fit()};
 document.getElementById('min').oninput=ev=>{state.min=+ev.target.value;document.getElementById('sv').textContent=state.min.toFixed(2);build()};
@@ -648,7 +690,7 @@ document.getElementById('q').onkeydown=ev=>{if(ev.key==='Enter'){const n=vis.nod
 window.addEventListener('keydown',ev=>{
   if(ev.target.tagName==='INPUT')return;
   if(ev.key==='f'||ev.key==='F')fit();
-  else if(ev.key==='Escape'){select(null);document.getElementById('q').blur()}
+  else if(ev.key==='Escape'){if(state.focus)exitFocus();else select(null);document.getElementById('q').blur()}
   else if(ev.key==='+'||ev.key==='=')zoomBy(1.2);
   else if(ev.key==='-')zoomBy(1/1.2);
   else if(ev.key==='0'){cam.k=1;cam.x=0;cam.y=0;schedule()}
@@ -659,12 +701,13 @@ function resize(){W=cv.clientWidth;H=cv.clientHeight;dpr=window.devicePixelRatio
   if(!userCam&&W>0&&H>0&&vis.nodes.length)fit(false);else schedule()}
 new ResizeObserver(resize).observe(cv);
 window.sbSetDark=on=>{document.body.classList.toggle('dark',!!on);schedule()};
-window.sbSetProject=p=>{state.projects=p?new Set([p]):new Set(projects);buildPanels();build();fit();schedule()};
+window.sbSetProject=p=>{if(p&&projects.includes(p)){focusProject(p)}else{if(state.focus)exitFocus();state.projects=new Set(projects);buildPanels();build();fit(true)}};
 window.sbRedraw=build;
 window.sbSelect=id=>select(id);
-if(START_PROJECT&&projects.includes(START_PROJECT))state.projects=new Set([START_PROJECT]);
+
 buildTipos();buildLegend();buildPanels();resize();build();
 if(!START_PROJECT&&loadCam()){userCam=true;schedule()}else fit(false);
+if(START_PROJECT&&projects.includes(START_PROJECT))focusProject(START_PROJECT);
 </script>"""
 
 
@@ -1032,6 +1075,22 @@ class Win(Adw.ApplicationWindow):
                           "x": x, "y": y})
         edges = [{"src": e["src"], "dst": e["dst"], "type": e["type"], "score": e["score"], "cross": e["cross"]}
                  for e in g["edges"]]
+        try:  # cartões em andamento do quadro: losangos ligados à nota de origem
+            import math
+            for i, t in enumerate(xmem.active_tasks(self.c)):
+                oid = t["nota_id"]
+                if oid is None or oid not in lay:
+                    continue
+                ox, oy = lay[oid]
+                ang = i * 2.4
+                nid = -(i + 1)
+                nodes.append({"id": nid, "project": t["projeto"], "kind": "tarefa", "title": t["titulo"].replace("`", ""), "tipo": t["status"],
+                              "data": "", "sens": "normal", "inactive": 0, "origin": oid, "prio": t["prioridade"],
+                              "x": ox + 26 * math.cos(ang), "y": oy + 26 * math.sin(ang)})
+                edges.append({"src": nid, "dst": oid, "type": "task", "score": 1.0, "cross": False})
+        except Exception:  # noqa: BLE001  (o quadro nunca pode impedir o grafo)
+            pass
+        sig = sig + hashlib.sha1(json.dumps([[n["id"], n["tipo"]] for n in nodes if n["kind"] == "tarefa"]).encode()).hexdigest()[:6]
         data = json.dumps({"nodes": nodes, "edges": edges}, ensure_ascii=False).replace("<", "\\u003c")
         html_ = (GRAPH_HTML.replace("{{THEME}}", graph_theme())
                  .replace("{{DATA}}", data)
@@ -1119,6 +1178,7 @@ class Win(Adw.ApplicationWindow):
                     self.board_toast(msg)
                 return
             self.refresh_board()
+            self.refresh_graph()
             self.board_toast(done_msg)
         attempt(False)
 
@@ -1188,6 +1248,9 @@ def save_window_png(win, path):
     snap = Gtk.Snapshot()
     paintable.snapshot(snap, w, h)
     node = snap.to_node()
+    if node is None:  # janela ainda não pintou: o selftest não deve falhar por causa da captura
+        print("captura: janela ainda sem conteúdo")
+        return
     tex = win.get_native().get_renderer().render_texture(node, None)
     tex.save_to_png(path)
     print(f"captura: {path} ({w}x{h})")

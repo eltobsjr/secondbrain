@@ -8,8 +8,8 @@
     {
       "name": "secondbrain",
       "source": "./",
-      "description": "Persistent memory, documentation and knowledge tracking for software projects — 20 skills with a modular, per-project vault structure for daily workflow, analysis and knowledge management.",
-      "version": "0.5.0"
+      "description": "Persistent memory, documentation and knowledge tracking for software projects — 21 skills with a modular, per-project vault structure for daily workflow, analysis and knowledge management.",
+      "version": "0.6.0"
     }
   ]
 }

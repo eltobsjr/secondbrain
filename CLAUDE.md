@@ -15,7 +15,7 @@ Se o arquivo não existir, o usuário ainda não rodou `/analyze`. Nesse caso, v
 
 ## Começar
 
-Se existir `SecondBrainSecondBrain/` (vault pessoal do plugin, fora do git), leia o `ESTADO.md` dele antes de trabalhar; o devtrack e as decisões (`decisions/001` a `007`) explicam o porquê das escolhas.
+Se existir `SecondBrainSecondBrain/` (vault pessoal do plugin, fora do git), leia o `ESTADO.md` dele antes de trabalhar; o devtrack e as decisões (`decisions/001` a `010`) explicam o porquê das escolhas.
 
 ## Idioma
 
@@ -23,7 +23,7 @@ Responda sempre em **português (Brasil)**, exceto para termos técnicos sem tra
 
 ## Skills disponíveis
 
-Este projeto usa o **SecondBrain** — um conjunto de 20 skills para memória persistente de projetos.
+Este projeto usa o **SecondBrain** — um conjunto de 21 skills para memória persistente de projetos.
 As skills ficam em `skills/` e são ativadas pelo usuário com `/nome-da-skill`. A lista completa e o que cada uma faz estão no `README.md`.
 
 Principais skills:
@@ -33,6 +33,7 @@ Principais skills:
 - `/decision` — documenta decisões técnicas (formato MADR)
 - `/recall` — procura nos outros projetos uma solução para o problema atual (memória cruzada)
 - `/patterns` — consolida padrões que se repetem entre projetos
+- `/board` — quadro kanban das pendências (cartões derivados das caixas + `quadro.md` por projeto)
 - `/audit` — audita a saúde do SecondBrain
 - `/context` — resume o estado atual do projeto para o Claude
 - `/readme` — gera ou atualiza o README

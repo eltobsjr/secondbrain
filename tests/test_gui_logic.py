@@ -83,6 +83,12 @@ class GuiLogic(unittest.TestCase):
         for page in ("sb://reader", "sb://graph", "sb://board"):
             self.assertIn(page, src, f"{page} precisa ser permitido, senão a página fica em branco")
 
+    def test_grafo_tem_foco_em_projeto_e_animacao_continua(self):
+        h = self.g.GRAPH_HTML
+        for marca in ("function focusProject", "function exitFocus", "function hitProject", "id=\"crumb\"", "if(tween)schedule()"):
+            self.assertIn(marca, h, marca)
+        self.assertIn("sb.cam3.", h, "chave da câmera nova: não herda a câmera salva do layout antigo")
+
     def test_js_do_grafo_e_valido(self):
         node = shutil.which("node") or shutil.which("nodejs")
         if not node:

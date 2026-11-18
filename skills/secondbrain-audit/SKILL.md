@@ -217,7 +217,7 @@ Se a raiz não for um repositório, procure `.git` nas subpastas imediatas (mono
 
 ### Verificação 15 — Integridade de caminhos (script)
 
-Rode `python3 -I "$SB/check_vault.py" {vault}` (somente leitura). Ele confere: papéis e `extras` do manifesto x pastas reais, `[[links]]` quebrados, frontmatter sem fechamento, caminhos citados no `CLAUDE.md` do projeto que não existem e links/órfãs do `MEMORY.md`. O caso mais grave que ele pega: projeto movido de pasta cujo `CLAUDE.md` ainda manda ler a memória do caminho antigo (a memória nunca é carregada). Para corrigir, aponte o caminho para o diretório de memória atual (`references/vault-resolve.md`, seção 5) — confirme com o usuário se o `CLAUDE.md` for marcado como inviolável. Papel que aponta para arquivo ainda não criado (ex.: `prioridade/atual.md` antes do primeiro `/priority`) é só informativo.
+Rode `python3 -I "$SB/xmem.py" insights` e veja a seção **Quadro** (cartões órfãos e parados em Fazendo/Bloqueado). Rode também `python3 -I "$SB/check_vault.py" {vault}` (somente leitura). Ele confere: papéis e `extras` do manifesto x pastas reais, `[[links]]` quebrados, frontmatter sem fechamento, caminhos citados no `CLAUDE.md` do projeto que não existem e links/órfãs do `MEMORY.md`. O caso mais grave que ele pega: projeto movido de pasta cujo `CLAUDE.md` ainda manda ler a memória do caminho antigo (a memória nunca é carregada). Para corrigir, aponte o caminho para o diretório de memória atual (`references/vault-resolve.md`, seção 5) — confirme com o usuário se o `CLAUDE.md` for marcado como inviolável. Papel que aponta para arquivo ainda não criado (ex.: `prioridade/atual.md` antes do primeiro `/priority`) é só informativo.
 
 ---
 
