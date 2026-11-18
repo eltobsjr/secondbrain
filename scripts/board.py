@@ -229,7 +229,11 @@ def apply_changes(c, project, changes, confirmo=False, dry_run=False):
                 old["prioridade"] = ch["prioridade"]
             if ch.get("etiquetas") is not None:
                 old["etiquetas"] = ch["etiquetas"]
-            old["campos"].update({k: v for k, v in (ch.get("campos") or {}).items() if v != ""})
+            for key, val in (ch.get("campos") or {}).items():
+                if val == "":
+                    old["campos"].pop(key, None)      # campo esvaziado na interface: limpa
+                else:
+                    old["campos"][key] = val
             old["feito"] = old["col"] == "feito"
         else:
             nk = {"id": ch["id"], "col": ch["col"], "feito": ch["col"] == "feito", "titulo": ch["titulo"], "prioridade": ch.get("prioridade") or "",

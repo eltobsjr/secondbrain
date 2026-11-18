@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """SecondBrain — interface nativa (GTK4 + libadwaita + WebKitGTK) sobre a memória cruzada (xmem).
 
-Lê o MESMO índice que o Claude usa. Somente leitura sobre os seus arquivos: nada é gravado nos vaults.
-Páginas: Notas (busca híbrida + leitor), Grafo (todas as notas e relações), Pendências (itens parados).
+Lê o MESMO índice que o Claude usa. Só o Quadro grava, e só `quadro.md` (com backup fora do vault); notas nunca são alteradas.
+Páginas: Notas (busca híbrida + leitor), Grafo (todas as notas e relações), Quadro (kanban das pendências).
 """
 import html
 import json
@@ -31,6 +31,8 @@ import xmem  # noqa: E402
 if HERE not in sys.path:  # `python3 -I` não põe a pasta do script no caminho
     sys.path.insert(0, HERE)
 import theme  # noqa: E402
+import board  # noqa: E402  (scripts/ ou ~/.local/share/secondbrain/bin)
+import board_page  # noqa: E402
 
 APP_ID = "io.github.eltobsjr.SecondBrain"
 PALETTE = theme.PALETTE
@@ -737,10 +739,11 @@ class Win(Adw.ApplicationWindow):
         self.graph.get_user_content_manager().register_script_message_handler("sb")
         self.graph.get_user_content_manager().connect("script-message-received::sb", self.on_graph_click)
         self.stack.add_named(self.graph, "grafo")
-        self.todos = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE, css_classes=["boxed-list"])
-        for m in ("start", "end", "top", "bottom"):
-            getattr(self.todos, f"set_margin_{m}")(24)
-        self.stack.add_named(Gtk.ScrolledWindow(child=self.todos), "pendencias")
+        self.board_page = self.make_webview(js=True)
+        self.board_loaded = False
+        self.board_page.get_user_content_manager().register_script_message_handler("bd")
+        self.board_page.get_user_content_manager().connect("script-message-received::bd", self.on_board_msg)
+        self.stack.add_named(self.board_page, "quadro")
         self.stack.connect("notify::visible-child-name", self.sync_nav)
         tv.set_content(self.stack)
         split.set_content(tv)
@@ -755,7 +758,7 @@ class Win(Adw.ApplicationWindow):
         self.nav = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE, css_classes=["sb-list"], margin_start=12, margin_end=12)
         for page, label, icon in (("notas", "Notas", "text-x-generic-symbolic"),
                                   ("grafo", "Grafo", "network-workgroup-symbolic"),
-                                  ("pendencias", "Pendências", "view-list-symbolic")):
+                                  ("quadro", "Quadro", "view-list-symbolic")):
             row = Gtk.ListBoxRow()
             line = Gtk.Box(spacing=12)
             line.append(Gtk.Image(icon_name=icon))
@@ -923,13 +926,13 @@ class Win(Adw.ApplicationWindow):
         self.plist.select_row(sel)
         self.do_search()
         self.refresh_graph()
-        self.fill_todos()
+        self.refresh_board()
         self.update_footer()
 
     def on_project(self, _lb, row):
         self.project = getattr(row, "proj", None) if row else None
         self.do_search()
-        self.fill_todos()
+        self.refresh_board()
         self.graph_project_filter()
 
     def graph_project_filter(self):
@@ -1041,6 +1044,7 @@ class Win(Adw.ApplicationWindow):
     def on_theme(self, style_manager, _pspec=None):
         self.dark = style_manager.get_dark()
         self.apply_css()
+        self.js(self.board_page, f"window.sbSetDark&&window.sbSetDark({str(self.dark).lower()});")
         try:
             self.graph.evaluate_javascript(f"window.sbSetDark&&window.sbSetDark({str(self.dark).lower()});",
                                           -1, None, None, None, None, None)
@@ -1059,21 +1063,110 @@ class Win(Adw.ApplicationWindow):
         self.open_note(nid)
         self.stack.set_visible_child_name("notas")
 
-    def fill_todos(self):
-        self.todos.remove_all()
-        items = [t for t in xmem.open_items(self.c, project=self.project, limit=400) if t["idade"] > xmem.STALE_OPEN_DAYS]
-        for t in items[:150]:
-            row = Adw.ActionRow(title=GLib.markup_escape_text(t["text"][:160]), subtitle=GLib.markup_escape_text(f"{t['project']} · {t['rel'][:-3]} · parado há {t['idade']} dias"))
-            row.set_title_lines(2)
-            self.todos.append(row)
-        if not items:
-            self.todos.append(Adw.ActionRow(title="Nenhum item parado", subtitle="Itens em aberto há mais de 14 dias aparecem aqui."))
+    # ------------------------------------------------------------ quadro (kanban)
+    def board_payload(self):
+        cards = board.build(self.c, self.project)
+        base = {"project": self.project, "triagem_dias": board.TRIAGE_DAYS}
+        if self.project:
+            slim = [{k: v for k, v in x.items() if k not in ("sens", "policy")} for x in cards]
+            return dict(base, cartoes=slim)
+        return dict(base, resumo=board.summary(cards), cartoes=[])
+
+    def refresh_board(self):
+        data = json.dumps(self.board_payload(), ensure_ascii=False).replace("<", "\\u003c")
+        if self.board_loaded:
+            self.js(self.board_page, f"window.sbBoardData&&window.sbBoardData({data});")
+            return
+        html_ = (board_page.BOARD_HTML.replace("{{THEME}}", graph_theme())
+                 .replace("{{COLS}}", json.dumps(board.COLUMNS)).replace("{{HINT}}", json.dumps(board_page.HINTS))
+                 .replace("{{COLORS}}", json.dumps(self.colors)).replace("{{DATA}}", data))
+        if self.dark:
+            html_ = html_.replace("<body>", '<body class="dark">', 1)
+        self.board_loaded = True
+        self.board_page.load_html(html_, "sb://board/")
+
+    def js(self, view, code):
+        try:
+            view.evaluate_javascript(code, -1, None, None, None, None, None)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def board_toast(self, msg):
+        self.js(self.board_page, f"window.sbToast&&window.sbToast({json.dumps(msg)});")
+
+    def ask(self, heading, body, ok_label, callback):
+        d = Adw.AlertDialog(heading=heading, body=body)
+        d.add_response("cancel", "Cancelar")
+        d.add_response("ok", ok_label)
+        d.set_response_appearance("ok", Adw.ResponseAppearance.SUGGESTED)
+        d.set_default_response("cancel")
+        d.set_close_response("cancel")
+        d.connect("response", lambda _d, r: callback() if r == "ok" else None)
+        d.present(self)
+
+    def board_write(self, project, changes, done_msg):
+        """Grava no quadro.md do projeto (backup fora do vault). Vault sensível/versionado pede confirmação."""
+        def attempt(confirmo):
+            try:
+                board.apply_changes(self.c, project, changes, confirmo=confirmo)
+            except SystemExit as e:
+                msg = str(e)
+                if "confirmação explícita" in msg and not confirmo:
+                    self.ask(f"Gravar o quadro de {project}?",
+                             "Este vault é sensível ou versionado. O arquivo quadro.md será criado ou alterado nele; o anterior ganha backup fora do vault.",
+                             "Gravar", lambda: attempt(True))
+                else:
+                    self.board_toast(msg)
+                return
+            self.refresh_board()
+            self.board_toast(done_msg)
+        attempt(False)
+
+    def on_board_msg(self, _ucm, value):
+        try:
+            m = json.loads(value.to_string())
+        except (ValueError, AttributeError):
+            return
+        op, proj = m.get("op"), m.get("project")
+        if op == "project":
+            for i in range(1, 400):
+                r = self.plist.get_row_at_index(i)
+                if r is None:
+                    break
+                if getattr(r, "proj", None) == m.get("name"):
+                    self.plist.select_row(r)
+                    break
+        elif op == "open":
+            r = self.c.execute("select id from notes where project=? and rel=?", (proj, m.get("rel"))).fetchone()
+            if r:
+                self.open_note(r["id"])
+        elif op == "move":
+            card = next((k for k in board.build(self.c, proj) if k["id"] == m.get("id")), None)
+            if card is None:
+                self.board_toast("Cartão não encontrado; atualize o quadro.")
+                return
+            campos = {}
+            if "bloqueado_por" in m:
+                campos["bloqueado-por"] = m["bloqueado_por"] or ""
+            prio = (m.get("prioridade") or "") if "prioridade" in m else None
+            ch = board.change_from_card(card, m["col"], prio, None, campos)
+            self.board_write(proj, [ch], f"Movido para {board.LABEL.get(m['col'], m['col'])}.")
+        elif op == "discard-old":
+            days, n = int(m.get("days", board.TRIAGE_DAYS)), int(m.get("n", 0))
+
+            def go():
+                cards = board.build(self.c, proj)
+                ch = [board.change_from_card(k, "descartado") for k in cards if k["status"] == "triagem" and k["idade_dias"] >= days]
+                self.board_write(proj, ch, f"{len(ch)} cartões descartados. As notas de origem não foram alteradas.")
+            self.ask(f"Descartar {n} cartões de {proj}?",
+                     f"Eles vão para a coluna Descartado do quadro (reversível). As notas de origem ficam intactas e o quadro.md anterior ganha backup.",
+                     "Descartar", go)
 
     def on_policy(self, wv, decision, ptype):
         if ptype != WebKit.PolicyDecisionType.NAVIGATION_ACTION:
             return False
         uri = decision.get_navigation_action().get_request().get_uri()
-        if uri.startswith(("sb://reader", "sb://graph", "about:")):
+        if uri.startswith(("sb://reader", "sb://graph", "sb://board", "about:")):
             return False
         if uri.startswith("sb://note/"):
             decision.ignore()
@@ -1118,6 +1211,18 @@ class App(Adw.Application):
                         win.open_note(r["id"])
                     return False
                 GLib.timeout_add(3000, _open)
+            want_p = os.environ.get("SB_SELFTEST_PROJECT")
+            if want_p:
+                def _proj():
+                    for i in range(1, 400):
+                        r = win.plist.get_row_at_index(i)
+                        if r is None:
+                            break
+                        if getattr(r, "proj", None) == want_p:
+                            win.plist.select_row(r)
+                            break
+                    return False
+                GLib.timeout_add(2000, _proj)
             page = os.environ.get("SB_SELFTEST_PAGE")
             if page:
                 GLib.timeout_add(2500, lambda: win.stack.set_visible_child_name(page) and False)
@@ -1125,6 +1230,10 @@ class App(Adw.Application):
             if js:
                 GLib.timeout_add(int(os.environ.get("SB_SELFTEST_JS_MS", "9000")),
                                  lambda: (win.graph.evaluate_javascript(js, -1, None, None, None, None, None), False)[1])
+            bjs = os.environ.get("SB_SELFTEST_BOARD_JS")
+            if bjs:
+                GLib.timeout_add(int(os.environ.get("SB_SELFTEST_JS_MS", "9000")),
+                                 lambda: (win.board_page.evaluate_javascript(bjs, -1, None, None, None, None, None), False)[1])
             shot = os.environ.get("SB_SELFTEST_SHOT")
             if shot:
                 GLib.timeout_add(int(os.environ.get("SB_SELFTEST_SHOT_MS", "5000")), lambda: (save_window_png(win, shot), False)[1])

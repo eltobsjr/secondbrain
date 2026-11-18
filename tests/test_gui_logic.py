@@ -61,6 +61,28 @@ class GuiLogic(unittest.TestCase):
         self.assertEqual(self.g.ago(30), "agora")
         self.assertEqual(self.g.ago(300), "há 5 min")
 
+    def test_js_do_quadro_e_valido(self):
+        node = shutil.which("node") or shutil.which("nodejs")
+        if not node:
+            self.skipTest("node ausente")
+        import board
+        import board_page
+        html_ = (board_page.BOARD_HTML.replace("{{THEME}}", self.g.graph_theme()).replace("{{COLS}}", json.dumps(board.COLUMNS))
+                 .replace("{{HINT}}", json.dumps(board_page.HINTS)).replace("{{COLORS}}", "{}")
+                 .replace("{{DATA}}", '{"project":null,"resumo":{},"cartoes":[],"triagem_dias":60}'))
+        js = html_.split("<script>")[1].split("</script>")[0]
+        with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
+            f.write(js)
+        r = subprocess.run([node, "--check", f.name], capture_output=True, text=True)
+        os.unlink(f.name)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_politica_de_navegacao_libera_as_tres_paginas(self):
+        import inspect
+        src = inspect.getsource(self.g.Win.on_policy)
+        for page in ("sb://reader", "sb://graph", "sb://board"):
+            self.assertIn(page, src, f"{page} precisa ser permitido, senão a página fica em branco")
+
     def test_js_do_grafo_e_valido(self):
         node = shutil.which("node") or shutil.which("nodejs")
         if not node:
