@@ -36,8 +36,8 @@ APP_ID = "io.github.eltobsjr.SecondBrain"
 PALETTE = theme.PALETTE
 
 
-def md_to_html(body, wikimap):
-    """Markdown -> HTML seguro: HTML cru é escapado antes; wikilinks viram sb://note/<id>."""
+def md_render(body, wikimap):
+    """Markdown -> (HTML seguro, sumário). HTML cru é escapado antes; wikilinks viram sb://note/<id>."""
     body = body.replace("<", "&lt;")
 
     def wl(m):
@@ -51,9 +51,24 @@ def md_to_html(body, wikimap):
     body = re.sub(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]", wl, body)
     try:
         import markdown
-        return markdown.markdown(body, extensions=["tables", "fenced_code", "sane_lists", "nl2br"])
+        md = markdown.Markdown(extensions=["tables", "fenced_code", "sane_lists", "nl2br", "toc"])
+        out = md.convert(body)
+        toc = []
+
+        def walk(tokens):
+            for t in tokens:
+                if t["level"] in (2, 3):
+                    toc.append((t["level"], t["name"], t["id"]))
+                walk(t.get("children", []))
+
+        walk(md.toc_tokens)
+        return out, toc
     except Exception:
-        return "<pre>" + html.escape(body) + "</pre>"
+        return "<pre>" + html.escape(body) + "</pre>", []
+
+
+def md_to_html(body, wikimap):
+    return md_render(body, wikimap)[0]
 
 
 EDGE_LABEL = {"links_to": "Cita", "related_to": "Semelhante", "supersedes": "Substitui", "extends": "Estende",
@@ -66,35 +81,46 @@ def reader_html(d, dark, wikimap):
     if n["status"]:
         chips.append(f'<span class="chip ok">{html.escape(n["status"])}</span>')
     if n["data"]:
-        chips.append(f'<span class="chip">{html.escape(n["data"])}</span>')
+        chips.append(f'<span class="chip">{html.escape(fmt_date(n["data"]))}</span>')
     if n["sens"] == "alta":
         chips.append('<span class="chip warn">Sensível</span>')
     if n["inactive"]:
         chips.append('<span class="chip">Inativa (substituída)</span>')
 
-    def li(e):
+    def li(e, label=None):
         cls = ' class="inact"' if e["inactive"] else ""
         sens = " · sensível" if e["sens"] == "alta" else ""
-        label = EDGE_LABEL.get(e["type"], e["type"])
+        label = label or EDGE_LABEL.get(e["type"], e["type"])
         score = f" {e['score']:.2f}".replace(".", ",") if e["origin"] == "auto" else ""
         return (f'<li{cls}><a href="sb://note/{e["id"]}">{html.escape(e["title"])}</a>'
                 f'<span class="tag">{label}{score} · {html.escape(e["project"])}{sens}</span></li>')
 
-    side = ""
-    if d["lineage"] and len(d["lineage"]) > 1:
-        items = "".join(f'<li{" class=inact" if x["inactive"] else ""}><a href="sb://note/{x["id"]}">{html.escape(x["title"])}</a><span class="tag">{html.escape(x["data"] or "")}</span></li>' for x in d["lineage"])
-        side += f"<h3>Linhagem (da mais antiga à atual)</h3><ul>{items}</ul>"
-    if d["out"]:
-        side += "<h3>Relacionadas</h3><ul>" + "".join(li(e) for e in d["out"][:14]) + "</ul>"
-    if d["in"]:
-        side += "<h3>Citada por</h3><ul>" + "".join(li(e) for e in d["in"][:14]) + "</ul>"
     body_md = re.sub(r"\A\s*# [^\n]*\n", "", d["body"], count=1)  # o título já aparece no cabeçalho da página
-    body = md_to_html(body_md, wikimap)
+    body, toc = md_render(body_md, wikimap)
+    toc_li = "".join(f'<li class="l{lv}"><a href="#{i}">{html.escape(nm)}</a></li>' for lv, nm, i in toc)
+    blocks = []
+    if len(toc) >= 3:
+        blocks.append(f'<div class="blk toc toc-wide"><h3>Nesta nota</h3><ul>{toc_li}</ul></div>')
+    if d["lineage"] and len(d["lineage"]) > 1:
+        items = "".join(f'<li{" class=inact" if x["inactive"] else ""}><a href="sb://note/{x["id"]}">{html.escape(x["title"])}</a>'
+                        f'<span class="tag">{html.escape(fmt_date(x["data"] or ""))}</span></li>' for x in d["lineage"])
+        blocks.append(f'<div class="blk"><h3>Linhagem (da mais antiga à atual)</h3><ul>{items}</ul></div>')
+    if d["out"]:
+        blocks.append('<div class="blk"><h3>Relacionadas</h3><ul>' + "".join(li(e) for e in d["out"][:10]) + "</ul></div>")
+    if d["in"]:
+        blocks.append('<div class="blk"><h3>Citada por</h3><ul>' + "".join(li(e, "Cita esta nota") for e in d["in"][:10]) + "</ul></div>")
+    todos = d.get("todos") or []
+    if todos:
+        rows = "".join(f'<li class="todo{" done" if t["checked"] else ""}"><i></i><span>{html.escape(t["text"][:140])}</span></li>' for t in todos[:12])
+        abertos = sum(1 for t in todos if not t["checked"])
+        blocks.append(f'<div class="blk"><h3>Itens desta nota ({abertos} em aberto)</h3><ul>{rows}</ul></div>')
+    blocks.append(f'<p class="path">{html.escape(n["path"])}</p>')
+    narrow_toc = f'<div class="toc-narrow"><h3>Nesta nota</h3><ul>{toc_li}</ul></div>' if len(toc) >= 3 else ""
     crumb = f'{html.escape(n["project"])} › {html.escape(n["kind"])}'
     return (f'<!doctype html><meta charset="utf-8"><style>{theme.reader_css(dark)}</style><body>'
-            f'<div class="page"><div class="crumb">{crumb}</div><h1>{html.escape(n["title"])}</h1>'
-            f'<div class="chips">{"".join(chips)}</div>{body}'
-            f'<div class="side">{side}<p class="path">{html.escape(n["path"])}</p></div></div></body>')
+            f'<div class="layout"><article class="page"><div class="crumb">{crumb}</div><h1>{html.escape(n["title"])}</h1>'
+            f'<div class="chips">{"".join(chips)}</div>{narrow_toc}{body}</article>'
+            f'<aside class="ctx">{"".join(blocks)}</aside></div></body>')
 
 
 def graph_theme():

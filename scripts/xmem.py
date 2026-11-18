@@ -1169,8 +1169,9 @@ def note_detail(c, nid):
         "where e.dst=? and e.type='related_to' and e.score>=0.2 order by 2 desc", (nid, nid))]
     back = [dict(e) for e in c.execute(
         "select e.type,e.score,e.origin,n.id,n.project,n.rel,n.title,n.inactive,n.sens from edges e join notes n on n.id=e.src where e.dst=? and e.origin!='auto'", (nid,))]
+    todos = [dict(t) for t in c.execute("select text,checked,line from todos where note_id=? order by line", (nid,))]
     return {"note": dict(r), "frontmatter": {k: flat(v) for k, v in fm.items()}, "body": body, "out": rel, "in": back,
-            "lineage": [dict(x) for x in lineage(c, nid)]}
+            "lineage": [dict(x) for x in lineage(c, nid)], "todos": todos}
 
 
 def cmd_status(a, c):

@@ -109,9 +109,21 @@ hr{{border:0;border-top:1px solid var(--s0);margin:2em 0}}
 .chips{{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 28px}}
 .chip{{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:var(--s0);color:var(--sub1);font-size:12px;font-weight:500}}
 .chip.warn{{color:var(--peach)}}.chip.ok{{color:var(--green)}}.chip.kind{{color:var(--mauve)}}
-.side{{margin-top:48px;border-top:1px solid var(--s0);padding-top:8px}}
-.side h3{{font-size:12px;font-weight:600;color:var(--sub0);margin:1.6em 0 .4em;letter-spacing:.02em}}
-.side ul{{list-style:none;padding:0}}.side li{{margin:8px 0;font-size:14px;line-height:1.4}}
+.layout{{display:grid;grid-template-columns:minmax(0,680px) 272px;gap:56px;justify-content:center}}
+.ctx{{font-size:14px}}
+.ctx h3{{font-size:12px;font-weight:600;color:var(--sub0);margin:0 0 10px;letter-spacing:.02em}}
+.ctx .blk{{margin:0 0 30px}}
+.ctx ul{{list-style:none;padding:0;margin:0}}.ctx li{{margin:0 0 12px;line-height:1.4}}
+.ctx .toc a{{color:var(--sub1)}}.ctx .toc li.l3{{padding-left:14px}}.ctx .toc a:hover{{color:var(--blue)}}
+.ctx .todo{{display:flex;gap:10px;align-items:flex-start}}.ctx .todo i{{width:8px;height:8px;border-radius:50%;background:var(--peach);margin-top:7px;flex:none}}
+.ctx .todo.done i{{background:var(--green)}}.ctx .todo.done span{{color:var(--sub0);text-decoration:line-through}}
+.toc-narrow{{display:none}}
+@media (max-width:1060px){{
+  .layout{{display:block}}.page{{max-width:680px}}
+  .ctx{{margin-top:48px;border-top:1px solid var(--s0);padding-top:24px}}
+  .toc-wide{{display:none}}.toc-narrow{{display:block;margin:0 0 28px;padding:14px 18px;background:var(--mantle);border-radius:12px}}
+  .toc-narrow h3{{font-size:12px;font-weight:600;color:var(--sub0);margin:0 0 8px}}.toc-narrow ul{{list-style:none;padding:0;margin:0}}.toc-narrow li{{margin:4px 0;font-size:14px}}
+}}
 .inact{{opacity:.6;text-decoration:line-through}}.tag{{display:block;font-size:12px;color:var(--sub0)}}
 .path{{font-size:12px;color:var(--sub0);word-break:break-all;margin-top:28px;font-family:{FONT_MONO}}}
 """
