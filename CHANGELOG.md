@@ -10,7 +10,7 @@ Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões se
 ### Alterado
 - O repositório passa a conter só a ferramenta. O documento de revisão dos `CLAUDE.md` dos projetos do dono saiu do repositório (vai para o vault local), os casos de avaliação ficam todos em `~/.local/share/secondbrain/eval_local.json` (formato em `tests/eval_local.example.json`), e os exemplos reais das skills e da arquitetura viraram exemplos fictícios. Números de uso do dono foram generalizados.
 - `check_vault.py` deixa de ter o caminho de uma pasta pessoal embutido no código.
-- `.gitignore` cobre os dados pessoais (`*SecondBrain/`, `eval_local.json`, `denylist*.txt`). O histórico anterior do git ainda contém o que foi removido.
+- `.gitignore` cobre os dados pessoais (`*SecondBrain/`, `eval_local.json`, `denylist*.txt`). O histórico do git foi reescrito para remover também o que já tinha sido publicado: nomes, e-mail pessoal do autor (agora o e-mail noreply do GitHub), trailers de atribuição e um print com caminho pessoal. As SHAs dos commits mudaram; quem clonou antes deve clonar de novo.
 
 ## [0.8.0] - 2026-11-18
 
