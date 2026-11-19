@@ -2,7 +2,7 @@
 tipo: arquitetura
 status: ativo
 data: 2026-11-19
-versao: 0.8.0
+versao: 0.8.1
 ---
 
 # Arquitetura da memória cruzada do SecondBrain
