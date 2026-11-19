@@ -113,7 +113,12 @@ class XmemTest(unittest.TestCase):
         self.assertEqual(row["project"], "proj_b")
         self.assertEqual(self.xmem.visible(row, "proj_a"), "titulos")
         self.assertEqual(self.xmem.visible(row, "proj_b"), "completo")
-        self.assertEqual(self.xmem.visible(row, None), "completo", "busca solta/GUI vê tudo")
+        self.assertEqual(self.xmem.visible(row, None), "titulos", "sem projeto detectado vale a política da nota, não 'tudo liberado'")
+        self.xmem.SEM_POLITICA = True
+        try:
+            self.assertEqual(self.xmem.visible(row, None), "completo", "só com --sem-politica explícito")
+        finally:
+            self.xmem.SEM_POLITICA = False
 
     def _enche_corpus(self):
         """O motor ignora termos presentes em >25% das notas; sem preenchimento a fixture é pequena demais para agrupar."""

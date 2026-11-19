@@ -167,8 +167,13 @@ def cmd(a, c):
         # a data da evidência (commit) vira `feito-em`: é ela que põe o cartão na semana certa do calendário
         ch = [board.change_from_card(cards[p["id"]], "feito", etiquetas=["ja-feito", "reconciliado"],
                                      campos={"feito-em": next((e["data"] for e in p["evidencias"] if e.get("data")), "")}) for p in sel]
-        path, _ = board.apply_changes(c, proj, ch, confirmo=a.confirmo, dry_run=a.dry_run)
+        efs = []
+        path, _ = board.apply_changes(c, proj, ch, confirmo=a.confirmo, dry_run=a.dry_run, efeitos=efs)
         print(("[simulação] " if a.dry_run else "") + f"{len(ch)} cartão(ões) -> Feito em {path}")
+        for e in efs[:15]:
+            print("  " + e)
+        if len(efs) > 15:
+            print(f"  … e mais {len(efs) - 15}")
         return
     if a.json:
         print(json.dumps({"projeto": proj, "repos": [{"caminho": r["caminho"], "papel": r["papel"]} for r in usar], "avisos": avisos,

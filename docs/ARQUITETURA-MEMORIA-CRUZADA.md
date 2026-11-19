@@ -123,9 +123,11 @@ Cartões **derivados** das caixas `- [ ]` (um por projeto + texto normalizado, v
 |---|---|
 | Triagem | aberto há mais de 60 dias (só os que passam pelas regras da 8d) |
 | A fazer | aberto recente |
-| Feito | `[x]` na ocorrência mais recente (concluir na origem vence o quadro) |
+| Feito | `[x]` na ocorrência mais recente; mover o cartão grava a caixa na nota de origem (8f) |
 
 Colunas: `triagem, a-fazer, fazendo, bloqueado, revisao, feito, descartado`. Campos do cartão (`board show --json`, `schema` 1): `id, titulo, status, prioridade, tipo, projeto, origem{nota,linha,data}, criado, atualizado, idade_dias, parado, bloqueado_por, relacionadas, etiquetas, modo, responsavel, prazo, orfao, status_origem, ordem`.
+
+**Propagação (8f):** o quadro deixou de ser um ponto isolado. Mover para Feito grava `[x]` na caixa de origem, Descartado grava `[-]` (o índice trata como fechado), e sair de Feito reabre `[ ]`. A linha é conferida pelo texto (se a nota mudou, acha pelo texto; se sumiu, não toca em nada e avisa), com backup da nota fora do vault. `ESTADO.md` e prioridade que citam o item (70% das palavras) ganham `revisar:` no frontmatter, que o hook de sessão mostra à IA até o próximo `/devtrack` reescrever; o índice é refeito na hora. `plan`, `prazo` e `revisao` mexem só em prazo e semana e não propagam.
 
 Segurança: backup do `quadro.md` anterior fora do vault; escrita atômica; vault sensível ou versionado exige `--confirmo`; `quadro: false` no manifesto desliga; descarte em lote exige `--sim`; descartar é mover para `Descartado` (a nota de origem nunca é alterada); privacidade de leitura igual à do hook. Ordem manual dentro da coluna vem da ordem do `quadro.md`. Comandos: `board show|summary|proposals|move|add|discard`.
 

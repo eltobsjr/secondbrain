@@ -5,6 +5,7 @@ Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões se
 ## [Não lançado]
 
 ### Adicionado
+- **O quadro propaga o que você decide.** Mover um cartão para Feito marca `[x]` na nota de origem, Descartado marca `[-]`, e sair de Feito reabre a caixa; o `ESTADO.md` e a prioridade que citam o item ganham `revisar:` (o hook de sessão avisa a IA), e o índice é atualizado na hora. Backup da nota fora do vault; `--sem-propagar` e `--dry-run` disponíveis. Antes, só o `quadro.md` mudava e a IA lia a nota ainda aberta.
 - **Guarda de publicação** (`scripts/guard_publico.py`): barra commit e push que citem nome de projeto, de pessoa ou de empresa do dono, caminho da pasta pessoal, e-mail ou chave. A lista de nomes é montada no computador a cada execução (projetos do índice local mais `~/.local/share/secondbrain/denylist.txt`) e nunca entra no repositório. `--instalar-hook` instala os hooks locais; `--tree`, `--range` e `--historico` conferem. No CI roda só a parte genérica.
 
 ### Alterado

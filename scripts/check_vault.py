@@ -131,8 +131,13 @@ def check(vault):
     res = {"vault": os.path.basename(vault), "projeto": project}
     mf = os.path.join(vault, "_secondbrain.md")
     res["manifesto"] = os.path.isfile(mf)
-    res["papeis_ausentes"], res["extras_ausentes"] = [], []
+    res["papeis_ausentes"], res["extras_ausentes"], res["manifesto_invalido"] = [], [], []
     if res["manifesto"]:
+        try:
+            import xmem
+            res["manifesto_invalido"] = xmem.manifest_scalars(vault)["invalidos"]     # valor que a privacidade leu como o mais restrito
+        except (ImportError, OSError):
+            pass
         papeis, extras = read_manifest(vault)
         for role, path in papeis.items():
             if not os.path.exists(os.path.join(vault, path)):
@@ -170,6 +175,8 @@ def main():
         return
     print(f"== {r['vault']}")
     print(f"  manifesto: {'ok' if r['manifesto'] else 'AUSENTE'}; papéis ausentes: {r['papeis_ausentes'] or 'nenhum'}; extras ausentes: {r['extras_ausentes'] or 'nenhum'}")
+    if r["manifesto_invalido"]:
+        print(f"  ⚠ manifesto com valor inválido (tratado como o mais restrito): {', '.join(r['manifesto_invalido'])}")
     print(f"  links quebrados: {len(r['links_quebrados'])}; frontmatter quebrado: {len(r['frontmatter_quebrado'])}")
     print(f"  CLAUDE.md: {r['claude_md'] or 'nenhum'}; caminhos inexistentes citados: {len(r['claude_md_caminhos_ausentes'])}")
     m = r["memoria"]

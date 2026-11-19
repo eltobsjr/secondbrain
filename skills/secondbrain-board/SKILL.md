@@ -21,7 +21,7 @@ argument-hint: "[ver | mover | criar | triar] [projeto]"
 
 # SecondBrain — Board (quadro kanban)
 
-> **Ferramentas:** defina `$SB` conforme `references/vault-resolve.md`, seção 0. Todo comando abaixo é `python3 -I "$SB/xmem.py" board ...`. O quadro lê o índice (já sincronizado) e só grava `quadro.md`; **nunca altera notas de origem**.
+> **Ferramentas:** defina `$SB` conforme `references/vault-resolve.md`, seção 0. Todo comando abaixo é `python3 -I "$SB/xmem.py" board ...`. O quadro lê o índice (já sincronizado). Mover um cartão para Feito ou Descartado grava o `quadro.md` **e** ajusta a caixa na nota de origem (`[x]` feito, `[-]` descartado; reabrir volta a `[ ]`), com backup da nota fora do vault; se o `ESTADO.md` ou a prioridade citam o item, ganham `revisar:` no frontmatter (o próximo `/devtrack` reescreve e some) e o índice é atualizado. `--sem-propagar` grava só o `quadro.md`; `--dry-run` lista o que seria feito.
 
 Colunas, na ordem: `triagem`, `a-fazer`, `fazendo`, `bloqueado`, `revisao`, `feito`, `descartado`.
 
@@ -30,7 +30,7 @@ Colunas, na ordem: `triagem`, `a-fazer`, `fazendo`, `bloqueado`, `revisao`, `fei
 - **Derivado:** todo `- [ ]` de devtrack, estado, prioridade, feature e checklist vira um cartão. Aberto há mais de 60 dias nasce em **Triagem**; aberto recente, em **A fazer**; marcado `- [x]` na ocorrência mais recente, em **Feito**.
 - **Decisões:** mover, priorizar, bloquear ou criar cartão grava em `{vault}/quadro.md` (criado só nessa hora). O que ninguém tocou continua derivado.
 - **Id estável:** `c` + 6 caracteres (`^c3f9a1`). Cartão criado à mão começa com `m`.
-- **Concluir na origem vence:** se a nota de origem marca `[x]`, o cartão vira Feito mesmo que o quadro diga outra coisa.
+- **Origem e quadro andam juntos:** mover o cartão atualiza a caixa da nota. Se você marca `[x]` à mão na nota, o cartão vira Feito; se mover para fora de Feito, a caixa é reaberta.
 - **Descartar é mover** para `Descartado`; a nota original fica intacta.
 
 ## Passo 1 — Ver

@@ -52,6 +52,24 @@ class BoardTest(unittest.TestCase):
         cls.c.close()
         shutil.rmtree(cls.home, ignore_errors=True)
 
+    def setUp(self):
+        # a propagação grava nas notas de origem: cada teste começa com as notas originais e devolve-as no fim
+        self._notas = {}
+        for root, _d, files in os.walk(self.home):
+            for f in files:
+                if f.endswith(".md") and "/devtrack/" in root + "/":
+                    p = os.path.join(root, f)
+                    self._notas[p] = open(p, encoding="utf-8").read()
+
+    def tearDown(self):
+        mudou = False
+        for p, txt in self._notas.items():
+            if open(p, encoding="utf-8").read() != txt:
+                write(p, txt)
+                mudou = True
+        if mudou:
+            self.c = self.xmem.index(quiet=True)
+
     def cards(self, project="proj_a"):
         # ocultos=True: estes testes verificam a mecânica das colunas, não a visibilidade (ver test_pendencias_ocultas_*)
         return {k["titulo"]: k for k in self.board.build(self.c, project, ocultos=True)}
@@ -70,7 +88,7 @@ class BoardTest(unittest.TestCase):
         self.assertEqual(a, b)
         self.assertTrue(a.startswith("c") and len(a) == 7)
 
-    def test_mover_grava_quadro_md_com_backup_e_nao_toca_a_origem(self):
+    def test_mover_grava_quadro_md_com_backup_e_so_mexe_na_origem_ao_fechar_ou_reabrir(self):
         orig = os.path.join(self.a, f"devtrack/{self.old} - Antigo.md")
         antes = open(orig, encoding="utf-8").read()
         k = self.cards()["Revisar permissões do bucket"]
@@ -81,7 +99,7 @@ class BoardTest(unittest.TestCase):
         self.assertIn(f"^{k['id']}", text)
         self.assertIn("#P1", text)
         self.assertIn("origem:: [[devtrack/", text)
-        self.assertEqual(open(orig, encoding="utf-8").read(), antes, "a nota de origem nunca é reescrita")
+        self.assertEqual(open(orig, encoding="utf-8").read(), antes, "mover entre colunas abertas não muda a caixa (continua aberta)")
         # segunda gravação: cria backup do arquivo anterior, fora do vault
         self.board.apply_changes(self.c, "proj_a", [self.board.change_from_card(k, "revisao")])
         bdir = os.path.join(self.board.BACKUP_DIR, "proj_a")
@@ -100,10 +118,85 @@ class BoardTest(unittest.TestCase):
         n = self.c.execute("select count(*) from todos t join notes n on n.id=t.note_id where n.rel='quadro.md'").fetchone()[0]
         self.assertEqual(n, 0)
 
-    def test_concluir_na_origem_vence_o_quadro(self):
+    def test_mover_para_fora_de_feito_reabre_a_caixa_de_origem(self):
         k = self.cards()["Item que será concluído"]
-        self.board.apply_changes(self.c, "proj_a", [self.board.change_from_card(k, "fazendo")])
-        self.assertEqual(self.cards()["Item que será concluído"]["status"], "feito")
+        efs = []
+        self.board.apply_changes(self.c, "proj_a", [self.board.change_from_card(k, "fazendo")], efeitos=efs)
+        self.assertTrue(any("`[ ]`" in e for e in efs), efs)
+        self.assertIn("- [ ] Item que será concluído", open(os.path.join(self.a, f"devtrack/{self.new} - Novo.md"), encoding="utf-8").read())
+        self.assertEqual(self.cards()["Item que será concluído"]["status"], "fazendo", "o que você decide no quadro vale e a nota concorda")
+
+    # ---- propagação: o que se decide no quadro chega à nota que a IA lê
+    def _vault_novo(self, estado=None):
+        raiz = os.path.join(self.home, "dev/proj_n/ProjNSecondBrain")
+        write(raiz + "/_secondbrain.md", manifest())
+        d = (date.today() - timedelta(days=2)).isoformat()
+        write(raiz + f"/devtrack/{d} - Sessão.md",
+              f"---\ntipo: devtrack\ndata: {d}\n---\n\n# Sessão\n\n- [ ] Migrar imagens do catálogo para o novo CDN\n- [ ] Escrever testes do carrinho no servidor\n")
+        if estado:
+            write(raiz + "/ESTADO.md", estado)
+        self.addCleanup(lambda: (shutil.rmtree(os.path.dirname(raiz), ignore_errors=True), setattr(self, "c", self.xmem.index(quiet=True))))
+        self.c = self.xmem.index(quiet=True)
+        return raiz, os.path.join(raiz, f"devtrack/{d} - Sessão.md")
+
+    def test_feito_marca_a_caixa_com_backup_fora_do_vault_e_reindexa(self):
+        raiz, nota = self._vault_novo()
+        k = self.cards("proj_n")["Migrar imagens do catálogo para o novo CDN"]
+        efs = []
+        self.board.apply_changes(self.c, "proj_n", [self.board.change_from_card(k, "feito")], efeitos=efs)
+        txt = open(nota, encoding="utf-8").read()
+        self.assertIn("- [x] Migrar imagens do catálogo para o novo CDN", txt)
+        self.assertIn("- [ ] Escrever testes do carrinho no servidor", txt, "só a caixa do cartão muda")
+        self.assertTrue(os.listdir(os.path.join(self.board.NOTAS_BACKUP, "proj_n")), "backup da nota, fora do vault")
+        abertos = [t["text"] for t in self.xmem.open_items(self.c, project="proj_n", limit=50)]
+        self.assertNotIn("Migrar imagens do catálogo para o novo CDN", abertos, "o índice que o hook lê já sabe")
+        self.assertTrue(efs)
+
+    def test_descartar_marca_traco_e_o_indice_trata_como_fechado(self):
+        raiz, nota = self._vault_novo()
+        k = self.cards("proj_n")["Escrever testes do carrinho no servidor"]
+        self.board.apply_changes(self.c, "proj_n", [self.board.change_from_card(k, "descartado")])
+        self.assertIn("- [-] Escrever testes do carrinho no servidor", open(nota, encoding="utf-8").read())
+        self.assertEqual(self.cards("proj_n")["Escrever testes do carrinho no servidor"]["status"], "descartado")
+        self.assertNotIn("Escrever testes do carrinho no servidor", [t["text"] for t in self.xmem.open_items(self.c, project="proj_n", limit=50)])
+
+    def test_estado_que_cita_o_item_fica_marcado_para_revisar_e_o_que_nao_cita_nao(self):
+        est = "---\ntipo: estado\natualizado: 2026-01-01\n---\n\n# Estado\n\n## Próximo passo\nMigrar as imagens do catálogo para o novo CDN antes do fim do mês.\n"
+        raiz, nota = self._vault_novo(estado=est)
+        k = self.cards("proj_n")["Migrar imagens do catálogo para o novo CDN"]
+        self.board.apply_changes(self.c, "proj_n", [self.board.change_from_card(k, "feito")])
+        fm = open(raiz + "/ESTADO.md", encoding="utf-8").read().split("---")[1]
+        self.assertIn("revisar:", fm)
+        self.assertIn("Migrar imagens", fm)
+        # outro cartão que o ESTADO não cita: não marca de novo nem inventa pendência
+        antes = open(raiz + "/ESTADO.md", encoding="utf-8").read()
+        k2 = self.cards("proj_n")["Escrever testes do carrinho no servidor"]
+        self.board.apply_changes(self.c, "proj_n", [self.board.change_from_card(k2, "feito")])
+        self.assertEqual(open(raiz + "/ESTADO.md", encoding="utf-8").read(), antes)
+
+    def test_caixa_que_mudou_de_linha_e_achada_pelo_texto_e_se_sumiu_nao_toca_em_nada(self):
+        raiz, nota = self._vault_novo()
+        k = self.cards("proj_n")["Escrever testes do carrinho no servidor"]
+        write(nota, open(nota, encoding="utf-8").read().replace("# Sessão\n", "# Sessão\n\nUm parágrafo novo.\nOutro.\n"))
+        self.board.apply_changes(self.c, "proj_n", [self.board.change_from_card(k, "feito")])
+        self.assertIn("- [x] Escrever testes do carrinho no servidor", open(nota, encoding="utf-8").read(), "a linha do índice estava velha; achou pelo texto")
+        k = self.cards("proj_n")["Migrar imagens do catálogo para o novo CDN"]
+        write(nota, "---\ntipo: devtrack\ndata: 2026-01-01\n---\n\nnada aqui\n")
+        efs = []
+        self.board.apply_changes(self.c, "proj_n", [self.board.change_from_card(k, "feito")], efeitos=efs)
+        self.assertEqual(open(nota, encoding="utf-8").read(), "---\ntipo: devtrack\ndata: 2026-01-01\n---\n\nnada aqui\n")
+        self.assertTrue(any(e.startswith("aviso:") for e in efs), efs)
+
+    def test_sem_propagar_e_simulacao_nao_tocam_a_nota(self):
+        raiz, nota = self._vault_novo()
+        antes = open(nota, encoding="utf-8").read()
+        k = self.cards("proj_n")["Migrar imagens do catálogo para o novo CDN"]
+        self.board.apply_changes(self.c, "proj_n", [self.board.change_from_card(k, "feito")], propagar_notas=False)
+        self.assertEqual(open(nota, encoding="utf-8").read(), antes)
+        efs = []
+        self.board.apply_changes(self.c, "proj_n", [self.board.change_from_card(k, "descartado")], dry_run=True, efeitos=efs)
+        self.assertEqual(open(nota, encoding="utf-8").read(), antes)
+        self.assertTrue(efs, "a simulação diz o que faria")
 
     def test_descartar_vira_coluna_e_nao_apaga_nada(self):
         k = self.cards()["Configurar rotação de logs"]

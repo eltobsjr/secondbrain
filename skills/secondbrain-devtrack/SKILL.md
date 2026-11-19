@@ -183,7 +183,7 @@ Se não encontrar o vault na raiz, procure no diretório pai ou pergunte ao usu�
 
 ## Passo 4a — Atualizar o quadro (se o motor existir)
 
-Se `$SB/xmem.py` existir, o quadro já mostra os `- [ ]` deste devtrack como cartões novos. Para o que foi **concluído nesta sessão**, mova para Feito (`python3 -I "$SB/xmem.py" board move <projeto> <id> feito`; ids em `board show --project <projeto>`) ou, se preferir, marque `- [x]` no devtrack seguinte (a origem concluída vence). O que ficou **bloqueado**, mova para `bloqueado --bloqueado-por "<motivo>"`. Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes. Se o projeto não tem `quadro.md` e o usuário não usa o quadro, pule sem perguntar. O quadro oculta por padrão o que é ruído, repetido ou superado (`board show --ocultos` lista, com o motivo).
+Se `$SB/xmem.py` existir, o quadro já mostra os `- [ ]` deste devtrack como cartões novos. Para o que foi **concluído nesta sessão**, mova para Feito (`python3 -I "$SB/xmem.py" board move <projeto> <id> feito`; ids em `board show --project <projeto>`): o comando já marca `- [x]` na nota de origem e, se o `ESTADO.md` citar o item, o marca com `revisar:` (o passo 4b abaixo o reescreve). Ou marque `- [x]` à mão no devtrack seguinte. O que ficou **bloqueado**, mova para `bloqueado --bloqueado-por "<motivo>"`. Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes. Se o projeto não tem `quadro.md` e o usuário não usa o quadro, pule sem perguntar. O quadro oculta por padrão o que é ruído, repetido ou superado (`board show --ocultos` lista, com o motivo).
 
 ## Passo 4b — Atualizar o ESTADO.md
 

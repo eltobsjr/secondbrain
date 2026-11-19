@@ -112,14 +112,40 @@ def mem_dir_for(project_dir):
     return os.path.join(HOME, ".claude/projects", re.sub(r"[^A-Za-z0-9]", "-", project_dir), "memory")
 
 
+SENS_VALIDOS = ("normal", "baixa", "media", "alta")
+CROSSMEM_VALIDOS = ("completo", "titulos", "nenhum")
+
+
+def _valor_yaml(raw):
+    """`"Alta"  # comentário` -> `alta`: tira comentário, aspas e caixa. O YAML comum não pode mudar o sentido da política."""
+    v = raw.split(" #", 1)[0].strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        v = v[1:-1].strip()
+    return v.lower()
+
+
 def manifest_scalars(vault):
+    """Escalares do manifesto. A privacidade falha FECHADA: sensibilidade desconhecida vira `alta` e crossmem desconhecido
+    vira `nenhum`; o que estava errado vai em `invalidos` para o check_vault acusar."""
     text = open(os.path.join(vault, "_secondbrain.md"), encoding="utf-8").read()
     fm = re.match(r"---\r?\n(.*?)\r?\n---", text, re.S)
     body = fm.group(1) if fm else ""
-    g = lambda k, d: (re.search(rf"^{k}:\s*([A-Za-z0-9_\-]+)", body, re.M) or [None, d])[1]
-    return {"sens": g("sensibilidade", "normal"), "crossmem": g("crossmem", ""), "backup": g("backup", "true"),
+    def g(k, d):
+        m = re.search(rf"^{k}:[ \t]*(.*?)[ \t]*$", body, re.M)
+        v = _valor_yaml(m.group(1)) if m else ""
+        return v if v else d
+    invalidos = []
+    sens = g("sensibilidade", "normal")
+    if sens not in SENS_VALIDOS:
+        invalidos.append(f"sensibilidade: {sens!r}")
+        sens = "alta"
+    crossmem = g("crossmem", "")
+    if crossmem and crossmem not in CROSSMEM_VALIDOS:
+        invalidos.append(f"crossmem: {crossmem!r}")
+        crossmem = "nenhum"
+    return {"sens": sens, "crossmem": crossmem, "backup": g("backup", "true"),
             "versionado": g("versionado", "false"), "quadro": g("quadro", "true"),
-            "global": g("tipo-vault", "") == "global",
+            "global": g("tipo-vault", "") == "global", "invalidos": invalidos,
             "quadro_alerta": g("quadro-alerta", ""), "quadro_capacidade": g("quadro-capacidade", "")}
 
 
@@ -211,7 +237,36 @@ def connect(create=True):
         os.remove(DB_PATH)  # índice é derivado: reconstruir é seguro
         return connect(create)
     c.execute("insert or replace into meta values('schema',?)", (str(SCHEMA_VERSION),))
+    sync_policies(c)
     return c
+
+
+def _soltar_nota(c, nid):
+    c.execute("delete from chunks_fts where rowid in (select id from chunks where note_id=?)", (nid,))
+    c.execute("delete from post where chunk_id in (select id from chunks where note_id=?)", (nid,))
+    for t in ("chunks", "todos"):
+        c.execute(f"delete from {t} where note_id=?", (nid,))
+    c.execute("delete from edges where src=? or dst=?", (nid, nid))
+    c.execute("delete from notes where id=?", (nid,))
+
+
+def sync_policies(c):
+    """A política vem do manifesto VIVO. Se mudou desde o último index, vale já: nota indexada não guarda política velha
+    (antes, trocar `crossmem` ou `sensibilidade` só valia depois de a nota mudar). `nenhum` tira o vault do índice."""
+    try:
+        for v in [r[0] for r in c.execute("select distinct vault from notes")]:
+            try:
+                ms = manifest_scalars(v)
+            except OSError:
+                continue
+            if ms["crossmem"] == "nenhum":
+                for (nid,) in c.execute("select id from notes where vault=?", (v,)).fetchall():
+                    _soltar_nota(c, nid)
+                continue
+            pol = crossmem_policy(ms["sens"], ms["crossmem"])
+            c.execute("update notes set sens=?,policy=? where vault=? and (sens is not ? or policy is not ?)", (ms["sens"], pol, v, ms["sens"], pol))
+    except sqlite3.Error:
+        pass
 
 
 def kind_for(rel, papeis):
@@ -330,7 +385,7 @@ def index(full=False, quiet=False):
             c.execute("insert into chunks_fts(rowid,text,heading) values(?,?,?)", (cur.lastrowid, txt, head))
         if s["kind"] in ("devtrack", "estado", "prioridade", "feature", "checklist", "analise"):
             for n, ln in enumerate(body.splitlines(), 1 + lineoff):
-                m = re.match(r"^\s*[-*]\s*\[( |x|X)\]\s*(.+)$", ln)
+                m = re.match(r"^\s*[-*]\s*\[( |x|X|-)\]\s*(.+)$", ln)
                 if m:
                     t = m.group(2).strip()
                     c.execute("insert into todos values(?,?,?,?,?)", (nid, t[:300], re.sub(r"\W+", " ", strip_acc(t.lower())).strip()[:120], int(m.group(1) != " "), n))
@@ -338,12 +393,7 @@ def index(full=False, quiet=False):
         changed += 1
     gone = [p for p in known if p not in live]
     for p in gone:
-        nid = c.execute("select id from notes where path=?", (p,)).fetchone()[0]
-        c.execute("delete from chunks_fts where rowid in (select id from chunks where note_id=?)", (nid,))
-        for t in ("chunks", "todos"):
-            c.execute(f"delete from {t} where note_id=?", (nid,))
-        c.execute("delete from edges where src=? or dst=?", (nid, nid))
-        c.execute("delete from notes where id=?", (nid,))
+        _soltar_nota(c, c.execute("select id from notes where path=?", (p,)).fetchone()[0])
     if changed or gone or full:
         rebuild_vectors(c)
     if changed or gone or full or stale_edges:
@@ -613,11 +663,15 @@ def ref(r):
     return f"{r['project']}:{r['rel'][:-3] if r['rel'].endswith('.md') else r['rel']}"
 
 
+SEM_POLITICA = False        # `--sem-politica`: uso do dono, na mão; a interface também passa por aqui
+
+
 def visible(r, current_project):
-    """Política de privacidade da memória cruzada: sensível só mostra título a outros projetos."""
-    if not current_project or r["project"] == current_project:
-        return "completo"  # busca solta/GUI, ou o próprio projeto: sem risco de vazar para outro projeto
-    return r["policy"] or "completo"
+    """Política de privacidade da memória cruzada: sensível só mostra título a outros projetos.
+    Sem projeto detectado NÃO é licença para tudo: vale a política da própria nota (falha fechada)."""
+    if SEM_POLITICA or (current_project and r["project"] == current_project):
+        return "completo"
+    return r["policy"] or "titulos"
 
 
 def fmt_hit(h, query, current_project=None, full=False, idx=None):
@@ -795,6 +849,9 @@ def cmd_absorb_check(a, c):
             tag = "CANDIDATA A SUBSTITUIÇÃO/CONSOLIDAÇÃO"
         else:
             tag = "RELACIONADA"
+        if visible(r, cur) == "titulos":
+            print(f"- **{tag}** cos={s:.2f}  `{ref(r)}` {'[outro projeto] ' if not same else ''}— {r['title']} 🔒\n   (conteúdo restrito: vault de sensibilidade alta)")
+            continue
         print(f"- **{tag}** cos={s:.2f}  `{ref(r)}` {'(inativa) ' if r['inactive'] else ''}{'[outro projeto] ' if not same else ''}— {r['title']}\n   {snippet(r['text'], text, 200)}")
     if not found:
         print("Nenhuma nota parecida: criar como NOVA.")
@@ -1024,8 +1081,10 @@ def cmd_hook_context(a, c):
     est = os.path.join(v, "ESTADO.md")
     q = cur
     if os.path.isfile(est):
-        body = parse_note(open(est, encoding="utf-8").read())[1]
+        fm_est, body = parse_note(open(est, encoding="utf-8").read())[:2]
         lines = [l for l in body.splitlines() if l.strip()][:14]
+        if fm_est.get("revisar"):
+            out.append(f"⚠ ESTADO.md pode estar desatualizado: {str(fm_est['revisar'])[:200]}. Confirme com o usuário antes de confiar nele e reescreva-o no próximo /devtrack.")
         out += lines
         m = re.search(r"## Próximo passo\s*\n+(.+)", body)
         q = (m.group(1) if m else cur)[:200]
@@ -1408,6 +1467,7 @@ def cmd_vaults(a, c):
 
 def main():
     p = argparse.ArgumentParser(prog="xmem", description=__doc__.split("\n")[0])
+    p.add_argument("--sem-politica", action="store_true", help="ignora a política de privacidade da memória cruzada (uso do dono, na mão)")
     sp = p.add_subparsers(dest="cmd", required=True)
     s = sp.add_parser("index"); s.add_argument("--full", action="store_true")
     sp.add_parser("status"); sp.add_parser("vaults")
@@ -1436,6 +1496,8 @@ def main():
     import reconcile  # noqa: E402
     reconcile.add_parser(sp)
     a = p.parse_args()
+    global SEM_POLITICA
+    SEM_POLITICA = bool(a.sem_politica)
     if a.cmd == "index":
         index(full=a.full)
         return

@@ -147,12 +147,29 @@ class QuadroSemanaTest(unittest.TestCase):
         os.utime(cls.vault + "/CHECKLIST.md", (1735689600, 1735689600))
         cls.c = cls.xmem.index(quiet=True)
 
+    def _guarda_notas(self):
+        # mover para Feito/Descartado agora também grava na nota de origem: cada teste começa com as notas originais
+        self._notas = {os.path.join(r, f): (open(os.path.join(r, f), encoding="utf-8").read(), os.stat(os.path.join(r, f)).st_mtime)
+                       for r, _d, fs in os.walk(self.vault) for f in fs if f.endswith(".md") and f not in ("quadro.md", "_secondbrain.md")}
+
+    def tearDown(self):
+        mudou = False
+        for p, (txt, mt) in self._notas.items():
+            if open(p, encoding="utf-8").read() != txt:
+                with open(p, "w", encoding="utf-8") as fh:
+                    fh.write(txt)
+                os.utime(p, (mt, mt))        # mtime original: o índice (mtime + tamanho) vê a diferença para o que gravou a propagação
+                mudou = True
+        if mudou:
+            self.c = self.xmem.index(quiet=True)
+
     @classmethod
     def tearDownClass(cls):
         cls.c.close()
         shutil.rmtree(cls.home, ignore_errors=True)
 
     def setUp(self):
+        self._guarda_notas()
         self.q = os.path.join(self.vault, "quadro.md")
         if os.path.exists(self.q):
             os.remove(self.q)

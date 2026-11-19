@@ -268,8 +268,8 @@ def build(c, project=None, current_project=None, ocultos=False, hoje=None):
             if k["projeto"] != current_project:
                 if k.get("policy") == "nenhum":
                     continue
-                if k.get("policy") == "titulos":
-                    k = dict(k, origem={}, relacionadas=[], bloqueado_por=[])
+                if k.get("policy") == "titulos":    # o título do cartão É o texto da caixa (corpo da nota): não sai de vault restrito
+                    k = dict(k, titulo="(item de vault restrito)", origem={}, relacionadas=[], bloqueado_por=[], evidencia="", etiquetas=[])
             keep.append(k)
         cards = keep
     order = {p: i for i, p in enumerate(PRIORITIES)}
@@ -327,8 +327,130 @@ def _policy_gate(c, project, vault, confirmo):
         raise SystemExit(f"quadro: {project} é sensível ou versionado; gravar `quadro.md` exige confirmação explícita (--confirmo). Nada foi gravado.")
 
 
-def apply_changes(c, project, changes, confirmo=False, dry_run=False, order=None):
-    """changes: lista de dicts {id, titulo, col, prioridade, etiquetas, campos}. Mescla no quadro.md do projeto."""
+NOTAS_BACKUP = os.path.join(xm.HOME, ".local/share/secondbrain/backups/notas")
+_CAIXA = re.compile(r"^(\s*[-*]\s*)\[( |x|X|-)\](\s*)(.+)$")
+_MARCA = {"feito": "x", "descartado": "-"}
+
+
+def _norm_txt(t):
+    return re.sub(r"\W+", " ", xm.strip_acc(t.lower())).strip()[:120]
+
+
+def _palavras(t):
+    return {w for w in _norm_txt(t).split() if len(w) >= 4}
+
+
+def _backup_nota(project, path):
+    d = os.path.join(NOTAS_BACKUP, project)
+    os.makedirs(d, exist_ok=True)
+    shutil.copy2(path, os.path.join(d, f"{os.path.basename(path)[:60]}-{datetime.now():%Y%m%d-%H%M%S}"))
+
+
+def _ajustar_caixa(project, path, linha, titulo, col, dry_run):
+    """Põe a caixa de origem de acordo com a coluna: feito `[x]`, descartado `[-]`, aberto `[ ]`. Só mexe se a linha
+    ainda é a mesma caixa (mesmo texto); senão procura outra com o mesmo texto; senão não toca em nada.
+    Devolve (efeito|None, aviso|None)."""
+    novo = _MARCA.get(col, " ")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            linhas = fh.read().splitlines(keepends=True)
+    except OSError:
+        return None, f"nota de origem não encontrada: {os.path.basename(path)}"
+    alvo = _norm_txt(titulo)
+    ordem = ([linha - 1] if 0 < linha <= len(linhas) else []) + [i for i in range(len(linhas)) if i != linha - 1]
+    for i in ordem:
+        m = _CAIXA.match(linhas[i].rstrip("\r\n"))
+        if not m or _norm_txt(m.group(4)) != alvo:
+            continue
+        if m.group(2).lower() == novo:
+            return None, None
+        fim = linhas[i][len(linhas[i].rstrip("\r\n")):]
+        linhas[i] = f"{m.group(1)}[{novo}]{m.group(3)}{m.group(4)}{fim}"
+        if not dry_run:
+            _backup_nota(project, path)
+            tmp = path + ".sbtmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                fh.write("".join(linhas))
+            os.replace(tmp, path)
+        return f"caixa `[{novo}]` em {os.path.basename(path)}:{i + 1}", None
+    return None, f"a caixa de «{titulo[:50]}» não está mais em {os.path.basename(path)}; nada foi alterado na nota"
+
+
+def _marcar_revisar(path, msg, dry_run):
+    """Põe `revisar: "..."` no frontmatter do ESTADO (junta com o que já houver). O próximo /devtrack reescreve o arquivo e some."""
+    with open(path, encoding="utf-8") as fh:
+        texto = fh.read()
+    msg = msg.replace('"', "'")[:240]
+    if not texto.startswith("---\n"):
+        return False
+    fim = texto.find("\n---", 4)
+    if fim < 0:
+        return False
+    fm = texto[4:fim].splitlines()
+    for n, ln in enumerate(fm):
+        if ln.startswith("revisar:"):
+            antigo = ln.split(":", 1)[1].strip().strip('"')
+            if msg in antigo:
+                return False
+            fm[n] = f'revisar: "{(antigo + "; " + msg)[:300]}"'
+            break
+    else:
+        fm.append(f'revisar: "{msg}"')
+    if not dry_run:
+        tmp = path + ".sbtmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write("---\n" + "\n".join(fm) + texto[fim:])
+        os.replace(tmp, path)
+    return True
+
+
+def _cita(titulo, linha):
+    pt = _palavras(titulo)
+    return len(pt) >= 3 and len(pt & _palavras(linha)) >= max(3, int(len(pt) * 0.7 + 0.999))
+
+
+def propagar(c, project, vault, changes, dry_run=False):
+    """O que se decide no quadro chega onde a IA lê: a caixa na nota de origem, o ESTADO/prioridade que citam o item e o índice.
+    Devolve a lista de efeitos (texto) e avisos. Cartão manual (sem origem) não tem nota para ajustar."""
+    efeitos, avisos = [], []
+    cartoes = derive(c, project)
+    estados = [r for r in c.execute("select path, rel from notes where project=? and inactive=0 and (kind in ('estado','prioridade') or lower(rel)='estado.md')", (project,))
+               if "_arquivo" not in r["rel"] and "_historico" not in r["rel"]]
+    tocou = False
+    for ch in changes:
+        k = cartoes.get(ch["id"])
+        col = ch.get("col")
+        if not k or not col:
+            continue
+        ef, av = _ajustar_caixa(project, os.path.join(vault, k["origem"]["nota"]), k["origem"]["linha"], k["titulo"], col, dry_run)
+        if av:
+            avisos.append(av)
+        if ef:
+            efeitos.append(f"{ch['id']}: {ef}")
+            tocou = True
+        if col in ("feito", "descartado") or ef:
+            for r in estados:
+                try:
+                    with open(r["path"], encoding="utf-8") as fh:
+                        corpo = fh.read().split("\n---", 1)[-1]
+                except OSError:
+                    continue
+                if any(_cita(k["titulo"], ln) for ln in corpo.splitlines()):
+                    if _marcar_revisar(r["path"], f"«{k['titulo'][:60]}» foi para {LABEL.get(col, col)} no quadro em {date.today().isoformat()}", dry_run):
+                        efeitos.append(f"{ch['id']}: {r['rel']} cita o item e ficou marcado `revisar`")
+                        tocou = True
+    if tocou and not dry_run:
+        try:
+            xm.index(quiet=True)
+        except Exception as e:                       # o quadro já foi gravado; o índice se refaz no próximo `xmem.py index`
+            avisos.append(f"índice não atualizado ({type(e).__name__}); rode `xmem.py index`")
+    return efeitos, avisos
+
+
+def apply_changes(c, project, changes, confirmo=False, dry_run=False, order=None, propagar_notas=True, efeitos=None):
+    """changes: lista de dicts {id, titulo, col, prioridade, etiquetas, campos}. Mescla no quadro.md do projeto.
+    Com `propagar_notas` (padrão), o mesmo movimento ajusta a caixa de origem, marca o ESTADO que cita o item e reindexa;
+    `efeitos` (lista) recebe o que foi ou seria feito."""
     vault = vault_of(c, project)
     if not vault:
         raise SystemExit(f"quadro: projeto desconhecido: {project}")
@@ -364,6 +486,9 @@ def apply_changes(c, project, changes, confirmo=False, dry_run=False, order=None
     text = render(project, cols)
     path = quadro_path(vault)
     if dry_run:
+        if propagar_notas and efeitos is not None:
+            ef, av = propagar(c, project, vault, changes, dry_run=True)
+            efeitos += ef + ["aviso: " + a for a in av]
         return path, text
     if os.path.isfile(path):
         bdir = os.path.join(BACKUP_DIR, project)
@@ -373,6 +498,10 @@ def apply_changes(c, project, changes, confirmo=False, dry_run=False, order=None
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(text)
     os.replace(tmp, path)
+    if propagar_notas:
+        ef, av = propagar(c, project, vault, changes)
+        if efeitos is not None:
+            efeitos += ef + ["aviso: " + a for a in av]
     return path, text
 
 
@@ -401,7 +530,9 @@ def fmt_card(k):
 
 
 def cmd(a, c):
-    cur = getattr(a, "project_atual", None) or None
+    cur = getattr(a, "project_atual", None) or xm.detect_project(c) or None
+    if cur is None and not xm.SEM_POLITICA:
+        cur = "\0sem-projeto"        # fora de qualquer projeto vale a política mais restrita (falha fechada); --sem-politica libera
     sub = a.board_cmd
     if sub in ("show", "summary", "proposals"):
         todos_cards = build(c, a.project, cur, ocultos=True)
@@ -469,7 +600,7 @@ def cmd(a, c):
                 campos = {"prazo": "" if a.limpar else sm.resolver_data(a.data or "", date.today()).isoformat()}
         except ValueError as e:
             raise SystemExit(f"quadro: {e}")
-        path, text = apply_changes(c, a.project, [change_from_card(k, col, None, None, campos)], confirmo=a.confirmo, dry_run=a.dry_run)
+        path, text = apply_changes(c, a.project, [change_from_card(k, col, None, None, campos)], confirmo=a.confirmo, dry_run=a.dry_run, propagar_notas=False)
         print(("[simulação] " if a.dry_run else "") + f"{a.id}: " + ", ".join(f"{kk} = {vv or '(limpo)'}" for kk, vv in campos.items()) + f" -> {path}")
         return
     if sub in ("semana", "agenda", "revisao"):
@@ -558,7 +689,7 @@ def cmd(a, c):
         by_id = {k["id"]: k for k in vis}
         for proj, lst in por_proj.items():
             chs = [change_from_card(by_id[p["id"]], by_id[p["id"]]["status"], None, None, {"semana": p["para"]}) for p in lst]
-            path, _ = apply_changes(c, proj, chs, confirmo=a.confirmo, dry_run=a.dry_run)
+            path, _ = apply_changes(c, proj, chs, confirmo=a.confirmo, dry_run=a.dry_run, propagar_notas=False)
             print(("[simulação] " if a.dry_run else "") + f"{proj}: {len(chs)} cartão(ões) -> {path}")
         return
     if sub in ("move", "add", "discard"):
@@ -587,8 +718,11 @@ def cmd(a, c):
                 return
             if not a.sim and not a.dry_run:
                 raise SystemExit(f"quadro: {len(ch)} cartões iriam para Descartado em {proj}. Confirme com --sim (ou veja antes com --dry-run). Nada foi gravado.")
-        path, text = apply_changes(c, proj, ch, confirmo=a.confirmo, dry_run=a.dry_run)
+        efs = []
+        path, text = apply_changes(c, proj, ch, confirmo=a.confirmo, dry_run=a.dry_run, propagar_notas=not a.sem_propagar, efeitos=efs)
         print(("[simulação] " if a.dry_run else "") + f"{len(ch)} cartão(ões) -> {path}")
+        for e in efs:
+            print("  " + e)
         if a.dry_run:
             print(text[:1500])
         return
@@ -619,6 +753,7 @@ def add_parser(sp):
     for name in ("move", "add", "discard"):
         x = bs.add_parser(name); x.add_argument("project")
         x.add_argument("--dry-run", action="store_true"); x.add_argument("--confirmo", action="store_true", help="vault sensível ou versionado")
+        x.add_argument("--sem-propagar", action="store_true", help="só grava o quadro.md; não ajusta a caixa da nota nem marca o ESTADO")
         if name == "move":
             x.add_argument("id"); x.add_argument("coluna"); x.add_argument("--prioridade", choices=PRIORITIES); x.add_argument("--etiqueta", action="append")
             x.add_argument("--bloqueado-por")

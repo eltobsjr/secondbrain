@@ -278,6 +278,8 @@ class QuadroEConciliacaoTest(unittest.TestCase):
 
     def test_aplicar_a_fecha_como_feito_com_etiqueta_e_backup_fora_do_vault(self):
         ns = Namespace(project="proj_p", json=False, desde=None, todas=False, incluir_referencias=False, aplicar="A", sim=True, dry_run=False, confirmo=False)
+        notas = {os.path.join(r, f): open(os.path.join(r, f), encoding="utf-8").read()
+                 for r, _d, fs in os.walk(self.vault) for f in fs if f.endswith(".md") and "/devtrack" in r}
         try:
             self.reconcile.cmd(ns, self.c)
             k = self.todos()["Corrigir cálculo do frete para pedidos internacionais"]
@@ -285,8 +287,12 @@ class QuadroEConciliacaoTest(unittest.TestCase):
             self.assertIn("reconciliado", k["etiquetas"])
             self.assertEqual(k["feito_em"], dia(20), "a data do commit que prova vira a data de conclusão (semana do calendário)")
             self.assertEqual(self.todos()["Ajustar `src/checkout.ts` para o novo fluxo"]["status"], "a-fazer", "nível C não é aplicado")
+            self.assertIn("- [x] Corrigir cálculo do frete para pedidos internacionais", "".join(open(f, encoding="utf-8").read() for f in notas), "a caixa de origem também fecha")
         finally:
             os.path.exists(os.path.join(self.vault, "quadro.md")) and os.remove(os.path.join(self.vault, "quadro.md"))
+            for f, txt in notas.items():            # a propagação gravou nas notas do fixture: devolve o original
+                write(f, txt)
+            self.c = self.xmem.index(quiet=True)
 
     def test_hashes_inexistentes(self):
         write(self.vault + f"/devtrack/{dia(1)} - Hashes.md",
