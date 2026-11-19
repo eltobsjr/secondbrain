@@ -31,7 +31,7 @@ Descreva o problema com os **termos técnicos exatos** (siglas, nomes de funçã
 ## Passo 2 — Buscar
 
 ```bash
-python3 -I "$SB/xmem.py" recall "<consulta>" --limit 6
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" recall "<consulta>" --limit 6
 ```
 
 O projeto atual é detectado pelo diretório (e excluído do resultado). Use `--todos-projetos` para incluir o atual e `--all` para incluir notas já substituídas. Resultados com 🔒 vêm de vault sensível e aparecem **só com título** quando você trabalha em outro projeto.

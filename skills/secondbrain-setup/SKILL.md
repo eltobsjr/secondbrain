@@ -224,7 +224,7 @@ Setup inicial realizado em {data-de-hoje}.
 
 **`_secondbrain.md`** — manifesto do vault. Gere a partir de `references/manifest-template.md`, com `schema: 2`, `versionado`, `modulos` e `papeis` conforme as respostas, e `extras` se o usuário já tem estrutura própria. É o que permite que cada projeto tenha a estrutura que precisar.
 
-**`INDEX.md`** — rode `python3 -I "$SB/build_index.py" {vault}` depois de criar as notas (mapa gerado; nunca editar à mão).
+**`INDEX.md`** — rode `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/build_index.py" {vault}` depois de criar as notas (mapa gerado; nunca editar à mão).
 
 **`ESTADO.md`** (se o módulo `estado` estiver ligado) — conforme `references/estado-format.md`, com "Agora: setup inicial em {data-de-hoje}".
 

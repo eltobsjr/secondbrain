@@ -15,7 +15,7 @@ Se o arquivo não existir, o usuário ainda não rodou `/analyze`. Nesse caso, v
 
 ## Começar
 
-Se existir `SecondBrainSecondBrain/` (vault pessoal do plugin, fora do git), leia o `ESTADO.md` dele antes de trabalhar; o devtrack e as decisões (`decisions/001` a `010`) explicam o porquê das escolhas.
+Se existir `SecondBrainSecondBrain/` (vault pessoal do plugin, fora do git), leia o `ESTADO.md` dele antes de trabalhar; o devtrack e as decisões (`decisions/001` a `013`) explicam o porquê das escolhas.
 
 ## Idioma
 

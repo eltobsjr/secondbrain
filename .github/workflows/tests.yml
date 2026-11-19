@@ -29,7 +29,7 @@ jobs:
 
   gui:
     # Roda também os testes de lógica da interface (leitor seguro, JS do grafo) com GTK4/libadwaita/WebKitGTK do sistema.
-    # Passou no runner em 2026-11-18 (93 testes): agora bloqueia como o job do motor.
+    # Passou no runner em 2026-11-18: agora bloqueia como o job do motor.
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

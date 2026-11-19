@@ -32,7 +32,7 @@ no CHECKLIST.md e na memória. Esta skill as reúne em um único lugar ordenado.
 
 ## Passo 1 — Coletar todas as pendências
 
-> **Se existir o quadro** (`$SB/xmem.py`), comece por ele: `python3 -I "$SB/xmem.py" board show --project <p> --json` já traz os itens deduplicados, com idade e coluna. Grave a ordem com `board move <p> <id> <coluna> --prioridade P1` em vez de reescrever listas. Os passos abaixo valem como fallback sem o motor.
+> **Se existir o quadro** (`$SB/xmem.py`), comece por ele: `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board show --project <p> --json` já traz os itens deduplicados, com idade e coluna. Grave a ordem com `board move <p> <id> <coluna> --prioridade P1` em vez de reescrever listas. Os passos abaixo valem como fallback sem o motor.
 
 ```bash
 # Todos os devtracks (para varrer checkboxes abertos)

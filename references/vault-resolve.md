@@ -4,14 +4,11 @@ Toda skill que lê ou grava no vault **começa por aqui**. Princípio: **nunca a
 
 ## 0. Localizar as ferramentas (`$SB`)
 
-Os scripts do SecondBrain ficam em um caminho estável. Defina `SB` antes de usá-los:
+Os scripts do SecondBrain ficam em um caminho estável: `~/.local/share/secondbrain/bin` (instalado por `scripts/install-tools.sh`). **Cada chamada de shell começa do zero** e não guarda variáveis da anterior, por isso todo comando das skills já traz o caminho por inteiro: `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" …`. `SB` só precisa existir se você quiser apontar para outra cópia.
 
-```bash
-SB="$HOME/.local/share/secondbrain/bin"
-[ -f "$SB/xmem.py" ] || SB="$(dirname "$(find ~/.claude/plugins -name xmem.py -path '*secondbrain*' 2>/dev/null | head -1)")"
-```
+Para conferir se as ferramentas estão instaladas e na versão do plugin: `bash <pasta-do-plugin>/scripts/install-tools.sh --check`. Se faltar ou estiver defasado, rode `scripts/install-tools.sh` (do plugin) uma vez.
 
-Se nenhum existir, rode `scripts/install-tools.sh` (do plugin) uma vez. Todos os comandos `python3 -I "$SB/…"` abaixo assumem isso.
+Onde ficam estes `references/`: na raiz do plugin (`${CLAUDE_PLUGIN_ROOT}/references/`; no cache, `~/.claude/plugins/cache/secondbrain/secondbrain/<versão>/references/`). Se o caminho relativo de uma skill não resolver, use o da raiz do plugin.
 
 ## Índice
 1. Localizar o vault
@@ -54,14 +51,14 @@ Leia `{vault}/_secondbrain.md` (frontmatter YAML). Modelo completo em `reference
 
 Se `_secondbrain.md` não existe, o vault é anterior ao esquema 2. **Não refaça nada.** Adapte:
 
-1. **Inferir (somente leitura).** Rode `python3 -I "$SB/infer_manifest.py" {vault}` (dry-run: imprime o manifesto proposto sem gravar nada) e revise o resultado; a lógica abaixo é o que ele aplica, e vale também se o script não puder rodar.
+1. **Inferir (somente leitura).** Rode `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/infer_manifest.py" {vault}` (dry-run: imprime o manifesto proposto sem gravar nada) e revise o resultado; a lógica abaixo é o que ele aplica, e vale também se o script não puder rodar.
    - Aliases de papel: `decisions|decisoes|adr` → decisoes; `features|HUs|hu|docs/hu` → features; `prioridade|prioridades` → prioridade; `devtrack`; `rfcs`; `postmortems`; `releases`; `commits`; `components|telas|api` → mantêm-se como papéis de interface se existirem.
    - Toda pasta restante vira `extras`, com descrição tirada do README/índice do vault ou do primeiro arquivo da pasta.
    - Inferir `nomes` pelo padrão real dos arquivos existentes; `campos-extra` pelo frontmatter que já aparece nas notas de cada papel; `versionado` por `git check-ignore {vault}`.
    - Se o vault tiver um README/índice com mapa de pastas, use-o como fonte principal da descrição de cada pasta.
 2. **Mostrar o plano** (dry-run) em uma tabela e **esperar confirmação**. O usuário pode corrigir qualquer linha.
 3. **Escrever apenas** `{vault}/_secondbrain.md` (o mesmo script com `--write`, que recusa sobrescrever um manifesto existente) (e `{vault}/_migracao.log` com o que foi feito). **Não mover, renomear nem apagar nada.** A migração é idempotente.
-4. **Fase 2 (opcional, só se o usuário pedir):** `python3 -I "$SB/add_frontmatter.py" {vault}` (dry-run) e depois com `--write`. Acrescenta `tipo` (pelo papel da pasta) e `data` (só quando o nome do arquivo tem data) às notas que não têm; nunca altera o corpo nem campos existentes, e é idempotente. Faça um backup dos `.md` antes (em vault sem git, é a única rede de segurança).
+4. **Fase 2 (opcional, só se o usuário pedir):** `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/add_frontmatter.py" {vault}` (dry-run) e depois com `--write`. Acrescenta `tipo` (pelo papel da pasta) e `data` (só quando o nome do arquivo tem data) às notas que não têm; nunca altera o corpo nem campos existentes, e é idempotente. Faça um backup dos `.md` antes (em vault sem git, é a única rede de segurança).
 5. **CLAUDE.md do projeto não é editado.** Se ele cita caminhos fixos do vault, mostre o diff sugerido e deixe o usuário aplicar.
 6. Depois de migrar, continue a tarefa original da skill.
 

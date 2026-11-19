@@ -11,14 +11,14 @@ DARK = {
     "text": "#cad3f5", "sub1": "#b8c0e0", "sub0": "#a5adcb",
     "blue": "#8aadf4", "lav": "#b7bdf8", "green": "#a6da95", "peach": "#f5a97f",
     "red": "#ed8796", "mauve": "#c6a0f6", "teal": "#8bd5ca", "yellow": "#eed49f",
-    "on_accent": "#181926",
+    "on_accent": "#181926", "warn_s": "#f5a97f", "ok_s": "#a6da95",
 }
 LIGHT = {
     "crust": "#dce0e8", "mantle": "#e6e9ef", "base": "#eff1f5", "s0": "#ccd0da", "s1": "#bcc0cc",
     "text": "#4c4f69", "sub1": "#5c5f77", "sub0": "#656880",
     "blue": "#1e66f5", "lav": "#7287fd", "green": "#40a02b", "peach": "#c4500a",
     "red": "#d20f39", "mauve": "#8839ef", "teal": "#137a80", "yellow": "#a8650c",
-    "on_accent": "#eff1f5",
+    "on_accent": "#eff1f5", "warn_s": "#8f3800", "ok_s": "#2b7a1c",      # versões fortes: texto claro ou texto sobre cinza com 4,5:1 ou mais
 }
 
 # cores de projeto (ordem estável): as mesmas do logo e do app

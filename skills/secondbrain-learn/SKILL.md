@@ -88,7 +88,7 @@ MEM="$HOME/.claude/projects/$(pwd | sed 's|[^A-Za-z0-9]|-|g')/memory"
 Com `$SB` definido (`references/vault-resolve.md`, seção 0), rode:
 
 ```bash
-python3 -I "$SB/xmem.py" absorb-check "<texto do aprendizado>" --project <projeto>
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" absorb-check "<texto do aprendizado>" --project <projeto>
 ```
 
 Ele lista as notas parecidas (no projeto e nos outros) com a classificação provável e avisa se há **segredo** no texto. Siga a regra impressa: **substituir uma nota exige 3 "sim"** (mesmo projeto, mesma entidade, o fato novo torna TODA a antiga obsoleta); na dúvida é RELATED, nunca substituição. Escreva o aprendizado como fato **completo e autossuficiente** (uma frase ou parágrafo curto com contexto), não como lembrete solto. Se veio de outro projeto, registre `origem: projeto:nota` no frontmatter.

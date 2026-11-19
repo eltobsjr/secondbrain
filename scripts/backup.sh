@@ -122,19 +122,19 @@ case "$cmd" in
   status)
     echo "Fontes ($(sources | wc -l)):"; sources | sed 's/^/  /'
     echo; echo "HDs marcados e montados:"; d=$(marked_drives); [ -z "$d" ] && echo "  (nenhum)" || echo "$d" | sed 's/^/  /'
-    for m in $d; do f="$m/secondbrain-backup/$HOST/ULTIMO_BACKUP"; echo "  último em $m: $( [ -f "$f" ] && cat "$f" || echo nunca)"; done
+    while IFS= read -r m; do [ -z "$m" ] && continue; f="$m/secondbrain-backup/$HOST/ULTIMO_BACKUP"; echo "  último em $m: $( [ -f "$f" ] && cat "$f" || echo nunca)"; done <<< "$d"
     echo; echo "Log: $LOG"; tail -5 "$LOG" 2>/dev/null | sed 's/^/  /'
     ;;
   auto)
     sleep 8   # deixa o HD terminar de montar
     exec 9>"$STATE/lock"; flock -n 9 || exit 0
-    for m in $(marked_drives); do backup_one "$m" 0 0; done
+    while IFS= read -r m; do [ -n "$m" ] && backup_one "$m" 0 0; done < <(marked_drives)       # ponto de montagem pode ter espaço
     ;;
   run)
     exec 9>"$STATE/lock"; flock -n 9 || { echo "outro backup em andamento"; exit 0; }
     d=$(marked_drives)
     [ -z "$d" ] && { echo "Nenhum HD marcado e montado. Conecte o HD e rode: backup.sh init /run/media/$USER/<nome-do-HD>"; exit 1; }
-    for m in $d; do backup_one "$m" "$dry" "$force"; done
+    while IFS= read -r m; do [ -n "$m" ] && backup_one "$m" "$dry" "$force"; done <<< "$d"
     ;;
   *) echo "comando desconhecido: $cmd"; exit 2;;
 esac

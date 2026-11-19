@@ -28,11 +28,11 @@ Gera e salva o log de sessão no vault do projeto.
 O devtrack é um retrato de fim de sessão. Na prática, a grande maioria das caixas `- [ ]` que ele deixa abertas nunca mais aparece numa sessão seguinte: foram feitas ou largadas sem registro. Por isso, **antes de escrever o devtrack novo**, concilie o anterior. Com `$SB/xmem.py` (`references/vault-resolve.md`, seção 0):
 
 ```bash
-python3 -I "$SB/xmem.py" board show --project <projeto> --status a-fazer,fazendo,bloqueado
-python3 -I "$SB/xmem.py" reconcile <projeto>
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board show --project <projeto> --status a-fazer,fazendo,bloqueado
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" reconcile <projeto>
 ```
 
-Rode também `python3 -I "$SB/xmem.py" board revisao --project <projeto>` (revisão semanal: propõe o que fazer com os abertos de semanas que passaram) e `board agenda --project <projeto>` (o que está atrasado, vence hoje ou está chegando). Pergunte uma vez, em lote, o destino de cada pendência da sessão anterior: **feito**, **segue** ou **descartado** (com o motivo, em uma frase). O que segue e tem data recebe prazo e semana: `board plan <projeto> <id> --semana esta|proxima --prazo +3d`. O que o git confirma (nível A do `reconcile`) pode ser proposto como feito; níveis B e C só se o usuário concordar. Registre no quadro (`board move <projeto> <id> feito|descartado`). **Nunca reescreva o devtrack antigo.** Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes. Sem o motor, pergunte só pelas pendências do último devtrack.
+Rode também `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board revisao --project <projeto>` (revisão semanal: propõe o que fazer com os abertos de semanas que passaram) e `board agenda --project <projeto>` (o que está atrasado, vence hoje ou está chegando). Pergunte uma vez, em lote, o destino de cada pendência da sessão anterior: **feito**, **segue** ou **descartado** (com o motivo, em uma frase). O que segue e tem data recebe prazo e semana: `board plan <projeto> <id> --semana esta|proxima --prazo +3d`. O que o git confirma (nível A do `reconcile`) pode ser proposto como feito; níveis B e C só se o usuário concordar. Registre no quadro (`board move <projeto> <id> feito|descartado`). **Nunca reescreva o devtrack antigo.** Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes. Sem o motor, pergunte só pelas pendências do último devtrack.
 
 ## Passo 1 — Coletar contexto da sessão
 
@@ -183,7 +183,7 @@ Se não encontrar o vault na raiz, procure no diretório pai ou pergunte ao usu�
 
 ## Passo 4a — Atualizar o quadro (se o motor existir)
 
-Se `$SB/xmem.py` existir, o quadro já mostra os `- [ ]` deste devtrack como cartões novos. Para o que foi **concluído nesta sessão**, mova para Feito (`python3 -I "$SB/xmem.py" board move <projeto> <id> feito`; ids em `board show --project <projeto>`): o comando já marca `- [x]` na nota de origem e, se o `ESTADO.md` citar o item, o marca com `revisar:` (o passo 4b abaixo o reescreve). Ou marque `- [x]` à mão no devtrack seguinte. O que ficou **bloqueado**, mova para `bloqueado --bloqueado-por "<motivo>"`. Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes. Se o projeto não tem `quadro.md` e o usuário não usa o quadro, pule sem perguntar. O quadro oculta por padrão o que é ruído, repetido ou superado (`board show --ocultos` lista, com o motivo).
+Se `$SB/xmem.py` existir, o quadro já mostra os `- [ ]` deste devtrack como cartões novos. Para o que foi **concluído nesta sessão**, mova para Feito (`python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board move <projeto> <id> feito`; ids em `board show --project <projeto>`): o comando já marca `- [x]` na nota de origem e, se o `ESTADO.md` citar o item, o marca com `revisar:` (o passo 4b abaixo o reescreve). Ou marque `- [x]` à mão no devtrack seguinte. O que ficou **bloqueado**, mova para `bloqueado --bloqueado-por "<motivo>"`. Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes. Se o projeto não tem `quadro.md` e o usuário não usa o quadro, pule sem perguntar. O quadro oculta por padrão o que é ruído, repetido ou superado (`board show --ocultos` lista, com o motivo).
 
 ## Passo 4b — Atualizar o ESTADO.md
 
@@ -194,13 +194,13 @@ Se o vault tem o papel `estado` (arquivo `ESTADO.md` ou o caminho do manifesto) 
 Se o vault tem o papel `indice`, regenere-o (sem modelo, só lê o manifesto e as notas):
 
 ```bash
-python3 -I "$SB/build_index.py" {vault}
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/build_index.py" {vault}
 ```
 
 Em seguida atualize o índice da memória cruzada (incremental e barato; falha em silêncio se o `xmem` não existir):
 
 ```bash
-python3 -I "$SB/xmem.py" index 2>/dev/null || true
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" index 2>/dev/null || true
 ```
 
 Se os scripts não estiverem acessíveis, pule em silêncio; o `/audit` avisa índice desatualizado.

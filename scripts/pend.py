@@ -30,9 +30,25 @@ STOP = frozenset("""para como mais sobre antes depois ainda esta este esse essa 
 desta deste usuario sessao itens item commit commits push fix feat merge branch main codigo arquivo arquivos pelo pela pelos pelas
 entre quando onde pode podem deve devem tambem apenas somente depende dependem todos todas cada outro outra outros outras campo campos""".split())
 
+# frase de estado: ancorada no começo e curta. "Não foi testado em Windows o instalador" e "Nada a ver: corrigir o login" são tarefas.
 _NARRATIVO = re.compile(
-    r"^(nenhum|nenhuma|nada|ainda nao|nao foi|nao foram|segue sem|continua sem|frontend nao|backend nao|/code-review nao)"
-    r"|nenhum commit|nao (foi|foram) (testad|buildad|compilad|rodad|feit|iniciad|implementad|lintad)|sem mudanca|nao rodado")
+    r"^(nenhum|nenhuma|nada(?! a ver)|ainda nao|nao foi|nao foram|segue sem|continua sem|frontend nao|backend nao|/code-review nao"
+    r"|sem mudanca|nao rodado)\b")
+NARRATIVO_MAX_PALAVRAS = 6
+# item que fala de risco aberto nunca vira "superado" sozinho: sumir de um devtrack não resolve segredo exposto nem bloqueio
+_RISCO = re.compile(r"\b(pendentes?|bloquead[oa]s?|bloqueios?|expost[oa]s?|segredos?|ainda nao)\b")
+# primeira palavra de uma pergunta que ainda é tarefa ("Migrar o banco para o PG 16?"): infinitivo, não interrogativo
+_NAO_INFINITIVO = frozenset("qualquer colher mulher poder dever prazer taxer".split())
+
+
+def _infinitivo(t):
+    w = re.match(r"[a-z]+", t)
+    w = w.group(0) if w else ""
+    return len(w) >= 5 and w.endswith(("ar", "er", "ir", "or")) and w not in _NAO_INFINITIVO
+
+
+def risco(text):
+    return bool(_RISCO.search(strip_acc(text.lower())))
 
 
 def strip_acc(s):
@@ -41,7 +57,8 @@ def strip_acc(s):
 
 def tokens(text):
     t = strip_acc(text.lower()).replace("`", "")
-    return frozenset(w for w in re.findall(r"[a-z0-9_\-\.]{4,}", t) if w not in STOP and not w.isdigit())
+    ws = (w.strip(".-") for w in re.findall(r"[a-z0-9_\-\.]{4,}", t))      # "login." == "login"; o ponto de "app.ts" fica
+    return frozenset(w for w in ws if len(w) >= 4 and w not in STOP and not w.isdigit())
 
 
 def ruido(text, kind="devtrack"):
@@ -52,9 +69,9 @@ def ruido(text, kind="devtrack"):
     if kind != "devtrack":
         return ""
     t = strip_acc(text.lower()).strip(" *_`>-")
-    if t.endswith("?"):
+    if t.endswith("?") and not _infinitivo(t):
         return "pergunta"
-    if _NARRATIVO.search(t):
+    if _NARRATIVO.search(t) and len(t.split()) <= NARRATIVO_MAX_PALAVRAS:
         return "narrativo"
     return ""
 
@@ -142,6 +159,8 @@ class Projeto:
             return "repetido", f"reescrito em {best_unc[1]['data'][:10]}", best_unc[0]
         d0 = _dia(data)
         if d0 and self.ultimo and (self.ultimo - d0).days >= SUPERADO_DIAS:
+            if risco(text):
+                return "", "cita risco aberto (pendente, bloqueado, exposto, segredo): não vira superado sozinho", max(best_chk[0], best_unc[0])
             if self.citado(a):
                 return "", "citado no estado vivo do projeto", max(best_chk[0], best_unc[0])
             return "superado", f"o projeto seguiu até {self.ultimo.isoformat()} e o item não reapareceu", 0.0

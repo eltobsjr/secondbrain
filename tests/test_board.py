@@ -86,7 +86,17 @@ class BoardTest(unittest.TestCase):
         a = self.cards()["Configurar rotação de logs"]["id"]
         b = self.cards()["Configurar rotação de logs"]["id"]
         self.assertEqual(a, b)
-        self.assertTrue(a.startswith("c") and len(a) == 7)
+        self.assertTrue(a.startswith("c") and len(a) == 1 + self.board.ID_HEX)
+
+    def test_decisao_gravada_com_id_antigo_continua_ligada_ao_cartao(self):
+        k = self.cards()["Configurar rotação de logs"]
+        antigo = k["id"][:7]                           # o id de 6 hex que o quadro.md já tinha
+        write(os.path.join(self.a, "quadro.md"), f"---\nkanban-plugin: board\n---\n\n## Fazendo\n\n- [ ] Configurar rotação de logs ^{antigo}\n")
+        self.assertEqual(self.cards()["Configurar rotação de logs"]["status"], "fazendo", "a decisão antiga ainda vale")
+        self.board.apply_changes(self.c, "proj_a", [self.board.change_from_card(self.cards()["Configurar rotação de logs"], "bloqueado")])
+        ids = [x["id"] for x in self.board.load_overrides(self.a)]
+        self.assertEqual(ids, [k["id"]], "o id foi atualizado e não duplicou o cartão")
+        os.remove(os.path.join(self.a, "quadro.md"))
 
     def test_mover_grava_quadro_md_com_backup_e_so_mexe_na_origem_ao_fechar_ou_reabrir(self):
         orig = os.path.join(self.a, f"devtrack/{self.old} - Antigo.md")

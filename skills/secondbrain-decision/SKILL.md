@@ -64,8 +64,8 @@ Não faça todas as perguntas de uma vez. Se a conversa já contém as respostas
 Com `$SB` definido (`references/vault-resolve.md`, seção 0):
 
 ```bash
-python3 -I "$SB/xmem.py" absorb-check "<título e resumo da decisão>" --project <projeto>
-python3 -I "$SB/xmem.py" recall "<tema da decisão>" --limit 4
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" absorb-check "<título e resumo da decisão>" --project <projeto>
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" recall "<tema da decisão>" --limit 4
 ```
 
 - Se uma decisão ativa do projeto vira **obsoleta por inteiro** (3 "sim": mesmo projeto, mesma entidade, substituição integral), a nova leva `substitui: "[[NNN - Título antigo]]"` e a antiga muda **só** o `status` para `substituída por NNN`. Na dúvida, é decisão nova relacionada (`relacionado:`), não substituição. Declare também as outras relações que o `absorb-check` revelar, uma linha cada, só com a concordância do usuário: `estende:` (acrescenta à decisão anterior sem torná-la obsoleta), `contradiz:` (se opõe a outra ainda ativa; fica listada no `/audit` até alguém resolver), `implementa:` (aplica um padrão ou RFC), `referencia:`. Valor: `"[[NNN - Título]]"` no mesmo vault ou `projeto:caminho-sem-.md` entre vaults. O grafo desenha cada tipo com cor e traço próprios.

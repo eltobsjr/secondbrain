@@ -7,6 +7,8 @@ Princípios: nada é reescrito nas notas de origem (devtrack é histórico); des
 
 Uso (via xmem): xmem.py board show|summary|proposals|move|add|discard ...
 """
+import contextlib
+import fcntl
 import hashlib
 import json
 import os
@@ -31,6 +33,7 @@ LABEL = dict(COLUMNS)
 PRIORITIES = ("P0", "P1", "P2", "P3")
 TRIAGE_DAYS = 60            # item aberto há mais que isso nasce em Triagem
 BACKUP_DIR = os.path.join(xm.HOME, ".local/share/secondbrain/backups/quadro")
+BACKUP_MANTER = 50          # cópias do quadro.md por projeto; as mais antigas são rotacionadas
 
 
 def _norm_col(name):
@@ -38,8 +41,20 @@ def _norm_col(name):
     return n if n in KEYS else None
 
 
+ID_HEX = 10       # 40 bits (eram 24: com milhares de cartões a chance de colisão deixava de ser desprezível)
+
+
 def card_id(project, norm):
-    return "c" + hashlib.sha1(f"{project}\0{norm}".encode()).hexdigest()[:6]
+    return "c" + hashlib.sha1(f"{project}\0{norm}".encode()).hexdigest()[:ID_HEX]
+
+
+def id_atual(cid, candidatos):
+    """Um id antigo (c + 6 hex) vale como prefixo do id novo (c + 10 hex, do mesmo sha1): decisões gravadas no quadro.md
+    continuam ligadas ao cartão. Só resolve se o prefixo for único; senão devolve o id como veio."""
+    if cid in candidatos or not re.fullmatch(r"c[0-9a-f]{6}", cid or ""):
+        return cid
+    achados = [k for k in candidatos if k.startswith(cid)]
+    return achados[0] if len(achados) == 1 else cid
 
 
 def _age(data):
@@ -64,8 +79,8 @@ def derive(c, project=None):
         grp[(r["project"], r["norm"])].append(r)
         por_projeto[r["project"]].append(r)
     ultimo = {r["project"]: r["d"] for r in c.execute("select project, max(data) d from notes where kind='devtrack' group by project")}
-    vivos = defaultdict(list)         # linhas do estado vivo (ESTADO.md, prioridade/atual.md), fora dos arquivos mortos
-    for r in c.execute("select n.project, n.rel, ch.text from chunks ch join notes n on n.id=ch.note_id where (n.kind in ('estado','prioridade') or lower(n.rel) = 'estado.md') and n.inactive=0"):
+    vivos = defaultdict(list)         # linhas do estado vivo (ESTADO.md, prioridade/atual.md, memória do Claude e CLAUDE.md), fora dos arquivos mortos
+    for r in c.execute("select n.project, n.rel, ch.text from chunks ch join notes n on n.id=ch.note_id where (n.kind in ('estado','prioridade','memory','claude-md') or lower(n.rel) = 'estado.md') and n.inactive=0"):
         if "_arquivo" in r["rel"] or "_historico" in r["rel"]:
             continue
         vivos[r["project"]] += [ln for ln in r["text"].splitlines() if len(ln.strip()) >= 12]
@@ -231,7 +246,7 @@ def build(c, project=None, current_project=None, ocultos=False, hoje=None):
         if not vault:
             continue
         for pos, ov in enumerate(load_overrides(vault)):
-            cid = ov["id"] or card_id(proj, re.sub(r"\W+", " ", xm.strip_acc(ov["titulo"].lower())).strip()[:120])
+            cid = id_atual(ov["id"], derived) if ov["id"] else card_id(proj, re.sub(r"\W+", " ", xm.strip_acc(ov["titulo"].lower())).strip()[:120])
             d = derived.get(cid)
             if d is None:
                 orig = ov["campos"].get("origem", "")
@@ -310,13 +325,79 @@ def _render_card(k):
     return "\n".join(lines)
 
 
-def render(project, cards_by_col):
-    head = f"---\nkanban-plugin: board\nschema: {SCHEMA}\ntipo: quadro\natualizado: {date.today().isoformat()}\n---\n\n"
+_FM_CONHECIDO = ("kanban-plugin", "schema", "tipo", "atualizado")
+
+
+def sobras(text):
+    """O que o parser não reconhece e a reescrita NÃO pode perder: chaves de frontmatter alheias, texto antes da primeira
+    coluna, texto solto dentro de uma coluna e seções `##` que não são colunas. -> {fm, pre, soltas{col: linhas}, secoes[str]}"""
+    out = {"fm": [], "pre": [], "soltas": defaultdict(list), "secoes": []}
+    m = re.match(r"\A---\r?\n(.*?)\r?\n---\r?\n", text, flags=re.S)
+    if m:
+        out["fm"] = [ln for ln in m.group(1).splitlines() if ln.strip() and ln.split(":", 1)[0].strip() not in _FM_CONHECIDO]
+    body = text[m.end():] if m else text
+    col, secao = None, None
+    for ln in body.splitlines():
+        h = re.match(r"^##\s+(.+?)\s*$", ln)
+        if h:
+            col = _norm_col(h.group(1))
+            secao = None if col else [ln]
+            if secao:
+                out["secoes"].append(secao)
+            continue
+        if secao is not None:
+            secao.append(ln)
+        elif col is None:
+            if ln.strip() and not ln.startswith("> Quadro de "):
+                out["pre"].append(ln.rstrip())
+        elif ln.strip() and not CARD_RE.match(ln) and not ln.startswith((" ", "\t")):
+            out["soltas"][col].append(ln.rstrip())
+    out["secoes"] = ["\n".join(b).rstrip() for b in out["secoes"]]
+    return out
+
+
+def render(project, cards_by_col, resto=None):
+    resto = resto or {"fm": [], "pre": [], "soltas": {}, "secoes": []}
+    fm = "".join(ln + "\n" for ln in resto["fm"])
+    head = f"---\nkanban-plugin: board\nschema: {SCHEMA}\ntipo: quadro\natualizado: {date.today().isoformat()}\n{fm}---\n\n"
     head += f"> Quadro de {project}. Guarda só decisões; o resto vem das caixas `- [ ]` das notas (derivado). Mover um cartão entre colunas é decidir.\n\n"
+    if resto["pre"]:
+        head += "\n".join(resto["pre"]) + "\n\n"
     parts = []
     for key, label in COLUMNS:
-        parts.append(f"## {label}\n\n" + "".join(_render_card(k) + "\n" for k in cards_by_col.get(key, [])))
-    return head + "\n".join(parts)
+        soltas = "".join(ln + "\n" for ln in resto["soltas"].get(key, []))
+        parts.append(f"## {label}\n\n" + "".join(_render_card(k) + "\n" for k in cards_by_col.get(key, [])) + soltas)
+    return head + "\n".join(parts) + "".join("\n" + b + "\n" for b in resto["secoes"])
+
+
+@contextlib.contextmanager
+def _trava(project):
+    """Uma gravação do quadro por vez (interface e terminal): a segunda espera e então lê o arquivo já atualizado."""
+    d = os.path.join(BACKUP_DIR, project)
+    os.makedirs(d, mode=0o700, exist_ok=True)
+    with open(os.path.join(d, ".trava"), "a") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)
+
+
+def _backup_quadro(project, path):
+    """Cópia do quadro.md antes de gravar: nome com microssegundos (dois movimentos no mesmo segundo não se sobrescrevem),
+    modo 600 e rotação das mais antigas."""
+    bdir = os.path.join(BACKUP_DIR, project)
+    os.makedirs(bdir, mode=0o700, exist_ok=True)
+    dest = os.path.join(bdir, f"quadro-{datetime.now():%Y%m%d-%H%M%S-%f}.md")
+    shutil.copy2(path, dest)
+    os.chmod(dest, 0o600)
+    antigos = sorted(f for f in os.listdir(bdir) if f.startswith("quadro-") and f.endswith(".md"))
+    for f in antigos[:-BACKUP_MANTER]:
+        try:
+            os.remove(os.path.join(bdir, f))
+        except OSError:
+            pass
+    return dest
 
 
 def _policy_gate(c, project, vault, confirmo):
@@ -455,7 +536,25 @@ def apply_changes(c, project, changes, confirmo=False, dry_run=False, order=None
     if not vault:
         raise SystemExit(f"quadro: projeto desconhecido: {project}")
     _policy_gate(c, project, vault, confirmo)
-    cur = load_overrides(vault)
+    if dry_run:
+        return _apply(c, project, vault, changes, dry_run, order, propagar_notas, efeitos)
+    with _trava(project):
+        return _apply(c, project, vault, changes, dry_run, order, propagar_notas, efeitos)
+
+
+def _apply(c, project, vault, changes, dry_run, order, propagar_notas, efeitos):
+    path = quadro_path(vault)
+    antes = os.stat(path) if os.path.isfile(path) else None
+    texto_atual = ""
+    if antes:
+        with open(path, encoding="utf-8", errors="ignore") as fh:
+            texto_atual = fh.read()
+    cur = parse_quadro(texto_atual)
+    resto = sobras(texto_atual)
+    novos = {ch["id"] for ch in changes}
+    for k in cur:                                  # id antigo (6 hex) -> id atual (10 hex), sem perder a decisão
+        if k["id"]:
+            k["id"] = id_atual(k["id"], novos)
     by_id = {k["id"]: k for k in cur if k["id"]}
     for ch in changes:
         old = by_id.get(ch["id"])
@@ -483,26 +582,60 @@ def apply_changes(c, project, changes, confirmo=False, dry_run=False, order=None
     for col, ids in (order or {}).items():        # reordenação: os ids dados vêm primeiro, na ordem pedida
         pos = {i: n for n, i in enumerate(ids)}
         cols[col].sort(key=lambda k: (pos.get(k["id"], len(ids)),))
-    text = render(project, cols)
-    path = quadro_path(vault)
+    text = render(project, cols, resto)
     if dry_run:
         if propagar_notas and efeitos is not None:
             ef, av = propagar(c, project, vault, changes, dry_run=True)
             efeitos += ef + ["aviso: " + a for a in av]
         return path, text
-    if os.path.isfile(path):
-        bdir = os.path.join(BACKUP_DIR, project)
-        os.makedirs(bdir, exist_ok=True)
-        shutil.copy2(path, os.path.join(bdir, f"quadro-{datetime.now():%Y%m%d-%H%M%S}.md"))
+    agora = os.stat(path) if os.path.isfile(path) else None
+    if (antes is None) != (agora is None) or (antes and (antes.st_mtime_ns, antes.st_size) != (agora.st_mtime_ns, agora.st_size)):
+        raise SystemExit("quadro: o quadro.md mudou enquanto era lido (outro programa gravou). Nada foi gravado; tente de novo.")
+    if agora:
+        _backup_quadro(project, path)
+    modo = agora.st_mode & 0o777 if agora else 0o644
     fd, tmp = tempfile.mkstemp(dir=vault, prefix=".quadro-", suffix=".tmp")
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(text)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.chmod(tmp, modo)                  # mkstemp cria em 600; o quadro.md mantém o modo que tinha (644 para o resto do vault)
     os.replace(tmp, path)
     if propagar_notas:
         ef, av = propagar(c, project, vault, changes)
         if efeitos is not None:
             efeitos += ef + ["aviso: " + a for a in av]
     return path, text
+
+
+_OPS_QUADRO = {"project": ("name",), "open": ("project", "rel"), "move": ("project", "id", "col"), "plan": ("project", "id"),
+               "prazo": ("project", "id"), "add": ("project", "titulo", "col"), "discard-old": ("project",)}
+
+
+def validar_msg(m):
+    """Valida, num ponto só, a mensagem que a interface manda para o quadro. -> texto do erro, ou None se está certa.
+    Antes, uma mensagem malformada virava KeyError e o usuário só via que nada aconteceu."""
+    if not isinstance(m, dict):
+        return "mensagem inválida da interface (não é um objeto)."
+    op = m.get("op")
+    if op not in _OPS_QUADRO:
+        return f"ação desconhecida da interface: {op!r}."
+    for campo in _OPS_QUADRO[op]:
+        v = m.get(campo)
+        if not isinstance(v, str) or not v.strip():
+            return f"ação {op!r} sem o campo obrigatório {campo!r}."
+    if op in ("move", "add") and m["col"] not in KEYS:
+        return f"coluna desconhecida: {m['col']!r}."
+    if op == "move" and "order" in m and not (isinstance(m["order"], list) and all(isinstance(i, str) for i in m["order"])):
+        return "ordem inválida: esperava uma lista de ids."
+    if op == "discard-old":
+        for campo in ("days", "n"):
+            if campo in m:
+                try:
+                    int(m[campo])
+                except (TypeError, ValueError):
+                    return f"campo {campo!r} não é um número."
+    return None
 
 
 def _card_for_change(cards, cid):

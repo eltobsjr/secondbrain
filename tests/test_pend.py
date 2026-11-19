@@ -96,6 +96,33 @@ class PendTest(unittest.TestCase):
         outro = self._proj(itens, "2026-03-01", ["Tema escuro do painel segue como está."])
         self.assertEqual(outro.classificar("Migrar banco de dados para PostgreSQL 16", "2026-01-01", "devtrack/2026-01-01.md")[0], "superado")
 
+    def test_ruido_respeita_limite_de_palavra(self):
+        self.assertEqual(self.pend.ruido("Nadador novo na equipe"), "", "'nada' dentro de outra palavra não é narrativo")
+        self.assertEqual(self.pend.ruido("Nenhumas dúvidas restantes"), "", "\\b: só a palavra inteira")
+        self.assertEqual(self.pend.ruido("Nenhum commit feito"), "narrativo")
+        for tarefa in ("Ainda não existe teste para o parser", "Não foi testado em Windows o instalador", "Nada a ver: corrigir bug do login"):
+            self.assertEqual(self.pend.ruido(tarefa), "", tarefa)
+
+    def test_ponto_final_nao_muda_o_token(self):
+        self.assertEqual(self.pend.tokens("Corrigir login do portal."), self.pend.tokens("Corrigir login do portal"))
+        self.assertIn("checkout.ts", self.pend.tokens("Ajustar checkout.ts agora"), "o ponto de nome de arquivo fica")
+
+    def test_pergunta_com_infinitivo_continua_tarefa(self):
+        self.assertEqual(self.pend.ruido("Migrar o banco para o PostgreSQL 16?"), "", "infinitivo com ? ainda é tarefa")
+        self.assertEqual(self.pend.ruido("Remover o cache antigo?"), "")
+        self.assertEqual(self.pend.ruido("O cache expira no tempo certo?"), "pergunta")
+        self.assertEqual(self.pend.ruido("Como migrar o banco?"), "pergunta")
+
+    def test_risco_aberto_nunca_vira_superado(self):
+        for t in ("Rotacionar o segredo vazado do serviço de pagamentos", "Liberar o deploy bloqueado pela revisão externa",
+                  "Chave exposta no log do servidor de testes", "Fechar o item pendente do contrato com o parceiro"):
+            pj = self._proj([(t, False, "2026-01-01")], "2026-03-01")
+            estado, evid, _ = pj.classificar(t, "2026-01-01", "devtrack/2026-01-01.md")
+            self.assertEqual(estado, "", t)
+            self.assertIn("risco aberto", evid)
+        comum = "Configurar rotação de logs do servidor"
+        self.assertEqual(self._proj([(comum, False, "2026-01-01")], "2026-03-01").classificar(comum, "2026-01-01", "devtrack/2026-01-01.md")[0], "superado")
+
     def test_item_muito_curto_nao_e_julgado(self):
         pj = self._proj([("Ver isso", False, "2026-01-01")], "2026-06-01")
         self.assertEqual(pj.classificar("Ver isso", "2026-01-01", "devtrack/2026-01-01.md")[0], "")
@@ -119,7 +146,7 @@ class QuadroEConciliacaoTest(unittest.TestCase):
         d1, d2, d3 = dia(60), dia(30), dia(3)
         write(cls.vault + f"/devtrack/{d1} - Primeira.md",
               f"---\ntipo: devtrack\ndata: {d1}\n---\n\n# Primeira\n\n## Status\n\n"
-              "- [ ] Implementar exportação CSV dos relatórios mensais\n- [ ] Configurar rotação de logs do servidor\n"
+              "- [ ] Implementar exportação CSV dos relatórios mensais\n- [ ] Configurar rotação de logs do servidor\n- [ ] Atualizar certificado TLS do ambiente de homologação\n- [ ] Renovar licença do monitoramento de métricas\n"
               "- [ ] Migrar banco de dados para PostgreSQL 16\n- [ ] O cache expira no tempo certo?\n- [ ] Nenhum commit foi feito ainda\n"
               "- [ ] Revisar permissões do bucket de uploads\n- [ ] Corrigir cálculo do frete para pedidos internacionais\n"
               "- [ ] Revisar documentação pagamentos integração parceiros\n- [ ] Ajustar `src/checkout.ts` para o novo fluxo\n"
@@ -129,6 +156,10 @@ class QuadroEConciliacaoTest(unittest.TestCase):
         write(cls.vault + f"/devtrack/{d3} - Terceira.md",
               f"---\ntipo: devtrack\ndata: {d3}\n---\n\n# Terceira\n\n- [x] Implementar exportação CSV dos relatórios\n- [ ] Revisar permissões do bucket de uploads do serviço\n")
         write(cls.vault + "/ESTADO.md", f"---\ntipo: estado\natualizado: {d3}\n---\n\n# Estado\n\nPendente: migrar banco de dados para PostgreSQL 16 em novembro.\n")
+        # a memória do Claude e o CLAUDE.md também são estado vivo: o que eles citam não vira "superado"
+        write(cls.xmem.mem_dir_for(proj) + "/project_notas.md",
+              "---\nname: notas\ntype: project\n---\n\nLembrar de atualizar o certificado TLS do ambiente de homologação antes do deploy.\n")
+        write(proj + "/CLAUDE.md", "# Regras\n\nRenovar a licença do monitoramento de métricas é obrigatório antes de qualquer release.\n")
         write(cls.vault + "/CHECKLIST.md", "# Checklist\n\n- [ ] Reiniciar o serviço: ele volta sozinho?\n")
         # repositório ativo (código) e de referência (antigo)
         cod, ant = proj + "/codigo", proj + "/antigo"
@@ -169,6 +200,8 @@ class QuadroEConciliacaoTest(unittest.TestCase):
         self.assertEqual(k["Implementar exportação CSV dos relatórios mensais"]["status_origem"], "evidencia")
         self.assertEqual(k["Configurar rotação de logs do servidor"]["oculto"], "superado")
         self.assertEqual(k["Migrar banco de dados para PostgreSQL 16"]["oculto"], "", "o ESTADO.md vivo o cita")
+        self.assertEqual(k["Atualizar certificado TLS do ambiente de homologação"]["oculto"], "", "a memória do Claude o cita")
+        self.assertEqual(k["Renovar licença do monitoramento de métricas"]["oculto"], "", "o CLAUDE.md o cita")
         self.assertEqual(k["O cache expira no tempo certo?"]["oculto"], "pergunta")
         self.assertEqual(k["Nenhum commit foi feito ainda"]["oculto"], "narrativo")
         self.assertEqual(k["Revisar permissões do bucket de uploads"]["oculto"], "repetido")

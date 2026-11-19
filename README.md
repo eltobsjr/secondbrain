@@ -40,6 +40,17 @@ E, dentro de qualquer projeto no Claude Code:
 
 O Claude explora o repositório, faz perguntas e gera a estrutura. Em vaults que já existem, nada é refeito: a primeira skill que rodar adapta o vault (veja "Estrutura modular").
 
+### Instalar, atualizar e verificar
+
+As ferramentas ficam em `~/.local/share/secondbrain/bin` e as skills as chamam por esse caminho (cada comando já o traz, porque o shell do Claude não guarda variáveis entre chamadas).
+
+```bash
+bash <pasta-do-plugin>/scripts/install-tools.sh            # instala ou atualiza as ferramentas
+bash <pasta-do-plugin>/scripts/install-tools.sh --check    # só confere: acusa o que falta ou está defasado (sai com 1)
+```
+
+Depois de atualizar o plugin (`/plugin update secondbrain@secondbrain`) rode o instalador de novo e reinicie o Claude Code: skills e hook novos só valem numa sessão nova. O hook avisa quando a sessão carregou uma versão mais antiga que a instalada.
+
 ### Rotina sugerida
 
 ```
@@ -80,7 +91,7 @@ Regra prática: **`/board` é onde a pendência vive; `/priority` é um retrato 
 
 ### Calendário por semana, prazo e janelas
 
-A página Quadro abre no **Calendário**, na última semana que tem registro: o que foi feito numa semana fica nela (a data de conclusão manda, não a de quando o cartão surgiu), os abertos ficam na semana em que surgiram e podem ser arrastados para outra semana para planejá-los. A **Agenda** agrupa por janela de prazo (atrasadas, hoje, esta semana, próxima, mais adiante, sem prazo), com flags: "vence hoje", "chegando" (3 dias) e "atrasado há N dias". **Dentro do prazo nunca é atrasado, e sem prazo nunca atrasa.** Há visão por projeto e visão global, com filtro por semana, situação e projeto. Na linha de comando: `board semana`, `board agenda`, `board plan`, `board prazo` e `board revisao`. O limite por semana (`quadro-capacidade:`, padrão 7) só avisa. Detalhes na seção 8e da arquitetura.
+A página Quadro abre no **Calendário**, na última semana que tem registro: o que foi feito numa semana fica nela (a data de conclusão manda, não a de quando o cartão surgiu), os abertos ficam na semana em que surgiram e podem ser arrastados para outra semana para planejá-los. A **Agenda** agrupa por janela de prazo (atrasadas, hoje, esta semana, próxima, mais adiante, sem prazo), com flags: "vence hoje", "chegando" (3 dias) e "atrasado há N dias". **Dentro do prazo nunca é atrasado, e sem prazo nunca atrasa.** Há visão por projeto e visão global, com filtro por semana, situação e projeto. Na linha de comando: `board semana`, `board agenda`, `board plan`, `board prazo` e `board revisao`. O limite por semana (`quadro-capacidade:`, padrão 7) só avisa. Detalhes na seção 8.3 da arquitetura.
 
 ### Pendência viva, oculta e conciliada
 
@@ -135,7 +146,7 @@ Cada projeto tem a estrutura de vault que precisar. As skills **não assumem nom
 - **`ESTADO.md`:** retrato de uma página, reescrito a cada `/devtrack`, que `/context` lê no lugar do devtrack inteiro.
 - **`INDEX.md`:** mapa do vault (tipo, data e título de cada nota), gerado por `scripts/build_index.py` sem modelo.
 - **Relações entre notas** (frontmatter, opcionais): `substitui`, `contradiz`, `estende`, `implementa`, `referencia`, `relacionado` e `origem` (de qual nota/projeto veio). Uma nota substituída nunca é apagada: só muda de `status` e some da busca por padrão.
-- **Privacidade:** `sensibilidade: alta` marca vault de startup/institucional. `crossmem: completo | titulos | nenhum` define o que **outros projetos** enxergam na busca cruzada (padrão `titulos` para sensibilidade alta). O vault só vai ao git quando o projeto tem equipe, e o `/audit` avisa se uma equipe entrar depois.
+- **Privacidade:** `sensibilidade: alta` marca vault de startup/institucional. `crossmem: completo | titulos | nenhum` define o que **outros projetos** enxergam na busca cruzada (padrão `titulos` para sensibilidade alta). A política falha fechada: valor inválido no manifesto vale como o mais restrito, e fora de um projeto vale a política da nota (`--sem-politica` libera, só na mão). O vault só vai ao git quando o projeto tem equipe, e o `/audit` avisa se uma equipe entrar depois.
 
 Detalhes: [`references/vault-resolve.md`](references/vault-resolve.md) e [`references/manifest-template.md`](references/manifest-template.md).
 
@@ -152,7 +163,7 @@ O grafo ainda tem **linha do tempo**, filtro de **etiquetas**, **busca no corpo 
 <p align="center"><img src="assets/screenshots/leitor.png" alt="Leitor de notas com coluna de contexto" width="49%"> <img src="assets/screenshots/insights.png" alt="Página Insights" width="49%"></p>
 <sub>Capturas feitas sobre um vault fictício (três projetos inventados), nunca sobre dados reais.</sub>
 - **Vault global** `~/GlobalSecondBrain/`: um cartão por projeto (só ponteiros), `padroes/`, `licoes/` e `docs/`.
-- **Qualidade da busca (medida):** em perguntas reais com resposta verificada à mão, a nota certa ficou no top 3 em 6 de 6 consultas que não foram usadas para calibrar (MRR 0,833). A busca é lexical (entende siglas e termos técnicos bem, mas não sinônimos).
+- **Qualidade da busca (medida por você):** `tests/eval_xmem.py` mede `hit@3`, `hit@5` e MRR contra casos seus em `~/.local/share/secondbrain/eval_local.json` (o repositório não traz casos, por ser público). A busca é lexical: entende siglas e termos técnicos bem, mas não sinônimos.
 
 Arquitetura completa, limiares e limites: [`docs/ARQUITETURA-MEMORIA-CRUZADA.md`](docs/ARQUITETURA-MEMORIA-CRUZADA.md). Revisão dos `CLAUDE.md`: [`docs/REVISAO-CLAUDE-MD.md`](docs/REVISAO-CLAUDE-MD.md).
 

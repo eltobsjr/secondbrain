@@ -311,7 +311,7 @@ class InstaladorTest(unittest.TestCase):
         """Regressão: o instalador esquecia o semana.py e a cópia instalada (a que a interface e o hook usam) quebrava no import."""
         import re
         texto = open(os.path.join(SCRIPTS, "install-tools.sh"), encoding="utf-8").read()
-        lista = set(re.search(r"for f in ([^;]+); do", texto).group(1).split())
+        lista = set(re.search(r'^FILES="([^"]+)"', texto, re.M).group(1).split())
         esperados = {f for f in os.listdir(SCRIPTS) if f.endswith((".py", ".sh")) and f != "install-tools.sh"}
         self.assertEqual(esperados - lista, set(), "scripts que faltam no instalador")
 

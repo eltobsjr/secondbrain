@@ -99,8 +99,9 @@ class GuiLogic(unittest.TestCase):
         orig = board.build
         board.build = lambda c, p=None, cur=None: cards
         gravado, avisos = [], []
-        win = SimpleNamespace(c=None, plist=None, board_toast=avisos.append,
+        win = SimpleNamespace(c=None, plist=None, board_toast=lambda msg, erro=False: avisos.append((msg, erro)),
                               board_write=lambda proj, ch, msg, order=None: gravado.append((proj, ch, msg, order)))
+        win._board_msg = lambda m: self.g.Win._board_msg(win, m)
         msg = lambda d: SimpleNamespace(to_string=lambda: json.dumps(d))
         try:
             self.g.Win.on_board_msg(win, None, msg({"op": "move", "project": "p", "id": "ca", "col": "fazendo", "order": ["cb", "ca", "cc"]}))
@@ -116,7 +117,11 @@ class GuiLogic(unittest.TestCase):
             n = len(gravado)
             self.g.Win.on_board_msg(win, None, msg({"op": "add", "project": "p", "titulo": "   ", "col": "a-fazer"}))
             self.assertEqual(len(gravado), n, "título vazio não grava")
-            self.assertTrue(avisos)
+            self.assertTrue(avisos and avisos[-1][1], "o aviso de erro é do tipo que fica na tela")
+            avisos.clear()
+            self.g.Win.on_board_msg(win, None, msg({"op": "move", "project": "p", "id": "ca"}))         # sem 'col': antes era KeyError
+            self.assertEqual(len(gravado), n)
+            self.assertTrue(avisos and avisos[-1][1] and "'col'" in avisos[-1][0])
             self.g.Win.on_board_msg(win, None, msg({"op": "move", "project": "p", "id": "nao-existe", "col": "feito"}))
             self.assertEqual(len(gravado), n, "cartão inexistente não grava")
         finally:

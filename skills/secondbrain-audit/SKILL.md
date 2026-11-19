@@ -78,7 +78,7 @@ ls {caminho-mencionado} 2>/dev/null || echo "não encontrado"
 
 ### Verificação 3 — Tarefas abandonadas
 
-Com o motor, não cruze à mão: `python3 -I "$SB/xmem.py" board summary` já mostra, por projeto, quantos itens estão **ocultos** (ruído, repetido, superado) e `board show --ocultos` lista cada um com o motivo. Sem o motor, cruze os `- [ ]` de todos os devtracks com os `- [x]` dos mais recentes:
+Com o motor, não cruze à mão: `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board summary` já mostra, por projeto, quantos itens estão **ocultos** (ruído, repetido, superado) e `board show --ocultos` lista cada um com o motivo. Sem o motor, cruze os `- [ ]` de todos os devtracks com os `- [x]` dos mais recentes:
 
 - Item aparece como `[ ]` em devtrack antigo **e** como `[x]` em devtrack recente → concluído, OK
 - Item aparece como `[ ]` em devtrack antigo **e** não aparece mais nos recentes → **abandonado**
@@ -209,7 +209,7 @@ Se a raiz não for um repositório, procure `.git` nas subpastas imediatas (mono
 
 ### Verificação 14 — Índice, estado e backup
 
-- `INDEX.md` mais antigo que a nota mais recente do vault → peça para rodar `python3 -I "$SB/build_index.py" {vault}`.
+- `INDEX.md` mais antigo que a nota mais recente do vault → peça para rodar `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/build_index.py" {vault}`.
 - `ESTADO.md` com `origem: rascunho` ou mais antigo que o último devtrack → sugerir `/devtrack` para reescrevê-lo.
 - Vault com `backup: true` sem nenhum backup recente (`~/.local/state/secondbrain/backup.log`) → lembrar do `/backup` (só informe; não rode).
 
@@ -217,7 +217,7 @@ Se a raiz não for um repositório, procure `.git` nas subpastas imediatas (mono
 
 ### Verificação 15 — Integridade de caminhos (script)
 
-Rode `python3 -I "$SB/xmem.py" insights` e veja a seção **Quadro** (cartões órfãos e parados em Fazendo/Bloqueado). Rode também `python3 -I "$SB/check_vault.py" {vault}` (somente leitura). Ele confere: papéis e `extras` do manifesto x pastas reais, `[[links]]` quebrados, frontmatter sem fechamento, caminhos citados no `CLAUDE.md` do projeto que não existem e links/órfãs do `MEMORY.md`. O caso mais grave que ele pega: projeto movido de pasta cujo `CLAUDE.md` ainda manda ler a memória do caminho antigo (a memória nunca é carregada). Para corrigir, aponte o caminho para o diretório de memória atual (`references/vault-resolve.md`, seção 5) — confirme com o usuário se o `CLAUDE.md` for marcado como inviolável. Papel que aponta para arquivo ainda não criado (ex.: `prioridade/atual.md` antes do primeiro `/priority`) é só informativo.
+Rode `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" insights` e veja a seção **Quadro** (cartões órfãos e parados em Fazendo/Bloqueado). Rode também `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/check_vault.py" {vault}` (somente leitura). Ele confere: papéis e `extras` do manifesto x pastas reais, `[[links]]` quebrados, frontmatter sem fechamento, caminhos citados no `CLAUDE.md` do projeto que não existem e links/órfãs do `MEMORY.md`. O caso mais grave que ele pega: projeto movido de pasta cujo `CLAUDE.md` ainda manda ler a memória do caminho antigo (a memória nunca é carregada). Para corrigir, aponte o caminho para o diretório de memória atual (`references/vault-resolve.md`, seção 5) — confirme com o usuário se o `CLAUDE.md` for marcado como inviolável. Papel que aponta para arquivo ainda não criado (ex.: `prioridade/atual.md` antes do primeiro `/priority`) é só informativo.
 
 ---
 
@@ -226,11 +226,11 @@ Rode `python3 -I "$SB/xmem.py" insights` e veja a seção **Quadro** (cartões �
 Com `$SB` definido, rode (somente leitura):
 
 ```bash
-python3 -I "$SB/xmem.py" insights --period 30d
-python3 -I "$SB/xmem.py" dups --min 0.80
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" insights --period 30d
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" dups --min 0.80
 ```
 
-Rode também `python3 -I "$SB/xmem.py" reconcile <projeto> --json` por projeto com repositório e informe: propostas de fechamento com evidência do git (nível A) e **hashes citados nas notas que não existem em nenhum repositório** (nota errada ou repositório que saiu do disco). Repositório com `.git` que o git não reconhece vem em `avisos`.
+Rode também `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" reconcile <projeto> --json` por projeto com repositório e informe: propostas de fechamento com evidência do git (nível A) e **hashes citados nas notas que não existem em nenhum repositório** (nota errada ou repositório que saiu do disco). Repositório com `.git` que o git não reconhece vem em `avisos`.
 
 Informe: itens em aberto parados há mais de 14 dias por projeto, projetos sem devtrack há mais de 30 dias, **contradições declaradas e não resolvidas** (`contradiz:`) e **duplicatas prováveis** (inclusive entre projetos: pode ser cópia que deve virar padrão em `/patterns`). Nunca mescle nem apague por conta própria; proponha.
 

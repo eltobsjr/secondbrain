@@ -17,12 +17,12 @@ disable-model-invocation: true
 
 # SecondBrain — Patterns (padrões entre projetos)
 
-> **Ferramentas:** `$SB` conforme `references/vault-resolve.md`, seção 0. Vault global: `~/GlobalSecondBrain/` (se não existir: `python3 -I "$SB/xmem.py" global-init`).
+> **Ferramentas:** `$SB` conforme `references/vault-resolve.md`, seção 0. Vault global: `~/GlobalSecondBrain/` (se não existir: `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" global-init`).
 
 ## Passo 1 — Levantar candidatos
 
 ```bash
-python3 -I "$SB/xmem.py" patterns --min-projects 2 --min-score 0.30
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" patterns --min-projects 2 --min-score 0.30
 ```
 
 Cada candidato é um grupo de notas ativas de **projetos diferentes** que se parecem (decisões, aprendizados, postmortems, análises, features). Mostre ao usuário os candidatos e deixe-o escolher quais merecem virar padrão. Candidato é só proposta: confirme lendo as notas que o compõem.
@@ -63,5 +63,5 @@ Para cada projeto de origem, ofereça acrescentar `padrao: "~/GlobalSecondBrain/
 ## Passo 5 — Reindexar
 
 ```bash
-python3 -I "$SB/xmem.py" index
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" index
 ```

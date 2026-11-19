@@ -37,14 +37,15 @@ select{height:36px;border-radius:10px;border:1px solid var(--bd);background-colo
 .col.rail .hd{writing-mode:vertical-rl;height:auto;padding:12px 0;background:var(--panel);border-radius:10px;justify-content:flex-end;cursor:pointer;width:44px;flex-direction:row}
 .col.rail .hint,.col.rail .body{display:none}
 .card{background:var(--chip);border:1px solid transparent;border-radius:12px;padding:12px 14px;cursor:grab;display:flex;flex-direction:column;gap:9px}
+.card:focus-visible,.btn:focus-visible,.wk:focus-visible,.proj:focus-visible,.more:focus-visible,#vseg button:focus-visible,#list tr.row:focus-visible,.col .hd:focus-visible,#toast:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 .card:hover{border-color:var(--bd)}
 .card.on{border-color:var(--ac)}
 .card.drag{opacity:.45}
 .card .t{font-size:14px;line-height:1.4;font-weight:500;overflow-wrap:anywhere}
-.card .m{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--mut)}
+.card .m{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--fg)}
 .pr{font-size:12px;font-weight:700;padding:1px 7px;border-radius:6px;background:var(--panel);color:var(--chip-fg)}
-.pr.P0{background:var(--err);color:var(--on-ac)}.pr.P1{background:var(--warn);color:var(--on-ac)}.pr.P2{background:var(--bd);color:var(--fg)}
-.warn{color:var(--warn)}
+.pr.P0{background:var(--err);color:var(--on-ac)}.pr.P1{background:var(--warn-s);color:var(--on-ac)}.pr.P2{background:var(--bd);color:var(--fg)}
+.warn{color:var(--warn-s)}
 .more{border:0;background:transparent;color:var(--ac);font-weight:500;cursor:pointer;padding:6px;text-align:left}
 #overview{flex:1;overflow:auto;padding:20px 28px;display:none;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;align-content:start}
 .proj{background:var(--panel);border-radius:14px;padding:16px 18px;border:1px solid transparent;cursor:pointer;display:flex;flex-direction:column;gap:12px;text-align:left}
@@ -74,7 +75,8 @@ aside h3{margin:0 0 14px;font-size:18px;line-height:1.35;font-weight:700;overflo
 .none{font-size:12px;color:var(--mut);padding:8px 4px}
 .form label{display:block;font-size:12px;font-weight:600;color:var(--mut);margin:14px 0 6px}
 .form input,.form select{width:100%;height:38px;border-radius:10px;border:1px solid var(--bd);background-color:var(--bg);color:var(--fg);padding:0 12px}
-#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:10px 16px;font-size:13px;display:none;z-index:9;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:10px 16px;font-size:13px;display:none;z-index:9;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:min(560px,90vw)}
+#toast.erro{border-color:var(--err);cursor:pointer}#toast.erro::after{content:'  ×  (Esc ou clique para fechar)';color:var(--mut)}
 #empty{padding:40px 28px;color:var(--mut);display:none}
 #weeks{flex:none;display:flex;align-items:center;gap:8px;padding:12px 28px 0;overflow:auto}
 .wk{flex:none;border:1px solid var(--bd);background:var(--panel);border-radius:10px;padding:6px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;min-width:112px;text-align:left}
@@ -85,10 +87,10 @@ aside h3{margin:0 0 14px;font-size:18px;line-height:1.35;font-weight:700;overflo
 #sprint{flex:none;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 28px 0}
 .fl{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:600;background:var(--panel);color:var(--chip-fg);white-space:nowrap}
 .fl.atrasado{background:var(--err);color:var(--on-ac)}
-.fl.hoje{background:var(--warn);color:var(--on-ac)}
-.fl.chegando{background:var(--warn);color:var(--on-ac);opacity:.85}
-.fl.no-prazo{background:var(--ok);color:var(--on-ac)}
-.fl.cheia{background:var(--warn);color:var(--on-ac)}
+.fl.hoje{background:var(--warn-s);color:var(--on-ac)}
+.fl.chegando{background:var(--warn-s);color:var(--on-ac);outline:1px dashed var(--on-ac);outline-offset:-3px}
+.fl.no-prazo{background:var(--ok-s);color:var(--on-ac)}
+.fl.cheia{background:var(--warn-s);color:var(--on-ac)}
 #cal,#agenda{flex:1;min-height:0;display:none;gap:14px;padding:18px 28px;overflow:auto}
 </style><body>
 <div id="app">
@@ -111,17 +113,20 @@ aside h3{margin:0 0 14px;font-size:18px;line-height:1.35;font-weight:700;overflo
 </main>
 <aside id="drawer"></aside>
 </div>
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite" tabindex="-1"></div>
 <script>
 const COLS={{COLS}}, HINT={{HINT}}, COLORS={{COLORS}};
 let DATA={{DATA}};
 const CC={triagem:'var(--mut)','a-fazer':'var(--ac)',fazendo:'var(--warn)',bloqueado:'var(--err)',revisao:'var(--kind)',feito:'var(--ok)',descartado:'var(--mut)'};
-const state={sel:null,q:'',prio:'',tipo:'',tag:'',sit:'',proj:'',sem:null,pj:null,view:'calendario',newForm:false,open:new Set(['triagem','a-fazer','fazendo','bloqueado','revisao']),more:{}};
+const state={draft:{t:'',c:'a-fazer',p:''},sel:null,q:'',prio:'',tipo:'',tag:'',sit:'',proj:'',sem:null,pj:null,view:'calendario',newForm:false,open:new Set(['triagem','a-fazer','fazendo','bloqueado','revisao']),more:{}};
 const $=id=>document.getElementById(id);
-const send=o=>{try{window.webkit.messageHandlers.bd.postMessage(JSON.stringify(o))}catch(e){}};
+const send=o=>{try{window.webkit.messageHandlers.bd.postMessage(JSON.stringify(o))}catch(e){toast('Não consegui enviar a ação para o programa: '+e,true)}};
 const clean=t=>String(t||'').replace(/[`*]/g,'');
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
-function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',3200)}
+function toast(m,erro){const t=$('toast');t.textContent=m;t.style.display='block';t.className=erro?'erro':'';t.setAttribute('role',erro?'alert':'status');clearTimeout(toast.h);
+  if(!erro)toast.h=setTimeout(()=>t.style.display='none',3200)}   // erro fica até ser fechado: some em 3 s e o usuário perde o motivo
+function hideToast(){const t=$('toast');if(t.style.display==='none')return false;t.style.display='none';return true}
+$('toast').onclick=()=>{if($('toast').className==='erro')hideToast()};
 function visible(k){
   if(state.prio&&k.prioridade!==state.prio)return false;
   if(state.tipo&&k.tipo!==state.tipo)return false;
@@ -139,7 +144,25 @@ function ensureWeek(){
   const ws=DATA.semanas||[];
   if(!state.sem||(state.sem!=='backlog'&&!ws.includes(state.sem)))state.sem=DATA.ultima_semana||DATA.semana_hoje;
 }
-function render(){
+function snap(){
+  const sc={};document.querySelectorAll('#cols,#cal,#agenda,#list,#overview,#drawer,.col .body').forEach(e=>{const h=e.parentElement&&e.parentElement.querySelector&&e.classList.contains('body')?e.parentElement.querySelector('.hd b'):null;
+    sc[e.id||('col:'+(h?h.textContent:''))]=[e.scrollTop,e.scrollLeft]});
+  const a=document.activeElement;let foc=null;
+  if(a&&a!==document.body)foc={id:a.id||'',card:a.dataset&&a.dataset.id||'',hd:a.dataset&&a.dataset.hd||'',draw:!!a.closest('#drawer'),tag:a.tagName,i:a.closest('#drawer')?[...document.querySelectorAll('#drawer input,#drawer select,#drawer button')].indexOf(a):-1};
+  return {sc,foc};
+}
+function restore(s){
+  document.querySelectorAll('#cols,#cal,#agenda,#list,#overview,#drawer,.col .body').forEach(e=>{const h=e.classList.contains('body')&&e.parentElement.querySelector('.hd b');
+    const v=s.sc[e.id||('col:'+(h?h.textContent:''))];if(v){e.scrollTop=v[0];e.scrollLeft=v[1]}});
+  const f=s.foc;if(!f)return;let t=null;
+  if(f.id)t=document.getElementById(f.id);
+  else if(f.card)t=document.querySelector('[data-id="'+f.card+'"]');
+  else if(f.hd)t=document.querySelector('[data-hd="'+f.hd+'"]');
+  else if(f.draw&&f.i>=0)t=[...document.querySelectorAll('#drawer input,#drawer select,#drawer button')][f.i];
+  if(t&&t!==document.activeElement)t.focus({preventScroll:true});
+}
+function render(){const s=snap();render0();restore(s)}
+function render0(){
   const cards=DATA.cartoes||[];
   const single=DATA.project;
   const allowed=single?VIEWS_SINGLE:VIEWS_GLOBAL;
@@ -273,7 +296,8 @@ function renderQuadro(vis,cards){
     const all=cards.filter(k=>k.status===key).length;
     const col=el('section','col'+(state.open.has(key)?'':' rail'));col.dataset.col=key;
     const hd=el('div','hd');const sw=el('i');sw.style.background=CC[key];hd.append(sw,el('b',null,label),el('span',null,String(all)));
-    hd.onclick=()=>{if(!state.open.has(key)){state.open.add(key)}else if(key==='feito'||key==='descartado'){state.open.delete(key)}render()};
+    const alt=()=>{if(!state.open.has(key)){state.open.add(key)}else if(key==='feito'||key==='descartado'){state.open.delete(key)}render()};
+    hd.onclick=alt;hd.tabIndex=0;hd.setAttribute('role','button');hd.dataset.hd=key;hd.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();alt()}});
     col.append(hd,el('div','hint',HINT[key]||''));
     const body=el('div','body');
     const cap=state.more[key]||40;
@@ -294,8 +318,9 @@ function renderQuadro(vis,cards){
     root.appendChild(col);
   }
 }
+function openCard(id,focus){state.sel=id;state.newForm=false;$('app').classList.add('sel');render();if(focus){const s=document.querySelector('#drawer select');if(s)s.focus()}}
 function cardEl(k){
-  const c=el('div','card'+(k.id===state.sel?' on':''));c.draggable=true;c.dataset.id=k.id;
+  const c=el('div','card'+(k.id===state.sel?' on':''));c.draggable=true;c.dataset.id=k.id;c.tabIndex=0;c.setAttribute('role','button');c.setAttribute('aria-label',clean(k.titulo)+'. Enter abre o detalhe, onde dá para mover.');
   c.append(el('div','t',clean(k.titulo)));
   const m=el('div','m');
   if(!DATA.project)m.append(el('span',null,k.projeto));
@@ -309,7 +334,8 @@ function cardEl(k){
   if(k.bloqueado_por&&k.bloqueado_por.length)m.append(el('span','warn','bloqueado: '+k.bloqueado_por[0]));
   (k.etiquetas||[]).slice(0,2).forEach(t=>m.append(el('span',null,'#'+t)));
   c.append(m);
-  c.onclick=()=>{state.sel=k.id;state.newForm=false;$('app').classList.add('sel');render()};
+  c.onclick=()=>openCard(k.id);
+  c.addEventListener('keydown',ev=>{if(ev.target!==c)return;if(ev.key==='Enter'||ev.key===' '||ev.key==='m'){ev.preventDefault();openCard(k.id,true)}});
   c.addEventListener('dragstart',ev=>{ev.dataTransfer.setData('text/plain',k.id);ev.dataTransfer.effectAllowed='move';c.classList.add('drag')});
   c.addEventListener('dragend',()=>c.classList.remove('drag'));
   return c;
@@ -320,7 +346,7 @@ function renderList(vis){
   const t=el('table');const hd=el('tr');for(const h of ['Prio','Cartão','Status','Parado há'])hd.append(el('th',null,h));t.append(hd);
   for(const k of vis.filter(x=>state.q||state.prio||state.tag||state.tipo||(x.status!=='feito'&&x.status!=='descartado'))){
     const r=el('tr','row');r.append(el('td',null,k.prioridade||'—'),el('td',null,clean(k.titulo)),el('td',null,COLS.find(c=>c[0]===k.status)[1]),el('td',null,k.parado?k.idade_dias+' d':''));
-    r.onclick=()=>{state.sel=k.id;state.newForm=false;$('app').classList.add('sel');render()};t.append(r)}
+    r.tabIndex=0;r.dataset.id=k.id;r.onclick=()=>openCard(k.id);r.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCard(k.id,true)}});t.append(r)}
   root.append(t);
 }
 function showNew(){state.newForm=true;state.sel=null;$('app').classList.add('sel');renderDrawer()}
@@ -332,9 +358,10 @@ function renderDrawer(){
     const sc=el('select');for(const [key,label] of COLS){if(key==='descartado')continue;const o=el('option',null,label);o.value=key;if(key==='a-fazer')o.selected=true;sc.append(o)}
     const sp=el('select');for(const p of ['','P0','P1','P2','P3']){const o=el('option',null,p||'sem prioridade');o.value=p;sp.append(o)}
     const lab=(t,x)=>{f.append(el('label',null,t),x)};lab('Título',ti);lab('Coluna',sc);lab('Prioridade',sp);d.append(f);
-    const go=()=>{const t=ti.value.trim();if(!t){ti.focus();return}send({op:'add',project:DATA.project,titulo:t,col:sc.value,prioridade:sp.value||null});state.newForm=false;state.sel=null;$('app').classList.remove('sel')};
+    ti.value=state.draft.t;sc.value=state.draft.c;sp.value=state.draft.p;ti.oninput=sc.onchange=sp.onchange=()=>{state.draft={t:ti.value,c:sc.value,p:sp.value}};
+    const go=()=>{const t=ti.value.trim();if(!t){ti.focus();return}send({op:'add',project:DATA.project,titulo:t,col:sc.value,prioridade:sp.value||null});state.draft={t:'',c:'a-fazer',p:''};state.newForm=false;state.sel=null;$('app').classList.remove('sel')};
     ti.onkeydown=e=>{if(e.key==='Enter')go()};
-    const acts=el('div','acts');const ok=el('button','btn pri','Criar');ok.onclick=go;const no=el('button','btn','Cancelar');no.onclick=()=>{state.newForm=false;$('app').classList.remove('sel');d.innerHTML=''};acts.append(ok,no);d.append(acts);
+    const acts=el('div','acts');const ok=el('button','btn pri','Criar');ok.onclick=go;const no=el('button','btn','Cancelar');no.onclick=()=>{state.draft={t:'',c:'a-fazer',p:''};state.newForm=false;$('app').classList.remove('sel');d.innerHTML=''};acts.append(ok,no);d.append(acts);
     setTimeout(()=>ti.focus(),30);return}
   const k=(DATA.cartoes||[]).find(x=>x.id===state.sel);
   if(!k){$('app').classList.remove('sel');return}
@@ -401,7 +428,10 @@ window.sbToast=toast;
 window.sbSetDark=on=>document.body.classList.toggle('dark',!!on);
 window.addEventListener('keydown',ev=>{
   const typing=/^(INPUT|SELECT|TEXTAREA)$/.test((ev.target||{}).tagName||'');
-  if(ev.key==='Escape'){state.sel=null;state.newForm=false;$('app').classList.remove('sel');render();return}
+  if(ev.key==='Escape'){
+    if(hideToast())return;                                  // 1º Esc fecha o aviso de erro
+    if(typing){ev.target.blur();return}                     // dentro de um campo, Esc só sai dele: não descarta o que foi digitado
+    state.sel=null;state.newForm=false;$('app').classList.remove('sel');render();return}
   if(typing||ev.ctrlKey||ev.metaKey||ev.altKey)return;
   if(ev.key==='n'&&DATA.project){ev.preventDefault();showNew()}
   else if(ev.key==='/'){ev.preventDefault();$('f').focus()}

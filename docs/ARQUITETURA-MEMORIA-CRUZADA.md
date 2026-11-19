@@ -1,8 +1,8 @@
 ---
 tipo: arquitetura
 status: ativo
-data: 2026-11-16
-versao: 0.7.0
+data: 2026-11-19
+versao: 0.8.0
 ---
 
 # Arquitetura da memória cruzada do SecondBrain
@@ -60,14 +60,11 @@ Ferramentas em `~/.local/share/secondbrain/bin` (variável `$SB`), copiadas por 
 3. **Fusão RRF** (k=60; pesos 0,6 semântico / 0,4 palavra; pequeno bônus pelo cosseno) — mesmo desenho do Memora (`hybrid_search_scored`).
 4. **Ajustes meus, medidos:** cobertura ponderada pela raridade dos termos; siglas e identificadores (`RLS`, `parseDate`, `--verbose`) pesam 1,6×; bônus de tipo (padrão, decisão, memória) proporcional à relevância; só o que está ativo.
 
-### Qualidade medida (`tests/eval_xmem.py`, consultas reais com resposta verificada à mão)
+### Qualidade medida (`tests/eval_xmem.py`)
 
-| Conjunto | top 3 | MRR |
-|---|---|---|
-| Ajuste (8 perguntas usadas para calibrar) | 8/8 | 1,000 |
-| **Reservado (6 perguntas que não influenciaram o ajuste)** | **6/6** | **0,833** |
+O repositório é público e não guarda nenhum caso de avaliação: os casos citariam assuntos dos projetos do dono. Eles vivem em `~/.local/share/secondbrain/eval_local.json` (formato em `tests/eval_local.example.json`), que o script carrega sozinho, e o resultado sai no terminal: `hit@3`, `hit@5` e MRR. Rode `eval_xmem.py --save` para fixar uma linha de base; as execuções seguintes mostram a diferença. `--auto` gera consultas de item conhecido a partir do índice real (mede regressão de ranking, não a qualidade "humana").
 
-O número de referência é o do conjunto reservado. Antes dos ajustes, o conjunto de ajuste dava MRR 0,729.
+Método: os ajustes da seção anterior foram calibrados em um conjunto e conferidos em outro que não influenciou o ajuste; o número que vale é o do conjunto reservado. Por isso este documento não cita um MRR: ele envelhece a cada caso novo e dependia de dados pessoais. Meça no seu próprio vault.
 
 ### Limite honesto
 
@@ -96,7 +93,12 @@ Medido: uma **paráfrase** de decisão existente deu 0,67 (cai em "candidata"); 
 
 ## 7. Privacidade
 
-`crossmem` por vault: `completo` | `titulos` | `nenhum`. Sem a chave, `sensibilidade: alta` → `titulos`. A restrição vale **só quando há outro projeto em foco** (o diretório atual está dentro de outro projeto). Interface e busca solta veem tudo, porque não há projeto de destino para vazar. O motivo: o risco é o Claude copiar texto de um projeto para arquivo público ou versionado de outro.
+`crossmem` por vault: `completo` | `titulos` | `nenhum`. Sem a chave, `sensibilidade: alta` → `titulos`. A restrição vale para qualquer projeto que não seja o dono da nota. O motivo: o risco é o Claude copiar texto de um projeto para arquivo público ou versionado de outro.
+
+**A política falha fechada** (corrigido na 0.8.x):
+- `sensibilidade` e `crossmem` são lidos sem aspas, sem comentário e sem diferença de caixa (`"nenhum"`, `NENHUM`, `Alta  # nota` valem como `nenhum` e `alta`). Valor desconhecido vira o mais restrito (`sensibilidade` → `alta`, `crossmem` → `nenhum`) e o `check_vault` acusa "manifesto com valor inválido".
+- Mudar o manifesto vale sem reindexar: `sync_policies` reaplica a política viva a cada índice, e `nenhum` tira o vault do índice.
+- **Sem projeto detectado não é licença para tudo.** Fora de um projeto vale a política gravada na nota; só `--sem-politica` (uso do dono, na mão; a interface passa por aqui) libera. O `absorb-check` respeita a política, e `board show` mascara o título das tarefas de vault restrito. Um teste de canário roda 14 comandos contra um vault restrito e exige que nenhum devolva o texto.
 
 Segredos: os 10 padrões do Memora mais `sk-…` são checados no `absorb-check` e no `/audit`. Nada é gravado na rede em nenhum componente.
 
@@ -115,23 +117,23 @@ O mapa é **calculado em Python e cacheado**, não simulado no navegador — por
 
 A física de 16 ms/tick que existia antes (≈ 11 s para assentar e nós ainda se mexendo) foi removida: o navegador só desenha, então pan e zoom rodam a 60 fps mesmo com ~900 notas.
 
-## 8b. Quadro kanban (decisão 009, `scripts/board.py`)
+## 8.1 Quadro kanban (decisão 009, `scripts/board.py`)
 
 Cartões **derivados** das caixas `- [ ]` (um por projeto + texto normalizado, vale a ocorrência mais recente) e decisões em `{vault}/quadro.md`, criado só quando alguém mexe, no formato do Obsidian Kanban (`## Coluna`, `- [ ] texto #P1 #etiqueta ^id`, campos `chave:: valor`).
 
 | Coluna inicial | Regra |
 |---|---|
-| Triagem | aberto há mais de 60 dias (só os que passam pelas regras da 8d) |
+| Triagem | aberto há mais de 60 dias (só os que passam pelas regras da seção 8.2) |
 | A fazer | aberto recente |
-| Feito | `[x]` na ocorrência mais recente; mover o cartão grava a caixa na nota de origem (8f) |
+| Feito | `[x]` na ocorrência mais recente; mover o cartão grava a caixa na nota de origem, ver Propagação abaixo) |
 
 Colunas: `triagem, a-fazer, fazendo, bloqueado, revisao, feito, descartado`. Campos do cartão (`board show --json`, `schema` 1): `id, titulo, status, prioridade, tipo, projeto, origem{nota,linha,data}, criado, atualizado, idade_dias, parado, bloqueado_por, relacionadas, etiquetas, modo, responsavel, prazo, orfao, status_origem, ordem`.
 
-**Propagação (8f):** o quadro deixou de ser um ponto isolado. Mover para Feito grava `[x]` na caixa de origem, Descartado grava `[-]` (o índice trata como fechado), e sair de Feito reabre `[ ]`. A linha é conferida pelo texto (se a nota mudou, acha pelo texto; se sumiu, não toca em nada e avisa), com backup da nota fora do vault. `ESTADO.md` e prioridade que citam o item (70% das palavras) ganham `revisar:` no frontmatter, que o hook de sessão mostra à IA até o próximo `/devtrack` reescrever; o índice é refeito na hora. `plan`, `prazo` e `revisao` mexem só em prazo e semana e não propagam.
+**Propagação:** o quadro deixou de ser um ponto isolado. Mover para Feito grava `[x]` na caixa de origem, Descartado grava `[-]` (o índice trata como fechado), e sair de Feito reabre `[ ]`. A linha é conferida pelo texto (se a nota mudou, acha pelo texto; se sumiu, não toca em nada e avisa), com backup da nota fora do vault. `ESTADO.md` e prioridade que citam o item (70% das palavras) ganham `revisar:` no frontmatter, que o hook de sessão mostra à IA até o próximo `/devtrack` reescrever; o índice é refeito na hora. `plan`, `prazo` e `revisao` mexem só em prazo e semana e não propagam.
 
 Segurança: backup do `quadro.md` anterior fora do vault; escrita atômica; vault sensível ou versionado exige `--confirmo`; `quadro: false` no manifesto desliga; descarte em lote exige `--sim`; descartar é mover para `Descartado` (a nota de origem nunca é alterada); privacidade de leitura igual à do hook. Ordem manual dentro da coluna vem da ordem do `quadro.md`. Comandos: `board show|summary|proposals|move|add|discard`.
 
-## 8d. Pendências vivas, ocultas e conciliadas (decisão 011, `scripts/pend.py` e `scripts/reconcile.py`)
+## 8.2 Pendências vivas, ocultas e conciliadas (decisão 011, `scripts/pend.py` e `scripts/reconcile.py`)
 
 Devtrack é retrato de fim de sessão: toda caixa `- [ ]` fica aberta para sempre, a menos que uma sessão posterior a reescreva. Em projetos reais, **a grande maioria dos itens abertos nunca reaparece** numa sessão seguinte. A causa é o processo, e por isso o histórico não é reescrito.
 
@@ -151,11 +153,11 @@ Devtrack é retrato de fim de sessão: toda caixa `- [ ]` fica aberta para sempr
 
 **Limite medido num projeto real:** o texto do commit e o arquivo citado confirmam só uma pequena parte do que foi feito. Commit não é o mecanismo principal; é evidência para você decidir. O guarda do estado vivo existe porque 28 superados de 20 a 27/10 ainda estavam vivos em prosa no `prioridade/atual.md`.
 
-## 8e. Semana, prazo e janelas (decisão 012, `scripts/semana.py`)
+## 8.3 Semana, prazo e janelas (decisão 012, `scripts/semana.py`)
 
 Funções puras com `hoje` injetável. Semana ISO; `surgiu` só de devtrack (documento vivo carrega a data da migração e vai para o backlog); `semana` explícita ou `surgiu`; `prazo`; `feito-em` (carimbado ao concluir; a conciliação grava a data do commit; fechamento de limpeza, etiqueta `limpeza-*`, fica fora do calendário). Flags por cartão aberto: `sem-prazo`, `no-prazo`, `chegando` (até `quadro-alerta` dias, padrão 3), `hoje`, `atrasado`; sem prazo nunca atrasa. `anotar()` no `build` acrescenta `semana_ef`, `planejado`, `backlog`, `feito_semana`, `flag`, `flag_texto`, `janela`. A revisão semanal propõe por critério (prazo futuro, em andamento, bloqueado, prazo vencido, sem prazo) e só os dois primeiros são mecânicos. Capacidade por semana (`quadro-capacidade`, padrão 7) é aviso, nunca bloqueio, e conta só o que foi planejado explicitamente. Interface: Calendário (abre na última semana com registro), Agenda, Quadro e Lista; visão global com filtro de projeto. `insights --json` traz `prazos`.
 
-## 8c. Grafo, foco e Insights
+## 8.4 Grafo, foco e Insights
 
 - **Foco em projeto:** clique no casco ou no nome do projeto aproxima e isola as notas dele (inclui as sem relação); `Esc` ou "← Todos os projetos" restaura câmera e filtros.
 - **Clusters** (`xmem.graph_clusters`): componentes de notas de conhecimento do mesmo projeto ligadas por link ou semelhança ≥ 0,30, com ≥ 4 notas; rótulo = termo mais frequente nos títulos. Aparecem com zoom ≥ 1 ou em foco.

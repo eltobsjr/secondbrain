@@ -31,8 +31,8 @@ Copia todos os vaults, o `CLAUDE.md` dos projetos e a memória do Claude Code (`
 ## Passo 1 — Localizar o script
 
 ```bash
-BK="$HOME/.local/share/secondbrain/backup.sh"
-[ -x "$BK" ] || BK="$(find ~/.claude/plugins -name backup.sh -path "*secondbrain*" 2>/dev/null | head -1)"
+BK="${SB:-$HOME/.local/share/secondbrain/bin}/backup.sh"       # é onde o install-tools.sh o grava
+[ -x "$BK" ] || BK="$(find ~/.claude/plugins -name backup.sh -path "*secondbrain*" 2>/dev/null | sort | tail -1)"
 ```
 
 ## Passo 2 — Executar conforme o pedido

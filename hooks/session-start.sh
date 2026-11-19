@@ -26,9 +26,17 @@ fi
 estado=$(grep -E '^[[:space:]]+estado:' "$manifest" | head -1 | sed -E 's/^[^:]+:[[:space:]]*//; s/[[:space:]]*#.*//')
 devdir=$(grep -E '^[[:space:]]+devtrack:' "$manifest" | head -1 | sed -E 's/^[^:]+:[[:space:]]*//; s/[[:space:]]*#.*//')
 estado="${estado:-ESTADO.md}"; devdir="${devdir:-devtrack/}"
+# o caminho vem do manifesto: só vale se continuar dentro do vault (sem `..`, sem caminho absoluto, sem link para fora)
+dentro() { r=$(realpath -m -- "$vault/$1" 2>/dev/null) && case "$r" in "$(realpath -- "$vault")"/*) return 0 ;; esac; return 1; }
+dentro "$estado" || estado="ESTADO.md"
+dentro "$devdir" || devdir="devtrack/"
 echo "SecondBrain ($(basename "$vault")): contexto do projeto."
-if [ -f "$vault/$estado" ]; then
-  echo "--- $estado (primeiras linhas) ---"; head -n 25 "$vault/$estado"
+if [ -f "$vault/$estado" ] && dentro "$estado"; then
+  if head -n 12 "$vault/$estado" | grep -qiE '^origem:[[:space:]]*"?rascunho'; then
+    echo "⚠ $estado é um rascunho gerado na migração, não um retrato verificado. Confirme o estado com o usuário e rode /devtrack para reescrevê-lo."
+  else
+    echo "--- $estado (primeiras linhas) ---"; head -n 25 "$vault/$estado"
+  fi
 else
   last=$(ls "$vault/$devdir" 2>/dev/null | sort | tail -1)
   [ -n "$last" ] && echo "Último devtrack: $devdir$last (leia para retomar)."

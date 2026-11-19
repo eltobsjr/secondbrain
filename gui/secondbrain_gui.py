@@ -134,7 +134,8 @@ def graph_theme():
     def vars_(t):
         return (f"--bg:{t['base']};--fg:{t['text']};--mut:{t['sub0']};--card:{t['mantle']}f2;--bd:{t['s0']};"
                 f"--ac:{t['blue']};--halo:{t['base']};--panel:{t['mantle']};--chip:{t['s0']};--chip-fg:{t['sub1']};"
-                f"--warn:{t['peach']};--ok:{t['green']};--kind:{t['mauve']};--err:{t['red']};--on-ac:{t['on_accent']}")
+                f"--warn:{t['peach']};--ok:{t['green']};--kind:{t['mauve']};--err:{t['red']};--on-ac:{t['on_accent']};"
+                f"--warn-s:{t['warn_s']};--ok-s:{t['ok_s']}")
     return f":root{{{vars_(theme.LIGHT)};color-scheme:light}}\nbody.dark{{{vars_(theme.DARK)};color-scheme:dark}}"
 
 
@@ -1244,8 +1245,9 @@ class Win(Adw.ApplicationWindow):
         except Exception:  # noqa: BLE001
             pass
 
-    def board_toast(self, msg):
-        self.js(self.board_page, f"window.sbToast&&window.sbToast({json.dumps(msg)});")
+    def board_toast(self, msg, erro=False):
+        """`erro=True`: o aviso fica na tela até o usuário fechar (Esc ou clique); o comum some em 3 s."""
+        self.js(self.board_page, f"window.sbToast&&window.sbToast({json.dumps(msg)},{'true' if erro else 'false'});")
 
     def ask(self, heading, body, ok_label, callback):
         d = Adw.AlertDialog(heading=heading, body=body)
@@ -1269,7 +1271,7 @@ class Win(Adw.ApplicationWindow):
                              "Este vault é sensível ou versionado. O arquivo quadro.md será criado ou alterado nele; o anterior ganha backup fora do vault.",
                              "Gravar", lambda: attempt(True))
                 else:
-                    self.board_toast(msg)
+                    self.board_toast(msg, erro=True)
                 return
             self.refresh_board()
             self.refresh_graph()
@@ -1280,7 +1282,20 @@ class Win(Adw.ApplicationWindow):
         try:
             m = json.loads(value.to_string())
         except (ValueError, AttributeError):
+            self.board_toast("Mensagem ilegível da interface; atualize o quadro.", erro=True)
             return
+        erro = board.validar_msg(m)
+        if erro:
+            self.board_toast(erro, erro=True)
+            return
+        try:
+            self._board_msg(m)
+        except SystemExit as e:                  # o motor do quadro recusa com SystemExit (política, projeto desconhecido, arquivo mudou)
+            self.board_toast(str(e), erro=True)
+        except Exception as e:  # noqa: BLE001  nada pode falhar em silêncio
+            self.board_toast(f"Não consegui concluir a ação: {e}", erro=True)
+
+    def _board_msg(self, m):
         op, proj = m.get("op"), m.get("project")
         if op == "project":
             for i in range(1, 400):
@@ -1327,7 +1342,7 @@ class Win(Adw.ApplicationWindow):
                     campos = {"prazo": sm.resolver_data(m["prazo"], date.today()).isoformat() if m.get("prazo") else ""}
                     msg = f"Prazo definido: {campos['prazo']}." if campos["prazo"] else "Prazo removido."
             except ValueError as e:
-                self.board_toast(str(e))
+                self.board_toast(str(e), erro=True)
                 return
             self.board_write(proj, [board.change_from_card(card, col, None, None, campos)], msg)
         elif op == "add":

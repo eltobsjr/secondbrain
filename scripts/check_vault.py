@@ -125,6 +125,27 @@ def memory_issues(project):
     return out
 
 
+RASCUNHO_MAX_DIAS = 7
+
+
+def estado_rascunho_antigo(vault, hoje=None):
+    """Dias de idade do ESTADO.md quando ele ainda é rascunho de migração e passou de RASCUNHO_MAX_DIAS; senão None."""
+    from datetime import date
+    est = os.path.join(vault, "ESTADO.md")
+    if not os.path.isfile(est):
+        return None
+    try:
+        import xmem
+        fm = xmem.parse_note(open(est, encoding="utf-8").read())[0]
+        if not xmem.estado_rascunho(fm):
+            return None
+        d = date.fromisoformat(str(fm.get("atualizado") or "")[:10])
+    except (ImportError, OSError, ValueError):
+        return None
+    idade = ((hoje or date.today()) - d).days
+    return idade if idade > RASCUNHO_MAX_DIAS else None
+
+
 def check(vault):
     vault = vault.rstrip("/")
     project = os.path.dirname(vault)
@@ -145,6 +166,7 @@ def check(vault):
         for path, _ in extras:
             if not os.path.exists(os.path.join(vault, path)):
                 res["extras_ausentes"].append(path)
+    res["estado_rascunho_antigo"] = estado_rascunho_antigo(vault)
     res["links_quebrados"] = broken_links(vault)
     res["frontmatter_quebrado"] = bad_frontmatter(vault)
     claudes = []
@@ -172,15 +194,19 @@ def main():
     r = check(args[0])
     if "--json" in sys.argv:
         print(json.dumps(r, ensure_ascii=False, indent=1))
-        return
+        sys.exit(1 if r["estado_rascunho_antigo"] is not None else 0)
     print(f"== {r['vault']}")
     print(f"  manifesto: {'ok' if r['manifesto'] else 'AUSENTE'}; papéis ausentes: {r['papeis_ausentes'] or 'nenhum'}; extras ausentes: {r['extras_ausentes'] or 'nenhum'}")
     if r["manifesto_invalido"]:
         print(f"  ⚠ manifesto com valor inválido (tratado como o mais restrito): {', '.join(r['manifesto_invalido'])}")
+    if r["estado_rascunho_antigo"] is not None:
+        print(f"  ✗ ESTADO.md é rascunho de migração há {r['estado_rascunho_antigo']} dias (limite {RASCUNHO_MAX_DIAS}): rode /devtrack para reescrevê-lo")
     print(f"  links quebrados: {len(r['links_quebrados'])}; frontmatter quebrado: {len(r['frontmatter_quebrado'])}")
     print(f"  CLAUDE.md: {r['claude_md'] or 'nenhum'}; caminhos inexistentes citados: {len(r['claude_md_caminhos_ausentes'])}")
     m = r["memoria"]
     print(f"  memória: {m if m.get('sem_memoria') or m.get('sem_indice') else str(m['linhas']) + ' linhas, ' + str(m['bytes']) + ' B, links quebrados ' + str(len(m['links_quebrados'])) + ', órfãs ' + str(len(m['orfas']))}")
+    if r["estado_rascunho_antigo"] is not None:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

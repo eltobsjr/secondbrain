@@ -17,6 +17,7 @@ import math
 import os
 import re
 import sqlite3
+import subprocess
 import sys
 import time
 import unicodedata
@@ -211,8 +212,30 @@ def chunk_body(title, body):
 
 
 # ---------------------------------------------------------------- banco
-def connect(create=True):
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+def _so_dono(path, modo):
+    try:
+        os.chmod(path, modo)
+    except OSError:
+        pass
+
+
+def connect(create=True, readonly=False):
+    """`readonly=True` (hook de sessão): abre o banco só para leitura, sem criar, migrar nem sincronizar política, e espera
+    no máximo 0,3 s por um index em andamento. Devolve None se o banco não existe ou é de outro esquema."""
+    if readonly:
+        try:
+            c = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True, timeout=0.3, isolation_level=None)
+            c.row_factory = sqlite3.Row
+            c.execute("pragma busy_timeout=300")
+            row = c.execute("select v from meta where k='schema'").fetchone()
+            if not row or int(row[0]) != SCHEMA_VERSION:
+                c.close()
+                return None
+            return c
+        except sqlite3.Error:
+            return None
+    os.makedirs(os.path.dirname(DB_PATH), mode=0o700, exist_ok=True)
+    _so_dono(os.path.dirname(DB_PATH), 0o700)          # o índice guarda o texto de todos os vaults: só o dono entra
     c = sqlite3.connect(DB_PATH, timeout=20, isolation_level=None)  # autocommit; transações explícitas só no index()
     c.row_factory = sqlite3.Row
     c.execute("pragma journal_mode=wal")
@@ -234,10 +257,18 @@ def connect(create=True):
     row = c.execute("select v from meta where k='schema'").fetchone()
     if row and int(row[0]) != SCHEMA_VERSION:
         c.close()
-        os.remove(DB_PATH)  # índice é derivado: reconstruir é seguro
+        os.replace(DB_PATH, DB_PATH + ".bak")  # índice é derivado, mas o banco antigo fica de reserva em vez de ser apagado
+        for suf in ("-wal", "-shm"):
+            try:
+                os.remove(DB_PATH + suf)
+            except OSError:
+                pass
         return connect(create)
     c.execute("insert or replace into meta values('schema',?)", (str(SCHEMA_VERSION),))
     sync_policies(c)
+    for suf in ("", ".bak", "-wal", "-shm"):
+        if os.path.exists(DB_PATH + suf):
+            _so_dono(DB_PATH + suf, 0o600)
     return c
 
 
@@ -290,12 +321,42 @@ def kind_for(rel, papeis):
     return "nota"
 
 
+def _fora_de(path, base):
+    """True se `path` é (ou passa por) link simbólico que resolve para fora de `base`, ou se não resolve (link quebrado)."""
+    if not os.path.islink(path) and os.path.realpath(path) == os.path.abspath(path):
+        return False
+    real = os.path.realpath(path)
+    b = os.path.realpath(base)
+    return not (os.path.exists(real) and (real == b or real.startswith(b + os.sep)))
+
+
+COLISOES = []      # (vault, nome) de vaults cujo nome de pasta colidiu com outro e foram renomeados no índice
+
+
+def nome_do_projeto(v, usados):
+    """Nome do projeto = pasta ao lado do vault. Dois vaults com a mesma pasta-mãe não podem virar um projeto só: o segundo
+    (por ordem de caminho) recebe `nome@pasta-avó` e entra em COLISOES, que o `status` e o `index` mostram."""
+    base = os.path.basename(os.path.dirname(v))
+    dono = usados.setdefault(base, v)
+    if dono == v:
+        return base
+    nome = f"{base}@{os.path.basename(os.path.dirname(os.path.dirname(v))) or 'raiz'}"
+    n = 2
+    while usados.setdefault(nome, v) != v:
+        nome = f"{base}@{n}"
+        n += 1
+    COLISOES.append((v, nome))
+    return nome
+
+
 def collect_sources():
     """Retorna lista de dicts {path, project, vault, rel, kind, sens, policy} para indexar."""
     srcs = []
-    for v in find_vaults():
+    usados = {}
+    COLISOES.clear()
+    for v in sorted(find_vaults()):
         ms = manifest_scalars(v)
-        proj = "global" if ms["global"] else os.path.basename(os.path.dirname(v))
+        proj = "global" if ms["global"] else nome_do_projeto(v, usados)
         if ms["crossmem"] == "nenhum":
             continue
         pol = crossmem_policy(ms["sens"], ms["crossmem"])
@@ -309,7 +370,10 @@ def collect_sources():
                 if not f.endswith(".md") or f in ("INDEX.md", "_secondbrain.md", "README.md"):
                     continue
                 p = os.path.join(root, f)
-                if os.path.getsize(p) > 600_000:
+                try:
+                    if _fora_de(p, v) or os.path.getsize(p) > 600_000:    # link quebrado ou que sai do vault: ignora, não derruba o índice
+                        continue
+                except OSError:
                     continue
                 rel = os.path.relpath(p, v)
                 srcs.append({"path": p, "project": proj, "vault": v, "rel": rel, "kind": kind_for(rel, papeis),
@@ -318,7 +382,7 @@ def collect_sources():
         md = mem_dir_for(os.path.dirname(v))
         if os.path.isdir(md) and not ms["global"]:
             for f in sorted(os.listdir(md)):
-                if f.endswith(".md") and f != "MEMORY.md":
+                if f.endswith(".md") and f != "MEMORY.md" and not _fora_de(os.path.join(md, f), md):
                     srcs.append({"path": os.path.join(md, f), "project": proj, "vault": v, "rel": f"memory/{f}",
                                  "kind": "memory", "sens": ms["sens"], "policy": pol})
         cm = os.path.join(os.path.dirname(v), "CLAUDE.md")
@@ -338,15 +402,24 @@ def index(full=False, quiet=False):
             c.execute(f"delete from {t}")
     srcs = collect_sources()
     known = {r["path"]: r for r in c.execute("select path,mtime,size,hash from notes")}
-    live, changed = set(), 0
+    live, changed, ignorados = set(), 0, []
     for s in srcs:
+        try:
+            st = os.stat(s["path"])
+        except OSError:              # sumiu ou ficou ilegível entre a coleta e a leitura: pula, não derruba o índice
+            ignorados.append(s["path"])
+            continue
         live.add(s["path"])
-        st = os.stat(s["path"])
         old = known.get(s["path"])
         if old and abs(old["mtime"] - st.st_mtime) < 1e-6 and old["size"] == st.st_size:
             continue
-        with open(s["path"], encoding="utf-8", errors="ignore") as fh:
-            text = fh.read()
+        try:
+            with open(s["path"], encoding="utf-8", errors="ignore") as fh:
+                text = fh.read()
+        except OSError:
+            ignorados.append(s["path"])
+            live.discard(s["path"])
+            continue
         h = hashlib.sha1(text.encode()).hexdigest()
         if old and old["hash"] == h:
             c.execute("update notes set mtime=?,size=? where path=?", (st.st_mtime, st.st_size, s["path"]))
@@ -405,6 +478,10 @@ def index(full=False, quiet=False):
     if not quiet:
         print(f"xmem: {n} notas, {k} trechos, {c.execute('select count(distinct project) from notes').fetchone()[0]} projetos "
               f"({changed} reindexadas, {len(gone)} removidas) -> {DB_PATH}")
+        if ignorados:
+            print(f"xmem: {len(ignorados)} arquivo(s) ilegíveis ou com link quebrado foram ignorados.")
+        for v, nome in COLISOES:
+            print(f"xmem: ⚠ dois vaults na mesma pasta-mãe; {v} entrou como projeto `{nome}`.")
     return c
 
 
@@ -699,6 +776,50 @@ def detect_project(c, cwd=None):
 
 
 # ---------------------------------------------------------------- comandos
+USO_PATH = os.environ.get("SECONDBRAIN_USO") or os.path.join(HOME, ".local/share/secondbrain/uso.jsonl")
+
+
+def registrar_uso(cmd, projeto, ids):
+    """Log local de uso (P3-1): quando, qual comando, de qual projeto e QUAIS notas (ids) voltaram. Nunca grava a consulta nem
+    texto de nota. Serve para medir, depois de semanas, que notas nunca são recuperadas. `SECONDBRAIN_SEM_USO=1` desliga."""
+    if os.environ.get("SECONDBRAIN_SEM_USO"):
+        return
+    try:
+        os.makedirs(os.path.dirname(USO_PATH), mode=0o700, exist_ok=True)
+        novo = not os.path.exists(USO_PATH)
+        with open(USO_PATH, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"t": datetime.now().isoformat(timespec="seconds"), "cmd": cmd, "proj": projeto or "", "ids": list(ids)[:20]}) + "\n")
+        if novo:
+            os.chmod(USO_PATH, 0o600)
+    except OSError:
+        pass          # medir nunca pode quebrar o comando
+
+
+def cmd_uso(a, c):
+    """Resumo do log de uso: comandos, projetos e a proporção de notas ativas que nunca voltaram."""
+    cont, proj, vistos, n = defaultdict(int), defaultdict(int), set(), 0
+    try:
+        with open(USO_PATH, encoding="utf-8") as fh:
+            for ln in fh:
+                try:
+                    r = json.loads(ln)
+                except ValueError:
+                    continue
+                n += 1
+                cont[r.get("cmd", "?")] += 1
+                proj[r.get("proj") or "(nenhum)"] += 1
+                vistos.update(r.get("ids", []))
+    except OSError:
+        print("(sem registro de uso ainda: o log nasce na primeira busca, digest ou abertura de sessão)")
+        return
+    ativas = {r["id"] for r in c.execute("select id from notes where inactive=0 and kind not in ('commit','estado','claude-md','quadro')")}
+    print(f"{n} consultas registradas em {USO_PATH}")
+    print("por comando: " + ", ".join(f"{k} {v}" for k, v in sorted(cont.items(), key=lambda x: -x[1])))
+    print("por projeto: " + ", ".join(f"{k} {v}" for k, v in sorted(proj.items(), key=lambda x: -x[1])[:8]))
+    nunca = ativas - vistos
+    print(f"notas ativas que nunca voltaram: {len(nunca)} de {len(ativas)} ({100 * len(nunca) // max(1, len(ativas))}%)")
+
+
 def cmd_search(a, c, recall=False):
     cur = a.project_atual or detect_project(c)
     kinds = None
@@ -706,6 +827,7 @@ def cmd_search(a, c, recall=False):
         kinds = None
     hits = hybrid(c, a.query, k=a.limit, project=None if recall else a.project, exclude_project=(cur if recall and not a.todos_projetos else a.exclude_project),
                   kinds=a.kind.split(",") if a.kind else kinds, tipo=a.tipo, since=parse_since(a.since), include_inactive=a.all)
+    registrar_uso("recall" if recall else "search", cur, [h["row"]["id"] for h in hits])
     if a.json:
         print(json.dumps([{"ref": ref(h["row"]), "title": h["row"]["title"], "score": h["score"], "project": h["row"]["project"],
                            "tipo": h["row"]["tipo"], "data": h["row"]["data"], "path": h["row"]["path"],
@@ -742,6 +864,7 @@ def cmd_digest(a, c):
     cur = a.project or detect_project(c)
     hits = hybrid(c, a.topic, k=a.k, project=a.project)
     ids = [h["row"]["id"] for h in hits]
+    registrar_uso("digest", cur, ids)
     out = [f"# Digest: {a.topic}  (projeto: {cur or 'todos'})", ""]
     for i, h in enumerate(hits, 1):
         out.append(fmt_hit(h, a.topic, cur, False, i))
@@ -1068,6 +1191,48 @@ def plugin_version_notice(script=None, installed_json=None):
     return ""
 
 
+ESTADO_DEFASADO_COMMITS = 3      # commits do projeto depois do ESTADO.md a partir dos quais o hook avisa
+
+
+def dentro_do_vault(vault, rel):
+    """Caminho de `rel` dentro do vault, ou None se escapar dele (`..`, caminho absoluto, link simbólico para fora)."""
+    base = os.path.realpath(vault)
+    p = os.path.realpath(os.path.join(base, rel))
+    return p if p == base or p.startswith(base + os.sep) else None
+
+
+def estado_rascunho(fm):
+    """ESTADO.md gerado na migração (`gen_estado.py`): `origem: rascunho ...` ou `status: rascunho`."""
+    return str(fm.get("origem", "")).strip().lower().startswith("rascunho") or str(fm.get("status", "")).strip().lower() == "rascunho"
+
+
+def commits_depois(vault, dia, limite=3):
+    """Quantos commits dos repositórios ativos do projeto vieram depois de `dia` (AAAA-MM-DD, fim do dia). None se não der para saber."""
+    try:
+        import _vault
+        total, viu = 0, False
+        for r in [r for r in _vault.read_repos(vault) if r["papel"] == "ativo" and r["valido"]][:limite]:
+            res = subprocess.run(["git", "-C", r["caminho"], "log", f"--since-as-filter={dia}T23:59:59", "--oneline", "--no-merges"],
+                                 capture_output=True, text=True, timeout=1.5)
+            if res.returncode == 0:
+                viu = True
+                total += len(res.stdout.split("\n")) - 1
+        return total if viu else None
+    except (OSError, ValueError, subprocess.SubprocessError, ImportError):
+        return None
+
+
+def estado_defasado(vault, fm):
+    """Aviso 'N commits depois do ESTADO' (vazio se o estado está em dia ou se não dá para medir)."""
+    dia = str(fm.get("atualizado") or "").strip()[:10]
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", dia):
+        return ""
+    n = commits_depois(vault, dia)
+    if n is not None and n >= ESTADO_DEFASADO_COMMITS:
+        return f"⚠ {n} commits depois do ESTADO.md ({dia}): o retrato pode estar defasado. Confira o `git log` antes de confiar nele."
+    return ""
+
+
 def cmd_hook_context(a, c):
     cwd = a.cwd or os.getcwd()
     cur = detect_project(c, cwd)
@@ -1078,17 +1243,26 @@ def cmd_hook_context(a, c):
     aviso = plugin_version_notice()
     if aviso:
         out.append(aviso)
-    est = os.path.join(v, "ESTADO.md")
+    est = dentro_do_vault(v, "ESTADO.md")
     q = cur
-    if os.path.isfile(est):
+    if est and os.path.isfile(est):
         fm_est, body = parse_note(open(est, encoding="utf-8").read())[:2]
-        lines = [l for l in body.splitlines() if l.strip()][:14]
         if fm_est.get("revisar"):
             out.append(f"⚠ ESTADO.md pode estar desatualizado: {str(fm_est['revisar'])[:200]}. Confirme com o usuário antes de confiar nele e reescreva-o no próximo /devtrack.")
-        out += lines
-        m = re.search(r"## Próximo passo\s*\n+(.+)", body)
-        q = (m.group(1) if m else cur)[:200]
+        defasado = estado_defasado(v, fm_est)
+        if defasado:
+            out.append(defasado)
+        if estado_rascunho(fm_est):
+            # rascunho gerado na migração: não é fato verificado, então o corpo NÃO entra no contexto como se fosse
+            ult = str(fm_est.get("ultimo-devtrack") or "").strip()[:80]
+            out.append("⚠ ESTADO.md é um rascunho gerado na migração, não um retrato verificado." +
+                       (f" Leia o último devtrack ({ult}) em vez dele e" if ult else " Confirme o estado com o usuário e") + " rode /devtrack para reescrevê-lo.")
+        else:
+            out += [l for l in body.splitlines() if l.strip()][:14]
+            m = re.search(r"## Próximo passo\s*\n+(.+)", body)
+            q = (m.group(1) if m else cur)[:200]
     hits = hybrid(c, q, k=4, project=cur)
+    registrar_uso("hook", cur, [h["row"]["id"] for h in hits])
     if hits:
         out.append("Notas relevantes: " + "; ".join(f"{h['row']['title'][:60]} `{ref(h['row'])}`" for h in hits[:4]))
     try:
@@ -1470,7 +1644,7 @@ def main():
     p.add_argument("--sem-politica", action="store_true", help="ignora a política de privacidade da memória cruzada (uso do dono, na mão)")
     sp = p.add_subparsers(dest="cmd", required=True)
     s = sp.add_parser("index"); s.add_argument("--full", action="store_true")
-    sp.add_parser("status"); sp.add_parser("vaults")
+    sp.add_parser("status"); sp.add_parser("vaults"); sp.add_parser("uso")
     for name in ("search", "recall"):
         s = sp.add_parser(name); s.add_argument("query")
         s.add_argument("--project"); s.add_argument("--exclude-project"); s.add_argument("--project-atual")
@@ -1505,14 +1679,14 @@ def main():
         cmd_vaults(a, None)
         return
     if a.cmd == "hook-context":  # hook de sessão: só lê o índice pronto (rápido, nunca reindexa)
-        if not os.path.isfile(DB_PATH):
+        c = connect(readonly=True)
+        if c is None:
             return
-        c = connect()
     else:
         c = index(quiet=True)  # sincronização incremental antes de consultar
     {"status": cmd_status, "search": lambda a, c: cmd_search(a, c), "recall": lambda a, c: cmd_search(a, c, True),
      "digest": cmd_digest, "absorb-check": cmd_absorb_check, "related": cmd_related, "patterns": cmd_patterns,
-     "dups": cmd_dups, "insights": cmd_insights, "hook-context": cmd_hook_context, "graph": cmd_graph,
+     "dups": cmd_dups, "uso": cmd_uso, "insights": cmd_insights, "hook-context": cmd_hook_context, "graph": cmd_graph,
      "global-init": cmd_global_init, "board": lambda a, c: board.cmd(a, c),
      "reconcile": lambda a, c: reconcile.cmd(a, c)}[a.cmd](a, c)
 
