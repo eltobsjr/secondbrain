@@ -151,6 +151,6 @@ Quando o usuário atualizar o status dos CAs de uma feature existente e **todos 
 avise automaticamente:
 
 > "🎉 Todos os CAs da feature '{Nome}' estão concluídos.
-> Quer registrar isso no changelog? Posso gerar a entrada agora com `/changelog`."
+> Quer registrar isso no changelog? Posso gerar a entrada agora com `/release` (modo changelog)."
 
-Não execute o `/changelog` automaticamente — apenas sugira. O usuário decide.
+Não execute o `/release` automaticamente — apenas sugira. O usuário decide.

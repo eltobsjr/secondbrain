@@ -16,5 +16,5 @@ O estado de um projeto aparecia em sete lugares. Esta tabela diz qual é a **fon
 Regras:
 - **Pergunta "o que está aberto?"**: responda sempre pelo quadro (`board show --project <p>`). Sem o motor, use os `[ ]` do último devtrack e do CHECKLIST, avisando que podem estar velhos.
 - **Nunca escreva caixa `- [ ]` numa visão** (prioridade, resumo, estado): o quadro a leria de volta como pendência nova.
-- **O estado vivo que protege item de virar "superado"** é `ESTADO.md`, `prioridade/atual.md`, a memória do Claude e o `CLAUDE.md`. Se um item ainda vale, cite-o num deles.
+- **O estado vivo que protege item de virar "sem-sinal"** é `ESTADO.md`, `prioridade/atual.md`, a memória do Claude e o `CLAUDE.md`. Se um item ainda vale, cite-o num deles.
 - Em conflito entre uma visão e a fonte, a fonte vence e a visão é regerada.

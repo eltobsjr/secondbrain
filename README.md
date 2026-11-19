@@ -2,7 +2,7 @@
 
 # secondbrain
 
-Suite de 21 skills para Claude Code que cria e mantém um sistema de memória persistente, documentação e rastreamento de conhecimento para projetos de software, com **memória cruzada entre projetos** e uma **interface nativa para Linux**.
+Suite de 19 skills para Claude Code que cria e mantém um sistema de memória persistente, documentação e rastreamento de conhecimento para projetos de software, com **memória cruzada entre projetos** e uma **interface nativa para Linux**.
 
 ## O que é
 
@@ -64,7 +64,7 @@ De vez em quando   →  /audit  e  /patterns
 
 ---
 
-## Skills (21)
+## Skills (19)
 
 ### Workflow diário
 
@@ -85,9 +85,9 @@ De vez em quando   →  /audit  e  /patterns
 | Entender tudo o que aconteceu até aqui | `/resume` | Revisão histórica completa; mais lenta e mais longa. |
 | Dizer ao time o que fiz | `/standup` | Sai do devtrack mais recente (ontem / hoje / bloqueios). Não olha o quadro. |
 | Ver, mover ou criar pendências | `/board` | Quadro interativo (Triagem → Feito); as decisões ficam em `quadro.md`. |
-| Uma lista de prioridades escrita no vault | `/priority` | Grava `prioridade/atual.md`. Começa pelo quadro e grava a ordem com `--prioridade`. |
+| Uma lista de prioridades escrita no vault | `/board` (prioridades) | Grava `prioridade/atual.md` sem caixas, a partir do quadro; a ordem vai com `--prioridade`. (Antigo `/priority`.) |
 
-Regra prática: **`/board` é onde a pendência vive; `/priority` é um retrato escrito dela.** Se só quer saber o que fazer agora, `/context`.
+Regra prática: **`/board` é onde a pendência vive; as prioridades escritas são um retrato dela.** Se só quer saber o que fazer agora, `/context`.
 
 ### Calendário por semana, prazo e janelas
 
@@ -95,7 +95,7 @@ A página Quadro abre no **Calendário**, na última semana que tem registro: o 
 
 ### Pendência viva, oculta e conciliada
 
-Devtrack é retrato de fim de sessão, e uma caixa `- [ ]` nele fica aberta para sempre se ninguém a reescrever. Em projetos reais, a grande maioria dos itens abertos nunca mais aparece numa sessão seguinte. Por isso o quadro **oculta por padrão** (sem apagar) o que não é pendência viva: pergunta de checklist, frase de estado, item repetido e item superado (o projeto seguiu 14+ dias e nem o `ESTADO.md` nem a `prioridade/atual.md` o citam). `board summary` mostra quantos há por projeto, `board show --ocultos` lista cada um com o motivo, e uma decisão sua no `quadro.md` sempre vence.
+Devtrack é retrato de fim de sessão, e uma caixa `- [ ]` nele fica aberta para sempre se ninguém a reescrever. Em projetos reais, a grande maioria dos itens abertos nunca mais aparece numa sessão seguinte. Por isso o quadro **oculta por padrão** (sem apagar) o que não é pendência viva: pergunta de checklist, frase de estado, item repetido e item sem-sinal (o projeto seguiu 14+ dias e nem o `ESTADO.md` nem a `prioridade/atual.md` o citam). `board summary` mostra quantos há por projeto, `board show --ocultos` lista cada um com o motivo, e uma decisão sua no `quadro.md` sempre vence.
 
 `xmem.py reconcile <projeto>` confronta as pendências com o git e propõe o que fechar, em três níveis (só o A fecha, com `--aplicar A --sim`). Os repositórios vêm da chave `repos:` do manifesto; os marcados `referencia` só entram sob pedido. O `/devtrack` concilia a sessão anterior ao abrir e só usa caixa para o que ainda vai ser feito. Detalhes em `docs/ARQUITETURA-MEMORIA-CRUZADA.md`, seção 8d.
 
@@ -112,7 +112,6 @@ Devtrack é retrato de fim de sessão, e uma caixa `- [ ]` nele fica aberta para
 
 | Comando | O que faz |
 |---|---|
-| `/priority` | Gera uma visão escrita do quadro em `prioridade/atual.md` (Alta / Média / Baixa). A fonte das pendências é o quadro |
 | `/feature` | Spec de funcionalidade com critérios de aceitação rastreáveis (🔲 🔄 ✅ ❌) |
 | `/audit` | 16 verificações: links, caminhos, tarefas abandonadas, devtracks, memórias conflitantes, vault x manifesto, limites do `MEMORY.md`, frescor, segredos, equipe nova em vault privado, índice/estado/backup, integridade de caminhos e memória cruzada (parados, contradições, duplicatas) |
 | `/analyze` | Análise completa em 16 dimensões, com nota geral, top 10 problemas e pontos fortes. Salva `PROJECT_CONTEXT.md`. |
@@ -122,9 +121,8 @@ Devtrack é retrato de fim de sessão, e uma caixa `- [ ]` nele fica aberta para
 | Comando | O que faz |
 |---|---|
 | `/readme` | Gera ou atualiza o README do projeto |
-| `/changelog` | Gera ou atualiza o CHANGELOG (Keep a Changelog) |
 | `/onboarding` | Guia completo para novos devs |
-| `/release` | Release notes, CHANGELOG e tag git (sem auto-push; só roda quando você invoca) |
+| `/release` | Release notes, CHANGELOG e tag git, ou só o CHANGELOG (antigo `/changelog`). Nunca cria tag sem pedido e confirmação, nem faz push |
 | `/backup` | Backup dos vaults e da memória para HD externo, em cópia simples e sem apagar nada |
 
 ### Eventos especiais
@@ -189,7 +187,7 @@ meu-projeto/
     ├── CHECKLIST.md
     ├── devtrack/                      ← logs de sessão (AAAA-MM-DD - Título.md)
     ├── commits/                       ← resumo de cada commit (--import-history)
-    ├── prioridade/                    ← atual.md gerado pelo /priority
+    ├── prioridade/                    ← atual.md gerado pelo /board
     ├── analise/                       ← relatórios do /analyze
     ├── decisions/                     ← decisões (MADR) geradas pelo /decision
     ├── features/                      ← specs geradas pelo /feature
@@ -219,7 +217,7 @@ E na memória local do Claude Code:
 secondbrain/
 ├── .claude-plugin/                    ← plugin.json e marketplace.json
 ├── CLAUDE.md                          ← instruções do próprio repositório
-├── skills/                            ← as 21 skills (uma pasta por skill)
+├── skills/                            ← as 19 skills (uma pasta por skill)
 ├── hooks/                             ← SessionStart opcional (hooks.json, session-start.sh)
 ├── scripts/
 │   ├── xmem.py                        ← memória cruzada: índice, busca, recall, digest, absorb-check, patterns

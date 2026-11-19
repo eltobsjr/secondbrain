@@ -68,7 +68,7 @@ def _age(data):
 def derive(c, project=None):
     """Um cartão por (projeto, texto normalizado); vale a ocorrência mais recente (regra do open_items).
 
-    Além da coluna, cada cartão traz `oculto` ('' ou pergunta|narrativo|repetido|superado, ver pend.py) e `evidencia`.
+    Além da coluna, cada cartão traz `oculto` ('' ou pergunta|narrativo|repetido|sem-sinal, ver pend.py) e `evidencia`.
     Cartão oculto não some: o `build` só o esconde por padrão, e uma decisão sua no quadro.md sempre vence."""
     q = ("select t.text,t.norm,t.checked,t.line,n.data,n.project,n.rel,n.kind,n.sens,n.policy "
          "from todos t join notes n on n.id=t.note_id")
@@ -102,7 +102,7 @@ def derive(c, project=None):
                 if estado == "feito":
                     col, oculto, origem_status = "feito", "", "evidencia"
                     feito_ev = (re.search(r"\d{4}-\d{2}-\d{2}", evid) or [""])[0]
-                elif estado in ("repetido", "superado"):
+                elif estado in ("repetido", "sem-sinal"):
                     oculto = estado
         cards[cid] = {
             "id": cid, "titulo": last["text"], "status": col, "prioridade": "", "tipo": "criterio-feature" if last["kind"] == "feature" else "todo",
@@ -270,7 +270,7 @@ def planejar(k, semana_txt, prazo_txt=None, hoje=None):
 def build(c, project=None, current_project=None, ocultos=False, hoje=None):
     """Quadro completo: cartões derivados com as decisões do quadro.md aplicadas por cima.
 
-    Por padrão não traz os cartões ocultos (ruído, repetido, superado). `ocultos=True` traz tudo, com o motivo em `oculto`."""
+    Por padrão não traz os cartões ocultos (ruído, repetido, sem-sinal). `ocultos=True` traz tudo, com o motivo em `oculto`."""
     derived = derive(c, project)
     projects = [project] if project else [r["project"] for r in c.execute("select distinct project from notes order by project")]
     for proj in projects:
@@ -898,7 +898,7 @@ def add_parser(sp):
     bs = s.add_subparsers(dest="board_cmd", required=True)
     x = bs.add_parser("show"); x.add_argument("--project"); x.add_argument("--status"); x.add_argument("--limit", type=int, default=0)
     x.add_argument("--todos", action="store_true", help="inclui Feito e Descartado"); x.add_argument("--json", action="store_true"); x.add_argument("--project-atual")
-    x.add_argument("--ocultos", action="store_true", help="lista só os cartões ocultos (ruído, repetido, superado) com o motivo")
+    x.add_argument("--ocultos", action="store_true", help="lista só os cartões ocultos (ruído, repetido, sem-sinal) com o motivo")
     x = bs.add_parser("summary"); x.add_argument("--project"); x.add_argument("--json", action="store_true"); x.add_argument("--project-atual")
     x = bs.add_parser("proposals"); x.add_argument("--project"); x.add_argument("--older-than", type=int, default=TRIAGE_DAYS); x.add_argument("--project-atual")
     x = bs.add_parser("plan", help="planeja o cartão numa semana (esta, proxima, AAAA-Www, backlog)")

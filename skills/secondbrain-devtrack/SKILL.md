@@ -64,7 +64,7 @@ commits: [hashes curtos da sessão]
 
 **Modo curto** (poucos arquivos, nenhuma decisão, nenhum bug): só `O que foi feito`, `Status` e, se houver, `Próximos passos`. Sessão sem código: `> Sessão de análise e planejamento. Sem implementação de código.` Respeite `nomes.devtrack` e `campos-extra.devtrack` do manifesto.
 
-**Onde vai a pendência.** Caixa `- [ ]` só para o que ainda vai ser feito. Pergunta (`...?`), frase de estado ("nenhum commit feito", "não testado") e etapa de procedimento vão em texto, não em caixa. Tarefa nova que você assume ganha prazo (`board plan` ou `board prazo`); sem prazo aparece como "sem prazo", nunca como atrasada. O que segue vivo vai também no `ESTADO.md`: se o estado vivo cita o item ele continua aberto; se não cita e ele não reaparece em 14 dias de projeto, o quadro o oculta como superado (`references/fontes-de-verdade.md`).
+**Onde vai a pendência.** Caixa `- [ ]` só para o que ainda vai ser feito. Pergunta (`...?`), frase de estado ("nenhum commit feito", "não testado") e etapa de procedimento vão em texto, não em caixa. Tarefa nova que você assume ganha prazo (`board plan` ou `board prazo`); sem prazo aparece como "sem prazo", nunca como atrasada. O que segue vivo vai também no `ESTADO.md`: se o estado vivo cita o item ele continua aberto; se não cita e ele não reaparece em 14 dias de projeto, o quadro o oculta como sem-sinal (`references/fontes-de-verdade.md`).
 
 ## Passo 4 — Atualizar o que deriva do devtrack
 

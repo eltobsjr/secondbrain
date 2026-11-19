@@ -23,7 +23,7 @@ Responda sempre em **português (Brasil)**, exceto para termos técnicos sem tra
 
 ## Skills disponíveis
 
-Este projeto usa o **SecondBrain** — um conjunto de 21 skills para memória persistente de projetos.
+Este projeto usa o **SecondBrain** — um conjunto de 19 skills para memória persistente de projetos.
 As skills ficam em `skills/` e são ativadas pelo usuário com `/nome-da-skill`. A lista completa e o que cada uma faz estão no `README.md`.
 
 Principais skills:

@@ -55,7 +55,7 @@ const g=el('div','grid');root.append(g);
  for(const r of P.lista)c.append(el('div','item',r.projeto+' · '+r.titulo+' · '+r.texto+(r.prazo?' ('+r.prazo+')':'')));
  g.append(c)}
 // parados
-{const c=card('Itens em aberto parados','Caixas "- [ ]" abertas há muito tempo, já sem pergunta, frase de estado, repetido e superado (ocultos: '+(D.total_ocultos||0)+'). O que tem prazo não entra: quem avisa é a flag.');
+{const c=card('Itens em aberto parados','Caixas "- [ ]" abertas há muito tempo, já sem pergunta, frase de estado, repetido e sem-sinal (ocultos: '+(D.total_ocultos||0)+'). O que tem prazo não entra: quem avisa é a flag.');
  c.append(el('div','big warn',String(D.total_parados)));
  const ent=Object.entries(D.parados_por_projeto);const max=Math.max(1,...ent.map(e=>e[1]));
  if(!ent.length)c.append(el('div','ok','Nada parado. Tudo em dia.'));

@@ -142,7 +142,7 @@ def main():
                     break
     if "prioridade" in papeis and papeis["prioridade"].endswith("/") and \
             os.path.basename(papeis["prioridade"].rstrip("/")).lower() in ALIASES["prioridade"]:
-        # o /priority grava sempre em <pasta>/atual.md
+        # o /board (prioridades) grava sempre em <pasta>/atual.md
         papeis["prioridade"] = papeis["prioridade"] + "atual.md"
     if os.path.isfile(os.path.join(vault, "ESTADO.md")):
         papeis["estado"] = "ESTADO.md"

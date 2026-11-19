@@ -14,9 +14,11 @@ description: |
   - "cria uma tarefa" / "anota uma pendência"
   - "faz a triagem" / "descarta o que está velho"
   - "quais pendências estão paradas"
+  - "/priority", "atualiza as prioridades", "o que está pendente", "me dá uma lista do que falta", "quais são as próximas tarefas"
+    (visão escrita das prioridades; ex-/priority)
 
   Também PROPOR, sem mover nada sozinho, ao começar a trabalhar numa tarefa (mover para Fazendo) e ao concluí-la ou bloqueá-la.
-argument-hint: "[ver | mover | criar | triar] [projeto]"
+argument-hint: "[ver | mover | criar | triar | prioridades] [projeto]"
 ---
 
 # SecondBrain — Board (quadro kanban)
@@ -106,7 +108,7 @@ O quadro **não mostra por padrão** o que não é pendência viva. Cada cartão
 | `pergunta` | item de devtrack em forma de pergunta (modelo de checklist, não tarefa) |
 | `narrativo` | frase de estado em devtrack ("nenhum commit feito", "não testado") |
 | `repetido` | a mesma tarefa foi reescrita depois, em aberto; o cartão novo é o vivo |
-| `superado` | o projeto seguiu 14+ dias e o item nunca reapareceu, nem o `ESTADO.md` ou `prioridade/atual.md` o cita |
+| `sem-sinal` | o projeto seguiu 14+ dias e o item nunca reapareceu, nem o `ESTADO.md` ou `prioridade/atual.md` o cita |
 
 Nada é apagado. `board show --ocultos` lista cada um (com `--json` para integrações), `board summary` informa quantos há por projeto, e **uma decisão sua no `quadro.md` sempre vence** o ocultar automático. Uma sessão posterior que marca `[x]` um item parecido já fecha o cartão antigo como Feito (`status_origem: evidencia`, com a frase em `evidencia`).
 
@@ -114,8 +116,20 @@ Para decidir o que fazer com os ocultos, use `python3 -I "${SB:-$HOME/.local/sha
 
 ## Integração com as outras skills
 
-- `/priority`: leia `board show --project <p>` em vez de varrer devtracks; grave a ordem com `--prioridade`.
+- Prioridades escritas (ex-`/priority`): ver a seção "Prioridades escritas" acima.
 - `/context` e o hook de início de sessão: mostram Fazendo e Bloqueado.
 - `/devtrack`: concilie a sessão anterior ao abrir (`reconcile`) e escreva `- [ ]` só para o que ainda vai ser feito; os itens novos aparecem no quadro sozinhos. Ao fechar a sessão, mova para Feito o que foi concluído (ou marque `- [x]` no devtrack seguinte).
 - `/audit`: lista cartões órfãos, cartões parados em Fazendo ou Bloqueado, quantos itens estão ocultos e os hashes citados que não existem no git.
 - Grafo: cartões em Fazendo, Bloqueado e Revisão aparecem como losangos ligados à nota de origem (`xmem.py graph --json --tarefas` entrega a mesma lista).
+
+## Prioridades escritas (ex-/priority)
+
+Pedido de "prioridades", "o que falta" ou "próximas tarefas": a fonte é o quadro, e o arquivo escrito é só uma **visão**.
+
+1. Leia `board show --project <p> --json` (já deduplicado e sem ruído, repetido ou sem-sinal). Sem o motor, varra os `- [ ]` dos devtracks e do CHECKLIST, descartando o que um devtrack mais novo marcou `[x]`.
+2. Ordene em **Alta** (bloqueante, promessa feita, urgente), **Média** (padrão quando falta informação) e **Baixa** (nice-to-have). Grave a ordem no quadro com `board move <p> <id> <coluna> --prioridade P1`, em vez de reescrever listas.
+3. Escreva `{vault}/{prioridade}` (sobrescreva) **sem caixas `- [ ]`**: caixa escrita aqui voltaria como cartão duplicado. Use lista numerada, com o id do cartão, e no topo `Visão do quadro em {data}`. Nunca copie itens ocultos.
+4. Se o vault tem o papel `estado`, atualize "Próximo passo" e "Bloqueios" do `ESTADO.md` e aponte para `{prioridade}` em vez de duplicar a lista (`references/estado-format.md`).
+5. Confirme: `✓ {N} pendências · Alta {n} · Média {n} · Baixa {n} · salvo em {vault}/{prioridade}` e mostre o arquivo para revisão.
+
+Onde cada fato vive: `references/fontes-de-verdade.md`.

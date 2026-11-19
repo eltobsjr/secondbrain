@@ -40,7 +40,7 @@ git status --short 2>/dev/null
 
 Leia:
 0. O **`ESTADO.md`** (papel `estado`), se existir, como ponto de partida — depois confirme com os devtracks
-1. Os **3 devtracks mais recentes** completos — para o que foi feito. **A resposta a "o que está aberto?" vem do quadro**, não dos checkboxes: com o motor, `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board show --project <projeto>` (já sem ruído, repetidos e superados; `references/fontes-de-verdade.md`). Sem o motor, use os `[ ]` dos `## Status`.
+1. Os **3 devtracks mais recentes** completos — para o que foi feito. **A resposta a "o que está aberto?" vem do quadro**, não dos checkboxes: com o motor, `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board show --project <projeto>` (já sem ruído, repetidos e sem-sinal; `references/fontes-de-verdade.md`). Sem o motor, use os `[ ]` dos `## Status`.
 2. O **MEMORY.md** e os arquivos de memória relevantes (`project_overview.md`, qualquer `project_*.md`)
 3. O **CHECKLIST.md** do vault, se existir
 

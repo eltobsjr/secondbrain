@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regras de pendência (decisão 011): o que é tarefa, o que é ruído e o que ficou superado.
+"""Regras de pendência (decisão 011): o que é tarefa, o que é ruído e o que ficou sem-sinal.
 
 Devtrack é um retrato de fim de sessão: toda caixa `- [ ]` escrita nele vive para sempre, a menos que uma sessão
 posterior a reescreva. Em projetos reais, a grande maioria dos itens abertos nunca reaparece numa sessão seguinte. Este
@@ -8,8 +8,10 @@ módulo separa o que ainda é pendência do que só ficou no retrato. Só stdlib
 - ruído:     não é tarefa (pergunta de checklist, frase de estado como "nenhum commit feito").
 - repetido:  a mesma tarefa foi reescrita depois, em aberto; o cartão novo é o vivo.
 - feito:     uma sessão posterior marcou `[x]` um item parecido (outra redação).
-- superado:  o projeto seguiu trabalhando (há devtrack 14+ dias depois) e o item nunca mais apareceu, e o estado vivo
+- sem-sinal:  o projeto seguiu trabalhando (há devtrack 14+ dias depois) e o item nunca mais apareceu, e o estado vivo
              do projeto (ESTADO.md, prioridade/atual.md) também não o cita.
+
+"Sem sinal" (antes "superado") NÃO prova que o item acabou: só diz que o projeto seguiu e o item nunca mais apareceu. Uma conferência no código mostrou itens vivos nessa faixa, por isso o nome e as travas de risco e roadmap.
 
 Nada aqui apaga ou reescreve nota. O resultado só decide o que o quadro mostra por padrão.
 """
@@ -24,7 +26,7 @@ SUPERADO_DIAS = 14      # o projeto precisa ter seguido (devtrack) pelo menos is
 SIM_FECHA = 0.50        # semelhança que basta para tratar "outra redação" como a mesma tarefa
 SIM_PROPOSTA = 0.35     # abaixo de SIM_FECHA: só vira proposta na conciliação, nunca ação automática
 CITADO = 0.60           # fração do item (por peso) que o documento vivo precisa conter para o item contar como vivo
-OCULTOS = ("pergunta", "narrativo", "repetido", "superado")
+OCULTOS = ("pergunta", "narrativo", "repetido", "sem-sinal")
 
 STOP = frozenset("""para como mais sobre antes depois ainda esta este esse essa isso aqui sera serem fazer feito feita nesta nesse
 desta deste usuario sessao itens item commit commits push fix feat merge branch main codigo arquivo arquivos pelo pela pelos pelas
@@ -35,7 +37,7 @@ _NARRATIVO = re.compile(
     r"^(nenhum|nenhuma|nada(?! a ver)|ainda nao|nao foi|nao foram|segue sem|continua sem|frontend nao|backend nao|/code-review nao"
     r"|sem mudanca|nao rodado)\b")
 NARRATIVO_MAX_PALAVRAS = 6
-# item que fala de risco aberto nunca vira "superado" sozinho: sumir de um devtrack não resolve segredo exposto nem bloqueio
+# item que fala de risco aberto nunca vira "sem-sinal" sozinho: sumir de um devtrack não resolve segredo exposto nem bloqueio
 _RISCO = re.compile(r"\b(pendentes?|pendencias?|bloquead[oa]s?|bloqueios?|expost[oa]s?|segredos?|secrets?|chaves?|tokens?|senhas?|credenciais|"
                     r"api.?key|service.?role|rotacion\w*|vazad[oa]s?|vazamentos?|ainda nao|"
                     r"futuro|roadmap|rfc|fase \d+)\b")      # roadmap não "supera" por silêncio: o item é plano, não tarefa esquecida
@@ -141,7 +143,7 @@ class Projeto:
         return bisect.bisect_right(self.chaves, (data, rel, ))  # as chaves são (data, rel): tudo > (data, rel) fica à direita
 
     def classificar(self, text, data, rel):
-        """-> (estado, evidencia, semelhança). estado: 'feito' | 'repetido' | 'superado' | ''."""
+        """-> (estado, evidencia, semelhança). estado: 'feito' | 'repetido' | 'sem-sinal' | ''."""
         a = tokens(text)
         if len(a) < 2:
             return "", "", 0.0
@@ -162,8 +164,8 @@ class Projeto:
         d0 = _dia(data)
         if d0 and self.ultimo and (self.ultimo - d0).days >= SUPERADO_DIAS:
             if risco(text):
-                return "", "cita risco aberto (pendente, bloqueado, exposto, segredo): não vira superado sozinho", max(best_chk[0], best_unc[0])
+                return "", "cita risco aberto (pendente, bloqueado, exposto, segredo): não vira sem-sinal sozinho", max(best_chk[0], best_unc[0])
             if self.citado(a):
                 return "", "citado no estado vivo do projeto", max(best_chk[0], best_unc[0])
-            return "superado", f"o projeto seguiu até {self.ultimo.isoformat()} e o item não reapareceu", 0.0
+            return "sem-sinal", f"o projeto seguiu até {self.ultimo.isoformat()} e o item não reapareceu", 0.0
         return "", "", max(best_chk[0], best_unc[0])

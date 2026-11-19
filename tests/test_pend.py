@@ -79,22 +79,22 @@ class PendTest(unittest.TestCase):
                          ("Revisar permissões do bucket de uploads do serviço", False, "2026-01-05")], "2026-01-05")
         self.assertEqual(pj.classificar("Revisar permissões do bucket de uploads", "2026-01-01", "devtrack/2026-01-01.md")[0], "repetido")
 
-    def test_superado_exige_que_o_projeto_tenha_seguido(self):
+    def test_sem_sinal_exige_que_o_projeto_tenha_seguido(self):
         itens = [("Configurar rotação de logs do servidor", False, "2026-01-01")]
         seguiu = self._proj(itens, "2026-02-01")
-        self.assertEqual(seguiu.classificar("Configurar rotação de logs do servidor", "2026-01-01", "devtrack/2026-01-01.md")[0], "superado")
+        self.assertEqual(seguiu.classificar("Configurar rotação de logs do servidor", "2026-01-01", "devtrack/2026-01-01.md")[0], "sem-sinal")
         parado = self._proj(itens, "2026-01-05")
         self.assertEqual(parado.classificar("Configurar rotação de logs do servidor", "2026-01-01", "devtrack/2026-01-01.md")[0], "",
                          "projeto dormido: o item é o retrato mais recente, continua vivo")
 
-    def test_estado_vivo_que_cita_o_item_impede_superado(self):
+    def test_estado_vivo_que_cita_o_item_impede_sem_sinal(self):
         itens = [("Migrar banco de dados para PostgreSQL 16", False, "2026-01-01")]
         vivo = self._proj(itens, "2026-03-01", ["Pendente: migrar banco de dados para PostgreSQL 16 ainda este mês."])
         estado, evid, _ = vivo.classificar("Migrar banco de dados para PostgreSQL 16", "2026-01-01", "devtrack/2026-01-01.md")
         self.assertEqual(estado, "")
         self.assertIn("estado vivo", evid)
         outro = self._proj(itens, "2026-03-01", ["Tema escuro do painel segue como está."])
-        self.assertEqual(outro.classificar("Migrar banco de dados para PostgreSQL 16", "2026-01-01", "devtrack/2026-01-01.md")[0], "superado")
+        self.assertEqual(outro.classificar("Migrar banco de dados para PostgreSQL 16", "2026-01-01", "devtrack/2026-01-01.md")[0], "sem-sinal")
 
     def test_ruido_respeita_limite_de_palavra(self):
         self.assertEqual(self.pend.ruido("Nadador novo na equipe"), "", "'nada' dentro de outra palavra não é narrativo")
@@ -113,7 +113,7 @@ class PendTest(unittest.TestCase):
         self.assertEqual(self.pend.ruido("O cache expira no tempo certo?"), "pergunta")
         self.assertEqual(self.pend.ruido("Como migrar o banco?"), "pergunta")
 
-    def test_risco_aberto_nunca_vira_superado(self):
+    def test_risco_aberto_nunca_vira_sem_sinal(self):
         for t in ("Rotacionar o segredo vazado do serviço de pagamentos", "Liberar o deploy bloqueado pela revisão externa",
                   "Chave exposta no log do servidor de testes", "Fechar o item pendente do contrato com o parceiro",
                   "Rotacionar SUPABASE_SERVICE_ROLE_KEY e GEMINI_API_KEY (pendência antiga, ainda aberta)", "supabase secrets set ANTHROPIC_API_KEY no projeto novo",
@@ -123,7 +123,7 @@ class PendTest(unittest.TestCase):
             self.assertEqual(estado, "", t)
             self.assertIn("risco aberto", evid)
         comum = "Configurar rotação de logs do servidor"
-        self.assertEqual(self._proj([(comum, False, "2026-01-01")], "2026-03-01").classificar(comum, "2026-01-01", "devtrack/2026-01-01.md")[0], "superado")
+        self.assertEqual(self._proj([(comum, False, "2026-01-01")], "2026-03-01").classificar(comum, "2026-01-01", "devtrack/2026-01-01.md")[0], "sem-sinal")
 
     def test_item_muito_curto_nao_e_julgado(self):
         pj = self._proj([("Ver isso", False, "2026-01-01")], "2026-06-01")
@@ -158,7 +158,7 @@ class QuadroEConciliacaoTest(unittest.TestCase):
         write(cls.vault + f"/devtrack/{d3} - Terceira.md",
               f"---\ntipo: devtrack\ndata: {d3}\n---\n\n# Terceira\n\n- [x] Implementar exportação CSV dos relatórios\n- [ ] Revisar permissões do bucket de uploads do serviço\n")
         write(cls.vault + "/ESTADO.md", f"---\ntipo: estado\natualizado: {d3}\n---\n\n# Estado\n\nPendente: migrar banco de dados para PostgreSQL 16 em novembro.\n")
-        # a memória do Claude e o CLAUDE.md também são estado vivo: o que eles citam não vira "superado"
+        # a memória do Claude e o CLAUDE.md também são estado vivo: o que eles citam não vira "sem-sinal"
         write(cls.xmem.mem_dir_for(proj) + "/project_notas.md",
               "---\nname: notas\ntype: project\n---\n\nLembrar de atualizar o certificado TLS do ambiente de homologação antes do deploy.\n")
         write(proj + "/CLAUDE.md", "# Regras\n\nRenovar a licença do monitoramento de métricas é obrigatório antes de qualquer release.\n")
@@ -208,7 +208,7 @@ class QuadroEConciliacaoTest(unittest.TestCase):
         k = self.todos()
         self.assertEqual(k["Implementar exportação CSV dos relatórios mensais"]["status"], "feito")
         self.assertEqual(k["Implementar exportação CSV dos relatórios mensais"]["status_origem"], "evidencia")
-        self.assertEqual(k["Configurar rotação de logs do servidor"]["oculto"], "superado")
+        self.assertEqual(k["Configurar rotação de logs do servidor"]["oculto"], "sem-sinal")
         self.assertEqual(k["Migrar banco de dados para PostgreSQL 16"]["oculto"], "", "o ESTADO.md vivo o cita")
         self.assertEqual(k["Atualizar certificado TLS do ambiente de homologação"]["oculto"], "", "a memória do Claude o cita")
         self.assertEqual(k["Renovar licença do monitoramento de métricas"]["oculto"], "", "o CLAUDE.md o cita")
@@ -231,13 +231,13 @@ class QuadroEConciliacaoTest(unittest.TestCase):
         oc = self.board.resumo_ocultos(cards)["proj_p"]
         self.assertEqual(oc["pergunta"], 1)
         self.assertEqual(oc["narrativo"], 1)
-        self.assertGreaterEqual(oc["superado"], 1)
+        self.assertGreaterEqual(oc["sem-sinal"], 1)
         self.assertEqual(sum(vis.values()), len([k for k in cards if not k["oculto"]]))
 
     def test_open_items_le_do_quadro(self):
         textos = [t["text"] for t in self.xmem.open_items(self.c, project="proj_p", limit=100)]
         self.assertIn("Migrar banco de dados para PostgreSQL 16", textos)
-        self.assertNotIn("Configurar rotação de logs do servidor", textos, "superado não conta como pendência aberta")
+        self.assertNotIn("Configurar rotação de logs do servidor", textos, "sem-sinal não conta como pendência aberta")
         self.assertNotIn("O cache expira no tempo certo?", textos)
 
     def test_insights_informa_ocultos_e_e_serializavel(self):

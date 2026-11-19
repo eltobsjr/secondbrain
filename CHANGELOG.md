@@ -4,6 +4,12 @@ Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões se
 
 ## [Não lançado]
 
+## [0.8.4] - 2026-11-19
+
+### Alterado
+- **De 21 para 19 skills.** `/release` absorveu `/changelog` (modo "só changelog", que nunca cria tag) e `/board` absorveu `/priority` (seção "Prioridades escritas"). Os gatilhos antigos continuam nas descriptions das skills que absorveram; o histórico das removidas fica no git. `/release` deixou de ser só manual: a regra agora é nunca criar tag sem pedido e confirmação.
+- O rótulo "superado" virou **"sem sinal"** (valor `sem-sinal` em `oculto`): é silêncio do projeto, não prova de que o item acabou. Uma conferência no código de dois projetos achou cerca de 20% de itens vivos nessa faixa.
+
 ## [0.8.3] - 2026-11-19
 
 ### Adicionado

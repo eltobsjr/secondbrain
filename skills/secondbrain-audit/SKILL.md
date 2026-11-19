@@ -78,7 +78,7 @@ ls {caminho-mencionado} 2>/dev/null || echo "não encontrado"
 
 ### Verificação 3 — Tarefas abandonadas
 
-Com o motor, não cruze à mão: `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board summary` já mostra, por projeto, quantos itens estão **ocultos** (ruído, repetido, superado) e `board show --ocultos` lista cada um com o motivo. Sem o motor, cruze os `- [ ]` de todos os devtracks com os `- [x]` dos mais recentes:
+Com o motor, não cruze à mão: `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board summary` já mostra, por projeto, quantos itens estão **ocultos** (ruído, repetido, sem-sinal) e `board show --ocultos` lista cada um com o motivo. Sem o motor, cruze os `- [ ]` de todos os devtracks com os `- [x]` dos mais recentes:
 
 - Item aparece como `[ ]` em devtrack antigo **e** como `[x]` em devtrack recente → concluído, OK
 - Item aparece como `[ ]` em devtrack antigo **e** não aparece mais nos recentes → **abandonado**

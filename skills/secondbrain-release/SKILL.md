@@ -1,19 +1,19 @@
 ---
 name: secondbrain-release
 description: |
-  Prepara a documentação de um release: release notes, atualiza o CHANGELOG,
-  sugere a versão e cria tag git.
+  Prepara a documentação de um release (release notes, CHANGELOG, versão, tag git) ou só gera/atualiza
+  o CHANGELOG.md no formato Keep a Changelog (modo changelog; ex-/changelog).
   
   Use esta skill sempre que o usuário pedir para:
-  - "/release"
+  - "/release" e "/changelog"
+  - "gera o changelog" / "atualiza o changelog" / "documenta as mudanças da versão"
   - "prepara o release"
   - "vamos fazer o release"
   - "fechar a versão"
   - "gera as release notes"
   - "taguear a versão"
   - ao preparar um deploy de produção ou publicação de versão
-argument-hint: "[versão]"
-disable-model-invocation: true   # cria tag git: só roda quando o usuário invoca /release
+argument-hint: "[changelog | versão]"
 ---
 
 # SecondBrain — Release
@@ -21,6 +21,10 @@ disable-model-invocation: true   # cria tag git: só roda quando o usuário invo
 > **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
 
 Prepara tudo para um release: release notes, CHANGELOG atualizado e tag git.
+
+**Dois modos.** *Release completo* (pedido de release, versão ou tag): todos os passos. *Só changelog* (pedido de "changelog", "documenta as mudanças"; o antigo `/changelog`): passos 1, 2 e 4, **sem release notes e sem tag**.
+
+**Regra firme:** a tag git só é criada quando o usuário pediu release ou tag **e confirmou**. Pedido só de changelog nunca cria tag. Nada é enviado ao remoto sem instrução explícita.
 
 ---
 
@@ -91,14 +95,26 @@ Salve em `{vault}/{releases}/{versão}.md`:
 
 ---
 
-## Passo 4 — Atualizar o CHANGELOG
+## Passo 4 — Atualizar o CHANGELOG (também é o modo "só changelog")
 
-Adicione a nova versão no topo do `CHANGELOG.md` usando o formato Keep a Changelog.
-Preserve o histórico abaixo.
+Se não usa tags, pergunte a versão ou use `Unreleased`. Classifique cada mudança dos commits e devtracks (`Added`, `Changed`, `Fixed`, `Removed`, `Security`, `Deprecated`) e adicione a nova versão no topo do `CHANGELOG.md` (Keep a Changelog), preservando o histórico. Se não existe, crie do zero.
+
+```markdown
+## [{versão}] — {data-de-hoje}
+
+### Added
+- {Nova funcionalidade em linguagem do usuário final}
+
+### Changed
+### Fixed
+- {Bug descrito pelo sintoma}
+```
+
+Regras: linguagem do usuário final ("o botão de mais resultados só aparece quando há uma busca ativa", não "adicionado `@if`"); omita seções vazias; use o idioma do projeto (`feedback_language.md`). **Mostre o changelog e aguarde aprovação antes de salvar.** No modo só changelog, termine aqui: `✓ CHANGELOG.md salvo na raiz`.
 
 ---
 
-## Passo 5 — Criar a tag git
+## Passo 5 — Criar a tag git (só no release completo)
 
 Após confirmação do usuário, execute:
 

@@ -1,6 +1,6 @@
 # ESTADO.md — retrato curto do projeto
 
-Uma página, **reescrita** (não acumulada) pelo `/devtrack` e pelo `/priority`. É o que `/context` e o início de sessão leem primeiro; o devtrack completo só é aberto sob demanda. Caminho: papel `estado` do manifesto (padrão `{vault}/ESTADO.md`).
+Uma página, **reescrita** (não acumulada) pelo `/devtrack` e pelas prioridades do `/board`. É o que `/context` e o início de sessão leem primeiro; o devtrack completo só é aberto sob demanda. Caminho: papel `estado` do manifesto (padrão `{vault}/ESTADO.md`).
 
 Limite: ~40 linhas. Se passar, comprima — detalhe pertence ao devtrack.
 

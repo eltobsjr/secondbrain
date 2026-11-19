@@ -2,7 +2,7 @@
 tipo: arquitetura
 status: ativo
 data: 2026-11-19
-versao: 0.8.3
+versao: 0.8.4
 ---
 
 # Arquitetura da memória cruzada do SecondBrain
@@ -144,14 +144,14 @@ Devtrack é retrato de fim de sessão: toda caixa `- [ ]` fica aberta para sempr
 | `pergunta` | item de **devtrack** terminado em `?` (em CHECKLIST, feature e prioridade, pergunta é verificação real) |
 | `narrativo` | item de devtrack que é frase de estado ("nenhum commit feito", "não testado") |
 | `repetido` | uma sessão posterior reescreveu o item (semelhança ≥ 0,50, IDF por projeto) e ele segue aberto |
-| `superado` | o projeto teve devtrack 14+ dias depois, o item nunca reapareceu **e o `ESTADO.md` e a `prioridade/atual.md` não o citam** (contenção ≥ 0,60 do peso do item) |
+| `sem-sinal` | o projeto teve devtrack 14+ dias depois, o item nunca reapareceu **e o `ESTADO.md` e a `prioridade/atual.md` não o citam** (contenção ≥ 0,60 do peso do item) |
 | feito por outra redação | uma sessão posterior marcou `[x]` um item com semelhança ≥ 0,50: o cartão vira Feito (`status_origem: evidencia`) |
 
-`build(ocultos=False)` esconde os ocultos; `ocultos=True` traz tudo. **Uma decisão no `quadro.md` sempre vence** o ocultar. Projeto dormido não gera superado (a condição é medida contra o último devtrack, não contra a data de hoje). `xmem.open_items` (hook, digest, insights) lê do quadro, então respeita o que foi fechado ou descartado.
+`build(ocultos=False)` esconde os ocultos; `ocultos=True` traz tudo. **Uma decisão no `quadro.md` sempre vence** o ocultar. Projeto dormido não gera sem-sinal (a condição é medida contra o último devtrack, não contra a data de hoje). `xmem.open_items` (hook, digest, insights) lê do quadro, então respeita o que foi fechado ou descartado.
 
 **Conciliação (`xmem.py reconcile <projeto>`).** Confronta as pendências abertas com o git dos repositórios `ativo` do manifesto (`repos:`; `referencia` só com `--incluir-referencias`): **A** hash citado existe, ou commit posterior com o mesmo assunto (≥ 0,50 e 3+ termos); **B** parece tratar do assunto (≥ 0,35, 2+ termos); **C** arquivo citado foi alterado depois (commits com mais de 150 arquivos são ignorados). Só `--aplicar A --sim` grava, com as etiquetas `#ja-feito #reconciliado`. Também lista hashes citados nas notas que não existem em nenhum repositório e avisa de `.git` que o git não reconhece.
 
-**Limite medido num projeto real:** o texto do commit e o arquivo citado confirmam só uma pequena parte do que foi feito. Commit não é o mecanismo principal; é evidência para você decidir. O guarda do estado vivo existe porque 28 superados de 20 a 27/10 ainda estavam vivos em prosa no `prioridade/atual.md`.
+**Limite medido num projeto real:** o texto do commit e o arquivo citado confirmam só uma pequena parte do que foi feito. Commit não é o mecanismo principal; é evidência para você decidir. O guarda do estado vivo existe porque 28 sem-sinal de 20 a 27/10 ainda estavam vivos em prosa no `prioridade/atual.md`.
 
 ## 8.3 Semana, prazo e janelas (decisão 012, `scripts/semana.py`)
 

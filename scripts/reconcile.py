@@ -207,7 +207,7 @@ def cmd(a, c):
             print(f"- {h}  em {rel}")
         if len(inexist) > 10:
             print(f"- … e mais {len(inexist) - 10}")
-    print("\nCartões em `board show --ocultos` (superados, repetidos) entram na conciliação; os que o git não confirma ficam para você decidir.")
+    print("\nCartões em `board show --ocultos` (sem-sinal, repetidos) entram na conciliação; os que o git não confirma ficam para você decidir.")
 
 
 def add_parser(sp):

@@ -112,7 +112,7 @@ class SemanaPuraTest(unittest.TestCase):
         cards = [self._card("fut", semana_ef="2026-W44", prazo="2026-12-02"), self._card("and", semana_ef="2026-W44", status="fazendo"),
                  self._card("blq", semana_ef="2026-W44", status="bloqueado"), self._card("ven", semana_ef="2026-W44", prazo="2026-11-05"),
                  self._card("sem", semana_ef="2026-W44"), self._card("atual", semana_ef="2026-W47"),
-                 self._card("oculto", semana_ef="2026-W44", oculto="superado"), self._card("feito", semana_ef="2026-W44", status="feito")]
+                 self._card("oculto", semana_ef="2026-W44", oculto="sem-sinal"), self._card("feito", semana_ef="2026-W44", status="feito")]
         p = {x["id"]: x for x in self.sm.propostas_revisao(cards, HOJE)}
         self.assertEqual(set(p), {"fut", "and", "blq", "ven", "sem"}, "semana atual, oculto e feito ficam de fora")
         self.assertEqual((p["fut"]["criterio"], p["fut"]["para"], p["fut"]["mecanica"]), ("prazo-futuro", "2026-W49", True))

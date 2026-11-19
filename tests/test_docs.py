@@ -48,10 +48,11 @@ if __name__ == "__main__":
 
 class FontesTest(unittest.TestCase):
     def test_priority_nao_gera_caixas_e_skills_apontam_para_a_tabela(self):
-        pri = ler("skills", "secondbrain-priority", "SKILL.md")
-        modelo = pri[pri.index("## Passo 4"):pri.index("## Passo 5")]
-        self.assertNotIn("- [ ]", modelo, "a visão de prioridades não pode ter caixas: o quadro as leria de volta")
-        for s in ("priority", "resume", "standup"):
+        pri = ler("skills", "secondbrain-board", "SKILL.md")
+        modelo = pri[pri.index("## Prioridades escritas"):]
+        import re
+        self.assertIsNone(re.search(r"^\s*- \[ \]", modelo, re.M), "a visão de prioridades não pode ter caixas: o quadro as leria de volta")
+        for s in ("resume", "standup"):
             self.assertIn("board show", ler("skills", f"secondbrain-{s}", "SKILL.md"), s)
         self.assertTrue(os.path.isfile(os.path.join(RAIZ, "references", "fontes-de-verdade.md")))
 

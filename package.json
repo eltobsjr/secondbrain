@@ -1,5 +1,5 @@
 {
   "name": "secondbrain",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "SecondBrain skill suite for Claude Code — persistent project memory, session logging, and knowledge management."
 }

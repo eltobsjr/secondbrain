@@ -979,7 +979,7 @@ def open_items(c, project=None, topic=None, limit=10):
     """Itens ainda em aberto, do mais antigo ao mais novo (ou, com `topic`, do mais recente).
 
     Lê do quadro: o que você fechou ou descartou no quadro.md não conta, e o que o motor reconhece como ruído, repetido ou
-    superado (pend.py) também não. Se o quadro não puder ser carregado, cai na regra antiga (última ocorrência da caixa)."""
+    sem-sinal (pend.py) também não. Se o quadro não puder ser carregado, cai na regra antiga (última ocorrência da caixa)."""
     try:
         import board
         cards = board.build(c, project)
