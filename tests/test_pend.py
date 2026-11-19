@@ -115,7 +115,9 @@ class PendTest(unittest.TestCase):
 
     def test_risco_aberto_nunca_vira_superado(self):
         for t in ("Rotacionar o segredo vazado do serviço de pagamentos", "Liberar o deploy bloqueado pela revisão externa",
-                  "Chave exposta no log do servidor de testes", "Fechar o item pendente do contrato com o parceiro"):
+                  "Chave exposta no log do servidor de testes", "Fechar o item pendente do contrato com o parceiro",
+                  "Rotacionar SUPABASE_SERVICE_ROLE_KEY e GEMINI_API_KEY (pendência antiga, ainda aberta)", "supabase secrets set ANTHROPIC_API_KEY no projeto novo",
+                  "Fase 4 do RFC: FSRS nos flashcards (a tabela já existe)", "Suporte a múltiplos provedores de IA, futuro e sem prazo"):
             pj = self._proj([(t, False, "2026-01-01")], "2026-03-01")
             estado, evid, _ = pj.classificar(t, "2026-01-01", "devtrack/2026-01-01.md")
             self.assertEqual(estado, "", t)

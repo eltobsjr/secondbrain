@@ -177,3 +177,22 @@ class UsoTest(unittest.TestCase):
         finally:
             os.environ.pop("SECONDBRAIN_SEM_USO")
         self.assertFalse(os.path.exists(self.xmem.USO_PATH))
+
+
+class IdadeTest(unittest.TestCase):
+    def test_penalidade_de_idade_desligada_por_padrao_e_com_piso(self):
+        sys.path.insert(0, SCRIPTS)
+        sys.modules.pop("xmem", None)
+        xm = importlib.import_module("xmem")
+        from datetime import date, timedelta
+        velho = {"kind": "devtrack", "data": (date.today() - timedelta(days=400)).isoformat()}
+        os.environ.pop("SECONDBRAIN_IDADE_METADE_DIAS", None)
+        self.assertEqual(xm.fator_idade(velho), 1.0)
+        os.environ["SECONDBRAIN_IDADE_METADE_DIAS"] = "30"
+        try:
+            self.assertAlmostEqual(xm.fator_idade(velho), 0.6, places=3)
+            self.assertEqual(xm.fator_idade({"kind": "decisao", "data": velho["data"]}), 1.0, "decisão não envelhece")
+            novo = {"kind": "devtrack", "data": date.today().isoformat()}
+            self.assertAlmostEqual(xm.fator_idade(novo), 1.0, places=3)
+        finally:
+            os.environ.pop("SECONDBRAIN_IDADE_METADE_DIAS", None)

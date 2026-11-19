@@ -4,6 +4,17 @@ Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões se
 
 ## [Não lançado]
 
+## [0.8.3] - 2026-11-19
+
+### Adicionado
+- Penalidade de idade configurável na busca (`SECONDBRAIN_IDADE_METADE_DIAS`, desligada por padrão, piso 0,6; decisão, padrão, aprendizado e memória não envelhecem).
+
+### Alterado
+- Os modelos longos de `/analyze`, `/setup` e `/audit` foram para `references/*-modelos.md` e as skills só apontam para eles (de 1.114 para 675 linhas de skill).
+
+### Corrigido
+- "Superado" não esconde mais item que fala de chave, segredo, token, senha, rotação, pendência, nem item de roadmap ("futuro", "fase N", RFC). Uma conferência contra o git e o código de dois projetos mostrou itens vivos escondidos por essa regra.
+
 ## [0.8.2] - 2026-11-19
 
 ### Adicionado

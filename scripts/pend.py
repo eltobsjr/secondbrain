@@ -36,7 +36,9 @@ _NARRATIVO = re.compile(
     r"|sem mudanca|nao rodado)\b")
 NARRATIVO_MAX_PALAVRAS = 6
 # item que fala de risco aberto nunca vira "superado" sozinho: sumir de um devtrack não resolve segredo exposto nem bloqueio
-_RISCO = re.compile(r"\b(pendentes?|bloquead[oa]s?|bloqueios?|expost[oa]s?|segredos?|ainda nao)\b")
+_RISCO = re.compile(r"\b(pendentes?|pendencias?|bloquead[oa]s?|bloqueios?|expost[oa]s?|segredos?|secrets?|chaves?|tokens?|senhas?|credenciais|"
+                    r"api.?key|service.?role|rotacion\w*|vazad[oa]s?|vazamentos?|ainda nao|"
+                    r"futuro|roadmap|rfc|fase \d+)\b")      # roadmap não "supera" por silêncio: o item é plano, não tarefa esquecida
 # primeira palavra de uma pergunta que ainda é tarefa ("Migrar o banco para o PG 16?"): infinitivo, não interrogativo
 _NAO_INFINITIVO = frozenset("qualquer colher mulher poder dever prazer taxer".split())
 

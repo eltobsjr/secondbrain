@@ -61,3 +61,14 @@ class DevtrackEnxutoTest(unittest.TestCase):
         txt = ler("skills", "secondbrain-devtrack", "SKILL.md")
         self.assertLess(len(txt.splitlines()), 120)
         self.assertIn("session-close", txt)
+
+
+class ModelosTest(unittest.TestCase):
+    def test_modelos_tirados_das_skills_existem_nas_referencias(self):
+        import re
+        for skill in ("analyze", "setup", "audit"):
+            txt = ler("skills", f"secondbrain-{skill}", "SKILL.md")
+            ref = ler("references", f"{skill}-modelos.md")
+            for n in re.findall(r"\*\*Modelo (\d+)\*\*", txt):
+                self.assertIn(f"## Modelo {n} —", ref, f"{skill}: modelo {n} sem texto na referência")
+            self.assertLess(len(txt.splitlines()), 300 if skill != "audit" else 260)

@@ -646,6 +646,25 @@ def chunk_terms(text):
     return {t for t in tokens(text) if not t.startswith("~")}
 
 
+ATEMPORAIS = ("decisao", "padrao", "aprendizado", "postmortem", "rfc", "memory", "claude-md")
+
+
+def fator_idade(r, hoje=None):
+    """Penalidade de idade, DESLIGADA por padrão. `SECONDBRAIN_IDADE_METADE_DIAS=N` faz o peso de um registro de sessão cair
+    para a metade a cada N dias (piso de 0,6: nunca some). Decisão, padrão, aprendizado e memória não envelhecem."""
+    try:
+        metade = float(os.environ.get("SECONDBRAIN_IDADE_METADE_DIAS") or 0)
+    except ValueError:
+        return 1.0
+    if metade <= 0 or r["kind"] in ATEMPORAIS:
+        return 1.0
+    try:
+        dias = ((hoje or date.today()) - date.fromisoformat((r["data"] or "")[:10])).days
+    except ValueError:
+        return 1.0
+    return 0.6 + 0.4 * 0.5 ** (max(0, dias) / metade)
+
+
 def hybrid(c, query, k=8, project=None, exclude_project=None, kinds=None, tipo=None, since=None,
            include_inactive=False, boost=True, min_cover=0.0):
     qtf = tf_of(query)
@@ -720,6 +739,7 @@ def hybrid(c, query, k=8, project=None, exclude_project=None, kinds=None, tipo=N
         if boost:
             kb = KIND_BOOST.get(r["kind"], KIND_BOOST.get(r["tipo"], 1.0))
             sc *= 1 + (kb - 1) * cover  # o bônus de tipo só vale se a nota realmente cobre a pergunta
+        sc *= fator_idade(r)
         cur = best.get(r["id"])
         if not cur or sc > cur["score"]:
             best[r["id"]] = {"score": sc, "cos": cos.get(cid), "row": r}
