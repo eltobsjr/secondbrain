@@ -11,213 +11,78 @@ description: |
   - "documentar a sessão"
   - ao final de uma sessão de implementação
   
-  Também acionar proativamente quando o usuário disser "terminamos", "por hoje é isso",
+  Também PROPOR (perguntando antes de gravar) quando o usuário disser "terminamos", "por hoje é isso",
   "pode encerrar" ou qualquer sinal de encerramento de sessão sem ter gerado o devtrack.
 ---
 
 # SecondBrain — Devtrack
 
-> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é a pasta do vault e `{devtrack}`, `{decisoes}`, `{features}`, `{prioridade}` etc. são os caminhos que o manifesto dá a cada papel (sem manifesto, valem os padrões).
+> **Vault:** antes de ler ou gravar, resolva o vault e os caminhos conforme `references/vault-resolve.md` (manifesto `_secondbrain.md`; se faltar, migração assistida sem mover nada). Neste arquivo, `{vault}` é o vault e `{devtrack}`, `{estado}` etc. são os caminhos que o manifesto dá a cada papel.
 
-Gera e salva o log de sessão no vault do projeto.
+Gera o log de sessão no vault do projeto. O devtrack é um retrato de fim de sessão e **nunca é reescrito depois**. A parte mecânica fica no motor; aqui entra só o julgamento.
 
----
-
-## Passo 0 — Fechar o ciclo da sessão anterior (se o motor existir)
-
-O devtrack é um retrato de fim de sessão. Na prática, a grande maioria das caixas `- [ ]` que ele deixa abertas nunca mais aparece numa sessão seguinte: foram feitas ou largadas sem registro. Por isso, **antes de escrever o devtrack novo**, concilie o anterior. Com `$SB/xmem.py` (`references/vault-resolve.md`, seção 0):
+## Passo 1 — Rodar o fechamento (mecânico, somente leitura)
 
 ```bash
-python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board show --project <projeto> --status a-fazer,fazendo,bloqueado
-python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" reconcile <projeto>
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" session-close <projeto>
 ```
 
-Rode também `python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board revisao --project <projeto>` (revisão semanal: propõe o que fazer com os abertos de semanas que passaram) e `board agenda --project <projeto>` (o que está atrasado, vence hoje ou está chegando). Pergunte uma vez, em lote, o destino de cada pendência da sessão anterior: **feito**, **segue** ou **descartado** (com o motivo, em uma frase). O que segue e tem data recebe prazo e semana: `board plan <projeto> <id> --semana esta|proxima --prazo +3d`. O que o git confirma (nível A do `reconcile`) pode ser proposto como feito; níveis B e C só se o usuário concordar. Registre no quadro (`board move <projeto> <id> feito|descartado`). **Nunca reescreva o devtrack antigo.** Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes. Sem o motor, pergunte só pelas pendências do último devtrack.
+Entrega de uma vez: data, último devtrack e lacuna, aviso se já existe devtrack de hoje, git da sessão, quadro (abertos), conciliação com o git, revisão semanal e agenda. Sem o motor, use `date`, `ls {vault}/{devtrack}/ | sort | tail -1`, `git status --short` e `git log --since="10 hours ago"`.
 
-## Passo 1 — Coletar contexto da sessão
+- **Lacuna maior que 3 dias:** avise ("o último devtrack foi em {data}") e ofereça um devtrack do período, com o git log como fonte.
+- **Já existe devtrack de hoje:** acrescente a ele em vez de criar outro.
+- **Pendências da sessão anterior:** pergunte **uma vez, em lote**, o destino de cada uma: feito, segue ou descartado (com o motivo). O que o git confirma (nível A do `reconcile`) pode ser proposto como feito; B e C só se o usuário concordar. Registre com `board move <projeto> <id> feito|descartado|bloqueado --bloqueado-por "<motivo>"`; o que segue e tem data recebe `board plan <projeto> <id> --semana esta|proxima --prazo +3d`. Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes.
 
-Execute em paralelo:
+## Passo 2 — Título e arquivo
 
-```bash
-# Data de hoje e do devtrack mais recente
-date +%Y-%m-%d
-ls {vault}/{devtrack}/ 2>/dev/null | sort | tail -1
+Infira o título pelo que foi feito (a feature ou o sintoma principal; "análise" se não houve código). Não pergunte. Evite "Sessão de trabalho", "Fixes". Arquivo: `{vault}/{devtrack}/YYYY-MM-DD - {Título}.md`. Se não achar o vault, procure no diretório pai ou pergunte.
 
-# Arquivos modificados na sessão (staged + unstaged + untracked relevantes)
-git diff --name-only HEAD 2>/dev/null
-git diff --name-only --cached 2>/dev/null
-git status --short 2>/dev/null
+## Passo 3 — Escrever
 
-# Commits feitos nesta sessão (últimas 10 horas)
-git log --oneline --since="10 hours ago" 2>/dev/null
-
-# Caminho do vault
-ls {vault}/{devtrack}/ 2>/dev/null | sort | tail -5
-```
-
-Também use a conversa atual como fonte primária: o que foi discutido, implementado, corrigido, decidido ou planejado nesta sessão.
-
-**Verificar gap desde o último devtrack:**
-A partir do nome do devtrack mais recente, extraia a data (`YYYY-MM-DD`). Se a diferença para hoje for maior que 3 dias, avise antes de continuar:
-
-> "⚠️ O último devtrack foi em {data} ({N} dias atrás). Sessões sem registro podem ter perdido contexto. Vou gerar o devtrack de hoje — se quiser, posso também criar um devtrack resumido do período {data} → hoje."
-
-Se o usuário quiser o devtrack do período, gere um único arquivo cobrindo o intervalo, usando git log como fonte principal.
-
----
-
-## Passo 2 — Inferir o título
-
-**Não pergunte o título ao usuário.** Infira a partir do que foi feito:
-
-- Se foi implementação: use o nome da feature/componente principal
-- Se foi correção de bugs: use o sintoma ou componente principal
-- Se foi análise/planejamento: indique isso no título
-- Se foram múltiplas coisas: escolha a mais significativa ou combine as 2 principais
-
-**Exemplos de bons títulos:**
-- `Implementação DocumentMoreResults no card de busca`
-- `Correções de exibição do botão DocumentMoreResults`
-- `Análise HU002 v1.5 e leitura HU004`
-- `Redesign search page e responsividade`
-- `Fases 1-6 submissão concluídas, audit HU002-new v1.4`
-
-**Evitar:**
-- `Sessão de trabalho`
-- `Implementações diversas`
-- `Fixes`
-
----
-
-## Passo 3 — Gerar o devtrack
-
-Use o formato de `references/devtrack-format.md`. Siga as regras abaixo:
-
-### Nome do arquivo
-```
-YYYY-MM-DD - {Título inferido}.md
-```
-
-### Estrutura obrigatória
+Formato completo e seções opcionais (Bugs corrigidos, Decisões técnicas, Próximos passos) em `references/devtrack-format.md`. Mínimo:
 
 ```markdown
 ---
 tipo: devtrack
 data: YYYY-MM-DD
-commits: [{hashes curtos dos commits da sessão, se houver}]
+commits: [hashes curtos da sessão]
 ---
 
 # YYYY-MM-DD — {Título}
 
-{Se foi sessão de análise sem código}: > Sessão de análise e planejamento. Sem implementação de código.
-
 ## O que foi feito
-
-{Narrativa clara do que aconteceu. Pode ser em tópicos numerados se múltiplas iniciativas.
- Inclua o "por quê" das decisões, não só o "o quê" — o git diff já tem o o quê.}
-
----
+{narrativa com o "por quê"; o git diff já tem o "o quê"}
 
 ## Arquivos modificados
-
 | Arquivo | Mudança |
 |---|---|
-| `caminho/completo/do/arquivo` | O que mudou e por quê |
 
 ## Status
-
-- [x] {Cada coisa concluída}
-- [ ] {Cada pendência em aberto}
+- [x] concluído
+- [ ] pendência em aberto
 ```
 
-**Onde vai a pendência.** Caixa `- [ ]` só para o que ainda vai ser feito. Não use caixa para pergunta (`...?`), para frase de estado ("nenhum commit feito", "não testado") nem para etapa de procedimento da sessão: escreva isso em texto. O quadro ignora pergunta e frase de estado em devtrack. Tarefa nova que você assume nesta sessão ganha prazo (`board plan` ou `board prazo`); sem prazo ela aparece como "sem prazo", nunca como atrasada. O que segue vivo vai também no `ESTADO.md` (Próximo passo, Bloqueios): se o estado vivo cita o item, ele continua aberto; se não cita e o item não reaparece em 14 dias de projeto, o quadro o oculta como superado.
+**Modo curto** (poucos arquivos, nenhuma decisão, nenhum bug): só `O que foi feito`, `Status` e, se houver, `Próximos passos`. Sessão sem código: `> Sessão de análise e planejamento. Sem implementação de código.` Respeite `nomes.devtrack` e `campos-extra.devtrack` do manifesto.
 
-### Modo curto
+**Onde vai a pendência.** Caixa `- [ ]` só para o que ainda vai ser feito. Pergunta (`...?`), frase de estado ("nenhum commit feito", "não testado") e etapa de procedimento vão em texto, não em caixa. Tarefa nova que você assume ganha prazo (`board plan` ou `board prazo`); sem prazo aparece como "sem prazo", nunca como atrasada. O que segue vivo vai também no `ESTADO.md`: se o estado vivo cita o item ele continua aberto; se não cita e ele não reaparece em 14 dias de projeto, o quadro o oculta como superado (`references/fontes-de-verdade.md`).
 
-Sessão pequena (poucos arquivos, nenhuma decisão, nenhum bug relevante): gere só `## O que foi feito`, `## Status` e, se houver, `## Próximos passos`. Não encha seções por obrigação. Respeite também o `nomes.devtrack` e os `campos-extra.devtrack` do manifesto, se existirem.
+## Passo 4 — Atualizar o que deriva do devtrack
 
-### Seções opcionais (adicionar quando aplicável)
-
-**Se corrigiu bugs:**
-```markdown
-## Bugs corrigidos
-
-### Bug — {nome curto}
-
-**Problema:** sintoma observado.
-**Causa:** explicação técnica.
-**Correção:** `arquivo` — o que foi mudado.
-```
-
-**Se tomou decisões técnicas não óbvias:**
-```markdown
-## Decisões técnicas
-
-### {Nome da decisão}
-**Contexto:** por que precisou decidir.
-**Alternativas consideradas:** ...
-**Decisão:** o que foi escolhido e por quê.
-```
-
-**Se há ações claras para a próxima sessão:**
-```markdown
-## Próximos passos
-
-1. {Ação específica com contexto suficiente para retomar sem reler tudo}
-```
-
----
-
-## Passo 4 — Salvar o arquivo
-
-Detecte o vault do projeto:
-```bash
-ls -d *SecondBrain/ 2>/dev/null
-```
-
-Salve o devtrack em `{vault}/{devtrack}/YYYY-MM-DD - {Título}.md`.
-
-Se não encontrar o vault na raiz, procure no diretório pai ou pergunte ao usuário onde está o SecondBrain do projeto.
-
----
-
-## Passo 4a — Atualizar o quadro (se o motor existir)
-
-Se `$SB/xmem.py` existir, o quadro já mostra os `- [ ]` deste devtrack como cartões novos. Para o que foi **concluído nesta sessão**, mova para Feito (`python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board move <projeto> <id> feito`; ids em `board show --project <projeto>`): o comando já marca `- [x]` na nota de origem e, se o `ESTADO.md` citar o item, o marca com `revisar:` (o passo 4b abaixo o reescreve). Ou marque `- [x]` à mão no devtrack seguinte. O que ficou **bloqueado**, mova para `bloqueado --bloqueado-por "<motivo>"`. Em vault sensível ou versionado o comando pede `--confirmo`: pergunte antes. Se o projeto não tem `quadro.md` e o usuário não usa o quadro, pule sem perguntar. O quadro oculta por padrão o que é ruído, repetido ou superado (`board show --ocultos` lista, com o motivo).
-
-## Passo 4b — Atualizar o ESTADO.md
-
-Se o vault tem o papel `estado` (arquivo `ESTADO.md` ou o caminho do manifesto) — ou o módulo `estado` está ligado — **reescreva-o inteiro** conforme `references/estado-format.md`: Agora, Próximo passo, Bloqueios, Fatos voláteis (com data). Se o arquivo não existe e o módulo está ligado, crie-o. Se o projeto não usa o módulo, pule este passo sem perguntar.
-
-## Passo 4c — Regenerar o INDEX.md
-
-Se o vault tem o papel `indice`, regenere-o (sem modelo, só lê o manifesto e as notas):
+1. **Quadro:** os `- [ ]` do devtrack já aparecem como cartões. O concluído nesta sessão vai para Feito (`board move`) ou vira `- [x]` no devtrack seguinte; o bloqueado vai para `bloqueado`. Projeto sem `quadro.md` e sem uso do quadro: pule.
+2. **`ESTADO.md`** (papel `estado`, ou módulo `estado` ligado): **reescreva inteiro** conforme `references/estado-format.md` (Agora, Próximo passo, Bloqueios, Fatos voláteis com data). Projeto sem o módulo: pule sem perguntar.
+3. **Índices** (falham em silêncio se os scripts faltarem; o `/audit` avisa índice velho):
 
 ```bash
-python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/build_index.py" {vault}
-```
-
-Em seguida atualize o índice da memória cruzada (incremental e barato; falha em silêncio se o `xmem` não existir):
-
-```bash
+python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/build_index.py" {vault}     # se o vault tem o papel `indice`
 python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" index 2>/dev/null || true
 ```
 
-Se os scripts não estiverem acessíveis, pule em silêncio; o `/audit` avisa índice desatualizado.
-
----
-
 ## Passo 5 — Confirmar
-
-Após salvar, exiba:
 
 ```
 ✓ Devtrack salvo: {vault}/{devtrack}/YYYY-MM-DD - {Título}.md
-{Se atualizou}: ✓ ESTADO.md atualizado
-
-{Se houver pendências abertas}:
-Pendências registradas:
-- {lista dos checkboxes não marcados}
+✓ ESTADO.md atualizado            (se atualizou)
+Pendências registradas: - {as caixas abertas}
 ```
 
-Não mostre o conteúdo completo do devtrack — o usuário pode abrir no Obsidian.
+Não mostre o conteúdo completo; o usuário abre no Obsidian.

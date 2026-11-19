@@ -194,6 +194,14 @@ class QuadroEConciliacaoTest(unittest.TestCase):
     def todos(self):
         return {k["titulo"]: k for k in self.board.build(self.c, "proj_p", ocultos=True)}
 
+    def test_continuidade_conta_quem_reaparece_e_quem_nunca(self):
+        r = self.board.continuidade(self.c, "proj_p")
+        t = r["_total"]
+        self.assertEqual(t["itens"], t["reaparecem"] + t["nunca"])
+        self.assertGreater(t["reaparecem"], 0, "o CSV (feito depois) e o bucket (reescrito) reaparecem")
+        self.assertGreater(t["nunca"], 0, "a rotação de logs nunca mais apareceu")
+        self.assertEqual(r["proj_p"]["itens"], t["itens"])
+
     def test_cada_pendencia_cai_no_lugar_certo(self):
         k = self.todos()
         self.assertEqual(k["Implementar exportação CSV dos relatórios mensais"]["status"], "feito")

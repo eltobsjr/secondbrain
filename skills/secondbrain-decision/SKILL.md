@@ -12,7 +12,7 @@ description: |
   - "cria um ADR"
   - "salva o racional dessa decisão"
   
-  Também acionar quando, durante uma conversa técnica, uma decisão importante for tomada
+  Também PROPOR (e só gravar depois do sim) quando, durante uma conversa técnica, uma decisão importante for tomada
   e o usuário disser "vamos com X então", "decidido: Y", "optamos por Z" —
   mesmo sem pedir explicitamente para registrar.
 argument-hint: "[decisão tomada]"

@@ -23,6 +23,8 @@ description: |
 
 Consolida todas as pendências abertas do projeto em uma lista de prioridades única.
 
+**O arquivo gerado é uma visão, não a fonte, e não tem caixas `- [ ]`.** Caixa escrita aqui seria lida de volta pelo quadro como cartão duplicado: use lista numerada. (`references/fontes-de-verdade.md`)
+
 **O arquivo gerado é uma visão, não a fonte.** A fonte das pendências é o quadro (`board`); a lista escrita é um retrato dele num dia. Escreva no topo a data e que a lista vem do quadro, e **não** copie para ela itens ocultos (ruído, repetido, superado): eles voltam como pendência velha.
 
 O problema que esta skill resolve: pendências ficam espalhadas em vários devtracks,
@@ -90,17 +92,19 @@ atualizado: {data-de-hoje}
 
 # Prioridades — {NomeProjeto}
 
+> Visão do quadro em {data-de-hoje}. Para concluir, bloquear ou descartar, mova o cartão (`/board`); não marque aqui.
+
 ## Alta
-- [ ] {item mais urgente}
-- [ ] {outro item bloqueante}
+1. {item mais urgente} (`{id do cartão}`)
+2. {outro item bloqueante}
 
 ## Média
-- [ ] {item importante, próximo na sequência}
-- [ ] {outro item médio}
+1. {item importante, próximo na sequência}
+2. {outro item médio}
 
 ## Baixa
-- [ ] {nice-to-have}
-- [ ] {refatoração futura}
+1. {nice-to-have}
+2. {refatoração futura}
 
 ---
 

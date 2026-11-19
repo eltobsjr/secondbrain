@@ -13,7 +13,7 @@ description: |
   - "lembra disso para o futuro"
   - "adiciona isso à memória do projeto"
   
-  Também acionar quando o usuário descobre algo surpreendente durante a sessão e diz
+  Também PROPOR (e só gravar depois do sim) quando o usuário descobre algo surpreendente durante a sessão e diz
   coisas como "nossa, não sabia que X", "cuidado com Y", "descobri que Z" —
   mesmo sem pedir explicitamente para salvar.
 argument-hint: "[o que registrar]"

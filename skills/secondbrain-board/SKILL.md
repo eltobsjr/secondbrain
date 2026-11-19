@@ -15,7 +15,7 @@ description: |
   - "faz a triagem" / "descarta o que está velho"
   - "quais pendências estão paradas"
 
-  Também acionar ao começar a trabalhar numa tarefa (mover para Fazendo) e ao concluí-la ou bloqueá-la.
+  Também PROPOR, sem mover nada sozinho, ao começar a trabalhar numa tarefa (mover para Fazendo) e ao concluí-la ou bloqueá-la.
 argument-hint: "[ver | mover | criar | triar] [projeto]"
 ---
 

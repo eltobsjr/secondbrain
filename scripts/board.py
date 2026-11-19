@@ -124,6 +124,38 @@ CARD_RE = re.compile(r"^-\s*\[( |x|X)\]\s+(.*?)\s*$")
 FIELD_RE = re.compile(r"^\s+([a-z][a-z0-9-]*)::\s*(.*)$")
 
 
+def continuidade(c, project=None):
+    """Das caixas `- [ ]` que um devtrack deixou abertas há pelo menos SUPERADO_DIAS (o projeto seguiu depois), quantas
+    reaparecem numa sessão posterior (feitas ou reescritas) e quantas nunca mais. É a medida atrás de "a maioria dos itens
+    abertos nunca reaparece", agora reproduzível. -> {projeto: {itens, reaparecem, nunca}} e o total em "_total"."""
+    q = ("select t.text,t.checked,t.line,n.data,n.project,n.rel,n.kind from todos t join notes n on n.id=t.note_id "
+         "where n.kind='devtrack'" + (" and n.project=?" if project else ""))
+    por = defaultdict(list)
+    for r in c.execute(q, (project,) if project else ()):
+        por[r["project"]].append(r)
+    ultimo = {r["project"]: r["d"] for r in c.execute("select project, max(data) d from notes where kind='devtrack' group by project")}
+    out, tot = {}, {"itens": 0, "reaparecem": 0, "nunca": 0}
+    for proj, rows in por.items():
+        pj = pend.Projeto(rows, ultimo.get(proj))
+        n = rea = 0
+        for r in rows:
+            if r["checked"] or pend.ruido(r["text"], r["kind"]):
+                continue
+            d0 = pend._dia(r["data"])
+            if not d0 or not pj.ultimo or (pj.ultimo - d0).days < pend.SUPERADO_DIAS or len(pend.tokens(r["text"])) < 2:
+                continue
+            n += 1
+            if pj.classificar(r["text"], r["data"], r["rel"])[0] in ("feito", "repetido"):
+                rea += 1
+        if n:
+            out[proj] = {"itens": n, "reaparecem": rea, "nunca": n - rea}
+            tot["itens"] += n
+            tot["reaparecem"] += rea
+            tot["nunca"] += n - rea
+    out["_total"] = tot
+    return out
+
+
 def vault_of(c, project):
     r = c.execute("select min(vault) v from notes where project=?", (project,)).fetchone()
     return r["v"] if r and r["v"] else None

@@ -820,6 +820,59 @@ def cmd_uso(a, c):
     print(f"notas ativas que nunca voltaram: {len(nunca)} de {len(ativas)} ({100 * len(nunca) // max(1, len(ativas))}%)")
 
 
+def cmd_continuidade(a, c):
+    import board
+    r = board.continuidade(c, a.project)
+    tot = r.pop("_total")
+    if a.json:
+        print(json.dumps({"projetos": r, "total": tot}, ensure_ascii=False, indent=1))
+        return
+    print("Caixas abertas num devtrack, com o projeto seguindo 14+ dias depois: quantas reaparecem (feitas ou reescritas) e quantas nunca mais.")
+    for p_, v in sorted(r.items(), key=lambda x: -x[1]["itens"]):
+        print(f"  {p_:24} {v['itens']:4} itens  reaparecem {v['reaparecem']:4}  nunca {v['nunca']:4} ({100 * v['nunca'] // v['itens']}%)")
+    if tot["itens"]:
+        print(f"TOTAL {tot['itens']} itens: nunca reaparecem {tot['nunca']} ({100 * tot['nunca'] // tot['itens']}%)")
+
+
+def cmd_session_close(a, c):
+    """Parte mecânica do /devtrack (somente leitura): data, último devtrack e lacuna, devtrack de hoje, git da sessão, quadro,
+    conciliação, revisão semanal e agenda. O SKILL.md fica só com o julgamento (o que foi feito, decisões, pendências)."""
+    cur = a.project or detect_project(c)
+    if not cur:
+        raise SystemExit("session-close: projeto não detectado; passe o nome do projeto.")
+    v = c.execute("select vault from notes where project=? limit 1", (cur,)).fetchone()
+    hoje = date.today()
+    print(f"# Fechamento de sessão: {cur} ({hoje.isoformat()})")
+    devs = sorted(r["rel"] for r in c.execute("select rel from notes where project=? and kind='devtrack'", (cur,)))
+    if devs:
+        ult = devs[-1]
+        m = re.match(r"(?:.*/)?(\d{4}-\d{2}-\d{2})", ult)
+        gap = (hoje - date.fromisoformat(m.group(1))).days if m else None
+        print(f"Último devtrack: {ult}" + (f" ({gap} dias atrás)" if gap is not None else ""))
+        if gap is not None and gap > 3:
+            print(f"⚠ lacuna de {gap} dias: avise o usuário e ofereça um devtrack do período (git log como fonte).")
+        hoje_ = [d for d in devs if hoje.isoformat() in os.path.basename(d)]
+        if hoje_:
+            print(f"⚠ já existe devtrack de hoje ({hoje_[-1]}): acrescente a ele em vez de criar outro.")
+    else:
+        print("Nenhum devtrack ainda neste projeto.")
+    base = os.path.dirname(v["vault"]) if v else os.getcwd()
+    def sh(*cmd, tit):
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        out = (r.stdout + r.stderr).strip()
+        print(f"\n## {tit}\n" + (out[:2500] if out else "(nada)"))
+    if os.path.isdir(os.path.join(base, ".git")):
+        sh("git", "-C", base, "status", "--short", tit="Git: arquivos alterados")
+        sh("git", "-C", base, "log", "--oneline", "--since=10 hours ago", tit="Git: commits nas últimas 10 h")
+    me = os.path.abspath(__file__)
+    for tit, args in (("Quadro: abertos", ["board", "show", "--project", cur, "--status", "a-fazer,fazendo,bloqueado"]),
+                      ("Conciliação com o git", ["reconcile", cur]),
+                      ("Revisão semanal", ["board", "revisao", "--project", cur]),
+                      ("Agenda", ["board", "agenda", "--project", cur])):
+        sh(sys.executable, "-I", me, *args, tit=tit)
+    print("\nAgora: pergunte, em lote, o destino das pendências (feito, segue, descartado), escreva o devtrack e atualize o ESTADO.md.")
+
+
 def cmd_search(a, c, recall=False):
     cur = a.project_atual or detect_project(c)
     kinds = None
@@ -1645,6 +1698,8 @@ def main():
     sp = p.add_subparsers(dest="cmd", required=True)
     s = sp.add_parser("index"); s.add_argument("--full", action="store_true")
     sp.add_parser("status"); sp.add_parser("vaults"); sp.add_parser("uso")
+    s = sp.add_parser("session-close"); s.add_argument("project", nargs="?")
+    s = sp.add_parser("continuidade"); s.add_argument("project", nargs="?"); s.add_argument("--json", action="store_true")
     for name in ("search", "recall"):
         s = sp.add_parser(name); s.add_argument("query")
         s.add_argument("--project"); s.add_argument("--exclude-project"); s.add_argument("--project-atual")
@@ -1686,7 +1741,7 @@ def main():
         c = index(quiet=True)  # sincronização incremental antes de consultar
     {"status": cmd_status, "search": lambda a, c: cmd_search(a, c), "recall": lambda a, c: cmd_search(a, c, True),
      "digest": cmd_digest, "absorb-check": cmd_absorb_check, "related": cmd_related, "patterns": cmd_patterns,
-     "dups": cmd_dups, "uso": cmd_uso, "insights": cmd_insights, "hook-context": cmd_hook_context, "graph": cmd_graph,
+     "dups": cmd_dups, "uso": cmd_uso, "session-close": cmd_session_close, "continuidade": cmd_continuidade, "insights": cmd_insights, "hook-context": cmd_hook_context, "graph": cmd_graph,
      "global-init": cmd_global_init, "board": lambda a, c: board.cmd(a, c),
      "reconcile": lambda a, c: reconcile.cmd(a, c)}[a.cmd](a, c)
 

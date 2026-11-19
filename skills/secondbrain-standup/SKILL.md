@@ -49,7 +49,7 @@ Formato padrão de daily standup em 3 blocos:
  Bullets curtos, 1 linha cada. Foco no resultado, não nos detalhes técnicos.}
 
 🔜 Hoje
-{O que será feito hoje, baseado nos [ ] do devtrack e no prioridade/atual.md.
+{O que será feito hoje: com o motor, o que está em Fazendo e A fazer no quadro (`python3 -I "${SB:-$HOME/.local/share/secondbrain/bin}/xmem.py" board show --project <projeto> --status fazendo,a-fazer`) e o que vence hoje; sem o motor, os [ ] do devtrack e o prioridade/atual.md.
  Máximo 3 itens — os mais próximos na sequência lógica.}
 
 🚧 Bloqueios

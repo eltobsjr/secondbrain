@@ -121,6 +121,17 @@ class HookEstadoTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("rascunho de migração há 10 dias", r.stdout)
 
+    def test_session_close_junta_a_parte_mecanica(self):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            self.xmem.cmd_session_close(SimpleNamespace(project="proj_h"), self.c)
+        out = buf.getvalue()
+        self.assertIn("Fechamento de sessão: proj_h", out)
+        self.assertIn("Último devtrack: devtrack/", out)
+        self.assertIn("lacuna de 10 dias", out)
+        for secao in ("Quadro: abertos", "Conciliação com o git", "Revisão semanal", "Agenda"):
+            self.assertIn(secao, out)
+
 
 if __name__ == "__main__":
     unittest.main()

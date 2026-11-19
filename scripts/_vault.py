@@ -77,13 +77,19 @@ def read_repos(vault):
             continue
         if ln and not ln.startswith((" ", "\t")):
             sec = None
-        m = re.match(r"^\s+-\s+(\S+)(?:\s+(ativo|referencia))?\s*(#.*)?$", ln) if sec == "repos" else None
+        m = re.match(r"^\s+-\s+(?:\"([^\"]+)\"|'([^']+)'|(\S+))(?:\s+(ativo|referencia))?\s*(#.*)?$", ln) if sec == "repos" else None
         if m:
-            decl.append((os.path.normpath(os.path.join(proj, m.group(1))), m.group(2) or "ativo"))
+            decl.append((m.group(1) or m.group(2) or m.group(3), m.group(4) or "ativo"))
     out = []
     if decl:
-        for path, papel in decl:
-            if os.path.exists(os.path.join(path, ".git")):
+        for rel, papel in decl:
+            path = os.path.normpath(os.path.join(proj, rel))
+            # o caminho é relativo à pasta do projeto: absoluto ou `../` que sai dela não vale (o manifesto pode ser alheio)
+            if os.path.isabs(rel) or not (path == proj or path.startswith(proj + os.sep)):
+                out.append({"caminho": path, "papel": papel, "declarado": True, "valido": False, "aviso": f"fora da pasta do projeto: {rel}"})
+            elif not os.path.exists(os.path.join(path, ".git")):
+                out.append({"caminho": path, "papel": papel, "declarado": True, "valido": False, "aviso": f"não é um repositório git (sem .git): {rel}"})
+            else:
                 out.append({"caminho": path, "papel": papel, "declarado": True, "valido": _repo_valido(path)})
         return out
     return detectar_repos(proj, os.path.abspath(vault))

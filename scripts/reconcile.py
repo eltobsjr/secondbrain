@@ -55,16 +55,23 @@ def existe(repos, hashes):
     return achados
 
 
+def ref_padrao(repo):
+    """Branch padrão (origin/HEAD) ou, sem remoto, o HEAD atual. `--all` contava commit de branch largado como evidência."""
+    r = _git(repo, "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD").stdout.strip()
+    return r or "HEAD"
+
+
 def listar_commits(repo, desde):
-    out = _git(repo, "log", "--all", "--no-merges", f"--since={desde}", "--name-only", "--format=@@%h|%ad|%an|%s", "--date=short").stdout
+    out = _git(repo, "log", ref_padrao(repo), "--no-merges", f"--since={desde}", "--name-only", "--format=@@%h|%ad|%an|%s", "--date=short").stdout
     cs, cur = [], None
     for ln in out.splitlines():
         if ln.startswith("@@"):
             h, d, an, s = (ln[2:].split("|", 3) + ["", "", ""])[:4]
-            cur = {"hash": h, "data": d, "autor": an, "assunto": s, "arquivos": set(), "repo": os.path.basename(repo)}
+            cur = {"hash": h, "data": d, "autor": an, "assunto": s, "arquivos": set(), "caminhos": set(), "repo": os.path.basename(repo)}
             cs.append(cur)
         elif ln.strip() and cur is not None:
             cur["arquivos"].add(os.path.basename(ln.strip()))
+            cur["caminhos"].add(ln.strip())
     return cs
 
 
@@ -122,7 +129,9 @@ def propor(c, project, repos, desde=None):
             elif s >= pend.SIM_PROPOSTA:
                 ev.append({"nivel": "B", "tipo": "commit parece tratar do assunto", "hash": cm["hash"], "data": cm["data"], "assunto": cm["assunto"][:90], "repo": cm["repo"], "semelhanca": round(s, 2)})
         for f in ARQUIVO.findall(k["titulo"]):
-            depois = [cm for cm in por_arquivo.get(os.path.basename(f), []) if cm["data"] >= data]
+            # com diretório na citação (`src/a/lib.ts`) o caminho tem de bater; só o nome do arquivo vale por basename
+            depois = [cm for cm in por_arquivo.get(os.path.basename(f), [])
+                      if cm["data"] >= data and ("/" not in f or any(c == f or c.endswith("/" + f.lstrip("./")) for c in cm["caminhos"]))]
             if depois:
                 cm = min(depois, key=lambda x: x["data"])
                 ev.append({"nivel": "C", "tipo": "arquivo citado foi alterado", "arquivo": os.path.basename(f), "hash": cm["hash"], "data": cm["data"], "assunto": cm["assunto"][:90], "repo": cm["repo"]})
@@ -143,7 +152,7 @@ def cmd(a, c):
     quebrados = [r for r in repos_all if not r["valido"]]
     validos = [r for r in repos_all if r["valido"]]
     usar = [r for r in validos if r["papel"] == "ativo" or a.incluir_referencias]
-    avisos = [f"repositório inválido (o git não o reconhece): {r['caminho']}" for r in quebrados]
+    avisos = [f"repositório inválido ({r['aviso']})" if r.get("aviso") else f"repositório inválido (o git não o reconhece): {r['caminho']}" for r in quebrados]
     if not usar:
         msg = "nenhum repositório ativo e válido encontrado; declare `repos:` no manifesto do vault (ver references/vault-resolve.md)."
         if a.json:

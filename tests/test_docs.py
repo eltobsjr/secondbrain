@@ -44,3 +44,20 @@ class DocsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FontesTest(unittest.TestCase):
+    def test_priority_nao_gera_caixas_e_skills_apontam_para_a_tabela(self):
+        pri = ler("skills", "secondbrain-priority", "SKILL.md")
+        modelo = pri[pri.index("## Passo 4"):pri.index("## Passo 5")]
+        self.assertNotIn("- [ ]", modelo, "a visão de prioridades não pode ter caixas: o quadro as leria de volta")
+        for s in ("priority", "resume", "standup"):
+            self.assertIn("board show", ler("skills", f"secondbrain-{s}", "SKILL.md"), s)
+        self.assertTrue(os.path.isfile(os.path.join(RAIZ, "references", "fontes-de-verdade.md")))
+
+
+class DevtrackEnxutoTest(unittest.TestCase):
+    def test_skill_do_devtrack_abaixo_de_120_linhas_e_usa_o_motor(self):
+        txt = ler("skills", "secondbrain-devtrack", "SKILL.md")
+        self.assertLess(len(txt.splitlines()), 120)
+        self.assertIn("session-close", txt)

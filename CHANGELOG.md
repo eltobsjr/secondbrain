@@ -4,6 +4,11 @@ Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões se
 
 ## [Não lançado]
 
+## [0.8.2] - 2026-11-19
+
+### Adicionado
+- **P2 e P3-1.** `xmem.py session-close <projeto>` junta a parte mecânica do `/devtrack` (lacuna, devtrack de hoje, git, quadro, conciliação, revisão, agenda) e o SKILL.md do `/devtrack` caiu de 223 para 88 linhas. `xmem.py continuidade` mede quantas caixas abertas nunca reaparecem (o "79%" agora tem comando). `references/fontes-de-verdade.md` diz onde cada fato vive; `/priority` gera visão sem caixas `- [ ]`, e `/resume`, `/standup` e `/context` respondem "o que está aberto?" pelo quadro. Gatilhos proativos de `/devtrack`, `/decision`, `/learn` e `/board` passam a só propor. `repos:` do manifesto exige caminho relativo dentro do projeto, aceita aspas e avisa quando não acha o repositório; `reconcile` usa o branch padrão e o caminho completo do arquivo; as ações do CI ficam fixadas por SHA.
+
 ## [0.8.1] - 2026-11-19
 
 ### Adicionado
